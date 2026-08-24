@@ -102,11 +102,20 @@ export function createFieldList(options) {
     remove.type = 'button';
     icon('remove', remove);
 
+    const row = {
+      element, name, nameLabel, direction, directionLabel, income, expense,
+      amount, amountLabel, duplicate, remove, shown: '',
+    };
+
     const id = field.id;
     name.addEventListener('input', () => onCommand({ type: 'update', id, patch: { label: name.value } }));
     // Leaving the box settles what was typed: a trimmed name, or — if it was
-    // emptied — the field's translated default coming back.
-    name.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { label: name.value } }));
+    // emptied — the field's translated default coming back. A box nobody
+    // touched settles nothing: `shown` is what the model last put there.
+    name.addEventListener('blur', () => {
+      if (name.value === row.shown) return;
+      onCommand({ type: 'settle', id, patch: { label: name.value } });
+    });
     direction.addEventListener('change', () => onCommand({ type: 'update', id, patch: { direction: direction.value } }));
     amount.addEventListener('input', () => {
       // A negative amount is meaningless here — the direction carries the sign
@@ -121,15 +130,13 @@ export function createFieldList(options) {
     duplicate.addEventListener('click', () => onCommand({ type: 'duplicate', id }));
     remove.addEventListener('click', () => onCommand({ type: 'remove', id }));
 
-    return {
-      element, name, nameLabel, direction, directionLabel, income, expense,
-      amount, amountLabel, duplicate, remove,
-    };
+    return row;
   }
 
   function syncRow(row, field, atCap) {
     const shown = labelOf(field, t);
     const named = shown || labels.untitled;
+    row.shown = shown;
 
     row.nameLabel.textContent = labels.name;
     row.name.placeholder = labels.namePlaceholder;

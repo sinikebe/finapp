@@ -234,12 +234,25 @@ function fieldLabels() {
   };
 }
 
+/**
+ * A name box is seeded with the field's translated default, so a name equal to
+ * that default means "still the default" — not a name of the reader's own.
+ * Without this, tabbing through the box (or typing the same word and never
+ * leaving it) would pin the current language's word forever.
+ */
+function normalizeLabelPatch(patch, id) {
+  if (!('label' in patch)) return patch;
+  const field = state.fields.find((entry) => entry.id === id);
+  const dictionaryName = field && field.labelKey ? t(field.labelKey) : '';
+  return String(patch.label).trim() === dictionaryName ? { ...patch, label: '' } : patch;
+}
+
 /** Every edit the list can ask for. Each one ends in the same place: new
  *  fields, saved, redrawn, with focus left where the reader expects it. */
 function runCommand(command) {
   switch (command.type) {
     case 'update':
-      state.fields = updateField(state.fields, command.id, command.patch);
+      state.fields = updateField(state.fields, command.id, normalizeLabelPatch(command.patch, command.id));
       break;
 
     case 'settle': {
@@ -250,15 +263,7 @@ function runCommand(command) {
         const amount = toAmount(patch.amount);
         patch.amount = amount ? String(amount) : '';
       }
-      if ('label' in patch) {
-        // The box is seeded with the field's translated default, so merely
-        // tabbing through it would otherwise freeze that word as a name of the
-        // reader's own — and the field would stop following the language.
-        const field = state.fields.find((entry) => entry.id === command.id);
-        const dictionaryName = field && field.labelKey ? t(field.labelKey) : '';
-        if (patch.label.trim() === dictionaryName) patch.label = '';
-      }
-      state.fields = updateField(state.fields, command.id, patch);
+      state.fields = updateField(state.fields, command.id, normalizeLabelPatch(patch, command.id));
       break;
     }
 
