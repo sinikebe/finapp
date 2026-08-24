@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Unit tests
+        run: npm test
+      - name: Icons are reproducible from their source
+        run: |
+          npm run icons
+          git diff --exit-code -- assets/icons
+
+  cache-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: A change to a precached file must bump CACHE_VERSION
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "No base commit to compare against — nothing to check."
+            exit 0
+          fi
+          changed=$(git diff --name-only "$base" HEAD -- index.html manifest.webmanifest assets)
+          if [ -z "$changed" ]; then
+            echo "No precached file changed."
+            exit 0
+          fi
+          if git diff "$base" HEAD -- sw.js | grep -q '^[+-]const CACHE_VERSION'; then
+            echo "CACHE_VERSION was bumped alongside:"
+            echo "$changed"
+            exit 0
+          fi
+          echo "::error file=sw.js::These precached files changed but sw.js CACHE_VERSION did not, so installed apps would keep serving the old build:"
+          echo "$changed"
+          exit 1

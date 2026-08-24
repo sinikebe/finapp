@@ -1,0 +1,135 @@
+/**
+ * projection.js — the money model.
+ *
+ * Pure functions, no DOM, no globals. It takes the reader's fields and turns
+ * them into the cumulative series the app draws, so this is the file to test
+ * and the file to extend when fields learn a new trick (a start month, a yearly
+ * cadence, a growth rate): the loop below is the only place that has to change.
+ */
+
+import { normalizeFields } from './fields.js';
+
+/** Hard limits, so a pasted value or a hand-edited store can't ask for a million points. */
+export const MIN_MONTHS = 1;
+export const MAX_MONTHS = 600;
+
+/**
+ * The largest monthly flow, per direction, that keeps every cumulative total
+ * exact: at the longest horizon, MAX_AMOUNT * MAX_MONTHS in cents (6e15) still
+ * sits inside Number.MAX_SAFE_INTEGER (9.007e15), so no total ever drifts off
+ * whole cents. It caps single fields and their sum alike — twenty fields can't
+ * add up to something the arithmetic can no longer represent.
+ */
+export const MAX_AMOUNT = 1e11;
+
+/** Money is kept to whole cents; float drift never reaches the screen. */
+export function roundMoney(value) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+/** Coerce anything (string from an <input>, null, NaN) to a non-negative amount. */
+export function toAmount(value) {
+  const n = typeof value === 'number' ? value : Number.parseFloat(value);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return roundMoney(Math.min(n, MAX_AMOUNT));
+}
+
+/** Coerce anything to a whole number of months inside the supported range. */
+export function toMonths(value) {
+  const n = typeof value === 'number' ? value : Number.parseInt(value, 10);
+  if (!Number.isFinite(n)) return MIN_MONTHS;
+  return Math.min(MAX_MONTHS, Math.max(MIN_MONTHS, Math.trunc(n)));
+}
+
+/**
+ * What one field moves in a given month. **This is the seam.** Every attribute
+ * a field grows — a start month, an end month, a yearly cadence, a growth rate
+ * — decides its meaning here, and nothing else in the app has to change.
+ *
+ * @param {object} field
+ * @param {number} month 1-based: month 1 is the first month of the projection
+ */
+export function contributionOf(field, month) {
+  void month; // today every field repeats unchanged, every month
+  return toAmount(field.amount);
+}
+
+/** What one direction moves in a given month, across every field. */
+export function flowIn(fields, direction, month) {
+  const total = fields.reduce(
+    (sum, field) => (field.direction === direction ? sum + contributionOf(field, month) : sum),
+    0,
+  );
+  // Capped per month, so a hundred fields can't add up to something the
+  // arithmetic can no longer represent in whole cents.
+  return roundMoney(Math.min(total, MAX_AMOUNT));
+}
+
+/**
+ * Project cumulative income, expenses and net over a horizon.
+ *
+ * The series start at month 0 with zero — nothing has been earned or paid yet —
+ * so a horizon of N months yields N + 1 points.
+ *
+ * @param {{fields?: Array<object>, months?: number|string}} input
+ * @returns {{
+ *   fields: Array<object>, months: number,
+ *   monthlyIncome: number, monthlyExpenses: number, monthlyNet: number,
+ *   points: Array<{month: number, income: number, expenses: number, net: number}>,
+ *   totals: {income: number, expenses: number, net: number}
+ * }}
+ */
+export function project(input = {}) {
+  const fields = normalizeFields(input.fields);
+  const months = toMonths(input.months);
+
+  // Accumulated month by month rather than multiplied, so a field whose
+  // contribution varies over time needs no change here — only `contributionOf`.
+  const points = [{ month: 0, income: 0, expenses: 0, net: 0 }];
+  let income = 0;
+  let expenses = 0;
+  for (let month = 1; month <= months; month += 1) {
+    income = roundMoney(income + flowIn(fields, 'income', month));
+    expenses = roundMoney(expenses + flowIn(fields, 'expense', month));
+    points.push({ month, income, expenses, net: roundMoney(income - expenses) });
+  }
+
+  // What the reader is moving right now: the first month's flow.
+  const monthlyIncome = flowIn(fields, 'income', 1);
+  const monthlyExpenses = flowIn(fields, 'expense', 1);
+  const monthlyNet = roundMoney(monthlyIncome - monthlyExpenses);
+
+  const last = points[points.length - 1];
+  return {
+    fields,
+    months,
+    monthlyIncome,
+    monthlyExpenses,
+    monthlyNet,
+    points,
+    totals: { income: last.income, expenses: last.expenses, net: last.net },
+  };
+}
+
+/** True once any field carries an amount — before that, there is nothing to draw. */
+export function hasAmounts(projection) {
+  return projection.monthlyIncome > 0 || projection.monthlyExpenses > 0;
+}
+
+/** Extract one cumulative series from a projection. */
+export function seriesOf(projection, key) {
+  return projection.points.map((p) => ({ month: p.month, value: p[key] }));
+}
+
+/** Smallest and largest value across several series — the shared chart domain. */
+export function extentOf(seriesList) {
+  let min = 0;
+  let max = 0;
+  for (const series of seriesList) {
+    for (const point of series) {
+      if (point.value < min) min = point.value;
+      if (point.value > max) max = point.value;
+    }
+  }
+  return { min, max };
+}

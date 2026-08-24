@@ -1,0 +1,16 @@
+{
+  "name": "finapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A PWA that projects cumulative income, expenses and net over the months ahead.",
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "test": "node --test test/*.test.mjs",
+    "icons": "node tools/generate-icons.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

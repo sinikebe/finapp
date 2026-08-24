@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Finapp — estimate your financial future</title>
+  <meta id="doc-description" name="description" content="An offline-first calculator that projects cumulative income, expenses and net over the months ahead.">
+  <meta id="theme-color" name="theme-color" content="#f9f9f7">
+  <meta name="color-scheme" content="light dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Finapp">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link id="manifest-link" rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="./assets/css/app.css">
+  <script type="module" src="./assets/js/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main" data-i18n="skip.link">Skip to content</a>
+
+  <header class="app-bar">
+    <p class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M3 19h18" />
+        <path d="M4 15.5 9.5 10l4 3.5L20 6" />
+        <circle cx="20" cy="6" r="1.9" />
+      </svg>
+      <span>Finapp</span>
+    </p>
+    <div class="app-bar-actions">
+      <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
+      <button id="lang" class="ghost-button" type="button" aria-label="Language: English. Switch to French">
+        <span id="lang-label" aria-hidden="true">EN</span>
+      </button>
+      <button id="theme" class="ghost-button" type="button" aria-label="Colour theme: follow system">
+        <span id="theme-label" aria-hidden="true">Auto</span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="panel" aria-labelledby="inputs-heading">
+      <h2 id="inputs-heading" data-i18n="inputs.heading">Your monthly numbers</h2>
+      <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, and set what it repeats every month.</p>
+      <div id="fields"></div>
+      <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency — the app never converts or stores them anywhere but this device.</p>
+    </section>
+
+    <section class="panel summary" aria-labelledby="summary-heading">
+      <h2 id="summary-heading" class="sr-only" data-i18n="summary.heading">Projected totals</h2>
+      <div class="hero">
+        <p class="hero-label" id="hero-label">Net after 24 months</p>
+        <p class="hero-value" id="hero-value">—</p>
+        <p class="status-chip" id="hero-chip" hidden>
+          <svg class="chip-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+            <path id="chip-icon-path" d="M8 3.5v6M8 12.2v.3" />
+          </svg>
+          <span id="hero-chip-text"></span>
+        </p>
+      </div>
+      <dl class="kpi-row">
+        <div class="stat-tile">
+          <dt data-i18n="summary.totalIncome">Total income</dt>
+          <dd id="total-income">—</dd>
+        </div>
+        <div class="stat-tile">
+          <dt data-i18n="summary.totalExpenses">Total expenses</dt>
+          <dd id="total-expenses">—</dd>
+        </div>
+        <div class="stat-tile">
+          <dt data-i18n="summary.monthlyNet">Kept each month</dt>
+          <dd id="monthly-net">—</dd>
+        </div>
+      </dl>
+    </section>
+
+    <div class="filter-row">
+      <div class="filter">
+        <label for="months" data-i18n="filter.label">Projection length</label>
+        <div class="range-line">
+          <input id="months" type="range" min="1" max="120" step="1" value="24">
+          <!-- Visual only: the slider carries the same text in aria-valuetext,
+               so the reading is announced as the value, not as a live region. -->
+          <span id="months-readout" aria-hidden="true">24 months</span>
+        </div>
+      </div>
+      <div class="presets" role="group" data-i18n-aria="filter.presetsAria" aria-label="Preset projection lengths">
+        <button type="button" class="preset" data-months="12">1 yr</button>
+        <button type="button" class="preset" data-months="24">2 yr</button>
+        <button type="button" class="preset" data-months="60">5 yr</button>
+        <button type="button" class="preset" data-months="120">10 yr</button>
+      </div>
+    </div>
+
+    <section class="charts-section" aria-labelledby="charts-heading">
+      <h2 id="charts-heading" data-i18n="charts.heading">Cumulative over time</h2>
+      <p class="section-note" id="charts-note" data-i18n="charts.notePrompt" aria-live="polite">
+        Give a field an amount to project the months ahead.
+      </p>
+      <div class="chart-grid" id="charts"></div>
+      <p class="scale-note" data-i18n="charts.scaleNote">All three charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid.</p>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p data-i18n="footer.note">Everything is calculated on your device and saved only in this browser. No account, no network.</p>
+  </footer>
+
+  <div class="toast" id="update-toast" role="status" hidden>
+    <span data-i18n="update.ready">A new version is ready.</span>
+    <button type="button" id="update-reload" class="ghost-button" data-i18n="update.reload">Reload</button>
+  </div>
+</body>
+</html>
