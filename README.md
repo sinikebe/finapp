@@ -2,7 +2,8 @@
 
 A small progressive web app that estimates your financial future. List what
 comes in and what goes out each month, choose a horizon, and it plots three
-cumulative curves — income, expenses and net — over the months ahead.
+cumulative curves — income, expenses and net — over the months ahead. Lay out
+more than one plan and it puts them side by side.
 
 Everything runs on the device. No build step, no dependencies, no network, no
 account. The whole app is static files served from a folder.
@@ -15,7 +16,7 @@ moment.*
 
 ```sh
 npm start          # static server on http://127.0.0.1:4173
-npm test           # unit tests for the projection and the chart scales
+npm test           # unit tests for the models, the projection, the scales
 npm run icons      # regenerate the icon set from tools/generate-icons.mjs
 ```
 
@@ -85,6 +86,40 @@ the list, so the summary reports the **average over the horizon**. With only
 monthly fields that average is exactly the monthly figure, so nothing reads
 differently until you give something a longer period.
 
+## Strategies
+
+A strategy is a named set of fields — *what I do now*, *if I buy the flat*, *if
+the raise goes into the index fund*. Strategies share one horizon, so their
+curves can be read against each other, and share nothing else: each carries its
+own fields, and editing one never touches another.
+
+The app always holds at least one, and a reader who never compares anything
+never meets the idea — a lone strategy is unnamed, its tab shows its position,
+and the comparison view stays hidden until there is a second one to compare
+against. **Add a strategy** duplicates the one you are looking at, because the
+question is nearly always *what if I changed this one thing*, not *what if I
+started from nothing*.
+
+**Four is the ceiling, and the reason is the palette rather than the model.**
+Four is how many series colours stay distinguishable in every pair — for a
+reader with colour-vision deficiency, in both themes. A fifth would have to be
+told apart by name alone, which is not a chart.
+[`assets/js/strategies.js`](assets/js/strategies.js) is where that number lives,
+next to the operations — add, rename, duplicate, remove — which are pure and
+return new lists, like the field ones.
+
+### Side by side
+
+Once there is a second strategy, a chart below the flow cards draws them all on
+one scale, with a switch for what is being compared: net, in, out, and the
+investment balance when any strategy holds one. Beneath it a table gives each
+strategy's totals and its gap to the first, which is the number the comparison
+is usually for.
+
+**In that view colour means strategy, not series.** The flow cards keep their
+own meaning of colour because they never mix strategies; the comparison chart
+never mixes metrics. Neither asks colour to carry two things at once.
+
 ## What it computes
 
 The model lives in [`assets/js/projection.js`](assets/js/projection.js) and is
@@ -115,19 +150,26 @@ it never claims to know.
 
 ## The charts
 
-Three single-series line charts, hand-drawn as SVG in
-[`assets/js/chart.js`](assets/js/chart.js):
+Line charts hand-drawn as SVG in [`assets/js/chart.js`](assets/js/chart.js).
+One component draws every chart in the app: it takes a list of series and lays
+out however many it is given — the flow cards pass one each, the comparison
+chart passes one per strategy.
 
-- **One shared vertical scale** across all three cards, so the curves can be
-  read against each other. Two y-scales on one plot would invent a correlation
-  that isn't in the data; three cards on one scale don't.
-- **Series colours** are slots 1–3 of a validated categorical palette (blue,
-  orange, aqua). They clear the colour-blind and normal-vision separation floors
-  in both light and dark mode.
-- **Nothing is gated behind hover.** The endpoint is labelled directly, a
-  crosshair tooltip follows the pointer (and the arrow keys — `Shift` jumps a
-  year, `Home`/`End` jump to the ends), hovering one chart moves all three, and
-  every card has a table view with the exact monthly figures.
+- **One shared vertical scale** across the three flow cards, so the curves can
+  be read against each other. Two y-scales on one plot would invent a
+  correlation that isn't in the data; three cards on one scale don't. The
+  investment-value card is the exception, and says so: a balance is not a
+  cumulative flow, and would flatten to nothing on the flows' axis.
+- **Series colours** come from a validated categorical palette — slots 1–3
+  (blue, orange, aqua) for income, expenses and net, a fourth (purple) for the
+  investment balance, and those same four again in the comparison chart, where
+  they mean strategy. Every pair clears the colour-blind and normal-vision
+  separation floors in both light and dark mode.
+- **Nothing is gated behind hover.** Each line is labelled at its endpoint —
+  labels nudge apart when two lines finish close together — a crosshair tooltip
+  follows the pointer (and the arrow keys: `Shift` jumps a year, `Home`/`End`
+  jump to the ends), hovering one flow card moves all three, and every card has
+  a table view with the exact monthly figures.
 - **Dark mode is a selected palette**, not an inverted one.
 
 ## Layout
@@ -139,9 +181,12 @@ manifest.webmanifest       installability (manifest.fr.webmanifest: the same
 sw.js                      offline shell
 assets/css/app.css         design tokens (light + dark), shell, chart chrome
 assets/js/fields.js        the field model — shape, coercion, operations
+assets/js/strategies.js    the strategy model — a named set of fields
 assets/js/projection.js    fields + horizon → the cumulative series
 assets/js/field-list.js    the editable list of fields
-assets/js/chart.js         the SVG line chart
+assets/js/strategy-bar.js  the tabs that name, switch and add strategies
+assets/js/chart.js         the SVG line chart, one or many series
+assets/js/dom.js           the two DOM helpers the views share
 assets/js/format.js        locale-aware number formatting
 assets/js/i18n.js          English and French copy
 assets/js/app.js           wiring: inputs, state, theme, language, install, updates
@@ -190,10 +235,13 @@ keys with the same parameters, so a half-translated release fails the build.
 
 ## Your data
 
-Three keys in `localStorage`, on your device only: `finapp.state.v2` (your
-fields and horizon), `finapp.theme.v1` and `finapp.language.v1`. A store written
-before fields existed (`finapp.inputs.v1`, a lone income and rent) is carried
-over on first load and then retired, so nobody loses what they had typed.
+Three keys in `localStorage`, on your device only: `finapp.state.v3` (your
+strategies and horizon), `finapp.theme.v1` and `finapp.language.v1`. Older
+stores are read on first load and then retired, so nobody loses what they had
+typed: `finapp.state.v2`, a flat list of fields, becomes the first strategy, and
+`finapp.inputs.v1`, a lone income and rent from before fields existed, becomes
+those two fields. The old key is dropped only after the new one is written, so a
+failed write leaves the old store where it was rather than losing both.
 Nothing is sent anywhere — the app makes no network requests after loading its
 own files.
 
@@ -235,6 +283,12 @@ the flows' shared axis.
 **A new kind of field** (a mortgage with an offset, a pension with employer
 matching) is an entry in `KINDS`, a branch in `contributionOf`, the controls it
 needs in `createRow`, and which of them to show in `syncRow`.
+
+**Something a strategy carries** (a note, a start date, a colour of its own) is
+the same shape one level up: `strategies.js` owns the shape and the operations,
+`app.js` owns the storage version and the migration into it, and the comparison
+view reads whatever `project()` returns. A new column in the comparison switch
+is a key on each point plus an entry in `METRICS` and one in the dictionary.
 
 **A new language** is a block in `i18n.js`; the tests fail if it is missing a
 key that another language has.
