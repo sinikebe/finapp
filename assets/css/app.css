@@ -199,6 +199,10 @@ main {
 }
 
 .panel {
+  /* Grid and flex items default to min-width: auto, which lets the intrinsic
+     width of a text input inflate every ancestor and push the page wider than
+     the screen. Every container down to the row opts out. */
+  min-width: 0;
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -216,33 +220,37 @@ main {
 
 /* ------------------------------------------------------------- field list */
 
-.field-list { display: grid; gap: 14px; }
-.field-rows { display: grid; gap: 8px; }
+.field-list { display: grid; gap: 14px; min-width: 0; }
+.field-rows { display: grid; gap: 8px; min-width: 0; }
 
 .field-row {
-  display: grid;
-  grid-template-columns: 3px minmax(0, 1fr) minmax(120px, 154px) minmax(104px, 136px) auto;
-  grid-template-areas: "key name direction amount actions";
+  display: flex;
+  align-items: stretch;
   gap: 8px;
-  align-items: center;
+  min-width: 0;
 }
 
 /* A key in the row's own series colour, so a line here ties to a chart below.
    It repeats what the select already says — direction never rides on colour. */
 .field-row::before {
   content: "";
-  grid-area: key;
-  align-self: stretch;
-  min-height: 34px;
+  flex: 0 0 3px;
+  min-height: 44px;
   border-radius: 2px;
   background: var(--series-expenses);
 }
 .field-row[data-direction="income"]::before { background: var(--series-income); }
 
-.field-name { grid-area: name; }
-.field-direction { grid-area: direction; }
-.field-amount { grid-area: amount; }
-.field-actions { grid-area: actions; }
+/* The controls wrap as a group: adding one to a field costs no layout change,
+   and a narrow screen breaks the row instead of squeezing every box. */
+.field-controls {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 
 .field-row input,
 .field-row select {
@@ -257,12 +265,36 @@ main {
 .field-row input:hover,
 .field-row select:hover { border-color: var(--text-muted); }
 
-.field-name { font-weight: 600; letter-spacing: -0.01em; }
+.field-name {
+  /* Bases chosen so the row breaks in one place — name above, type and amount
+     below — rather than one control per line on a narrow screen. */
+  flex: 4 1 170px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.field-direction { flex: 1 1 92px; }
 
 .field-amount {
+  flex: 1 1 96px;
+  max-width: 260px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
+  /* No spinner: stepping money by one is useless, and the buttons cost ~20px
+     that a right-aligned number needs — a clipped amount hides its leading
+     digits, which is worse than any layout compromise. Arrow keys still work. */
+  appearance: textfield;
+}
+/* Scoped to out-specify `.field-row input` above, which sets the padding
+   shorthand. The value is right-aligned, so its left padding is decoration —
+   trimming it is what lets a seven-digit amount fit on a phone. */
+.field-row .field-amount { padding-left: 8px; }
+
+.field-amount::-webkit-outer-spin-button,
+.field-amount::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
 }
 
 .field-row input::placeholder {
@@ -271,7 +303,12 @@ main {
   opacity: 1;
 }
 
-.field-actions { display: flex; gap: 2px; }
+.field-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
 
 .icon-button {
   display: grid;
@@ -325,26 +362,6 @@ main {
 .fields-empty {
   font-size: 13px;
   color: var(--text-secondary);
-}
-
-@media (max-width: 640px) {
-  /* Two lines: what it is, then what it does and how much. The amount takes a
-     stated width rather than sitting in an `auto` track — an auto track sizes
-     to a number input's intrinsic ~20-character width and starves the name
-     beside it, down to a couple of visible characters. */
-  .field-row {
-    grid-template-columns: 3px minmax(0, 1fr) auto;
-    grid-template-areas:
-      "key name actions"
-      "key direction amount";
-  }
-
-  .field-amount {
-    width: 120px;
-    justify-self: end;
-  }
-
-  .field-actions { justify-self: end; }
 }
 
 .hint {

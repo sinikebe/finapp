@@ -59,8 +59,13 @@ expenses(m) = (sum of every expense field) × m
 net(m)      = income(m) − expenses(m)
 ```
 
-for `m = 0 … X`, where month 0 is today — nothing earned, nothing paid. Amounts
-are rounded to whole cents at every step, so what you read is what adds up.
+for `m = 0 … X`, where month 0 is today — nothing earned, nothing paid. The
+series are accumulated month by month rather than multiplied, because that is
+what lets a field's contribution vary over time later without rewriting
+anything: `contributionOf(field, month)` is the one function that decides what a
+field moves in a given month, and today it simply returns the same amount every
+month. Amounts are rounded to whole cents at every step, so what you read is
+what adds up.
 Input is coerced rather than trusted: a negative or unparseable amount becomes
 `0`, the horizon is clamped to 1–600 months, and both a single field and the sum
 of a direction are capped where doubles stop counting cents exactly.
@@ -164,10 +169,15 @@ rate, a category) is the next-cheapest kind of change, and it has one seam:
 1. Add it to `FIELD_SHAPE` in `fields.js` with a sensible default, and teach
    `normalizeField` how to read it. Storage, migration, duplication and the
    list's reconciliation carry it from there without knowing what it is.
-2. Give it meaning in `project()` — the per-month loop is the only place that
-   decides what an attribute *does*.
+2. Give it meaning in `contributionOf()` in `projection.js` — the one function
+   that decides what a field moves in a given month.
 3. If it needs a control, add it to `createRow` and one line to `syncRow` in
    `field-list.js`, then send its edits through the existing command stream.
+   The row is a wrapping flex line, so a new control needs no layout change.
+
+This was measured, not assumed: adding a per-field start month took six edits
+across exactly those three files, and duplication, storage round-trips and the
+v1 migration carried the new attribute with no changes at all.
 
 **A new derived series** (savings, taxes, a running balance) is a key on each
 point in `project()` plus one entry in the `CHARTS` list in `app.js`. The chart

@@ -62,16 +62,20 @@ export function createFieldList(options) {
     element.setAttribute('role', 'listitem');
     element.dataset.id = field.id;
 
-    const nameLabel = html('label', 'sr-only', element);
-    const name = html('input', 'field-name', element);
+    // Controls sit in their own wrapping row. A field that grows an attribute
+    // adds its control here and needs no layout change: the row wraps.
+    const controls = html('div', 'field-controls', element);
+
+    const nameLabel = html('label', 'sr-only', controls);
+    const name = html('input', 'field-name', controls);
     name.type = 'text';
     name.id = `field-${field.id}-name`;
     name.maxLength = 60;
     name.autocomplete = 'off';
     nameLabel.htmlFor = name.id;
 
-    const directionLabel = html('label', 'sr-only', element);
-    const direction = html('select', 'field-direction', element);
+    const directionLabel = html('label', 'sr-only', controls);
+    const direction = html('select', 'field-direction', controls);
     direction.id = `field-${field.id}-direction`;
     directionLabel.htmlFor = direction.id;
     const income = html('option', null, direction);
@@ -79,8 +83,8 @@ export function createFieldList(options) {
     const expense = html('option', null, direction);
     expense.value = 'expense';
 
-    const amountLabel = html('label', 'sr-only', element);
-    const amount = html('input', 'field-amount', element);
+    const amountLabel = html('label', 'sr-only', controls);
+    const amount = html('input', 'field-amount', controls);
     amount.type = 'number';
     amount.id = `field-${field.id}-amount`;
     amount.inputMode = 'decimal';

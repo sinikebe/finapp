@@ -41,11 +41,27 @@ export function toMonths(value) {
   return Math.min(MAX_MONTHS, Math.max(MIN_MONTHS, Math.trunc(n)));
 }
 
-/** What one direction contributes each month, across every field. */
-export function monthlyFlow(fields, direction) {
-  const total = fields
-    .filter((field) => field.direction === direction)
-    .reduce((sum, field) => sum + toAmount(field.amount), 0);
+/**
+ * What one field moves in a given month. **This is the seam.** Every attribute
+ * a field grows — a start month, an end month, a yearly cadence, a growth rate
+ * — decides its meaning here, and nothing else in the app has to change.
+ *
+ * @param {object} field
+ * @param {number} month 1-based: month 1 is the first month of the projection
+ */
+export function contributionOf(field, month) {
+  void month; // today every field repeats unchanged, every month
+  return toAmount(field.amount);
+}
+
+/** What one direction moves in a given month, across every field. */
+export function flowIn(fields, direction, month) {
+  const total = fields.reduce(
+    (sum, field) => (field.direction === direction ? sum + contributionOf(field, month) : sum),
+    0,
+  );
+  // Capped per month, so a hundred fields can't add up to something the
+  // arithmetic can no longer represent in whole cents.
   return roundMoney(Math.min(total, MAX_AMOUNT));
 }
 
@@ -67,19 +83,21 @@ export function project(input = {}) {
   const fields = normalizeFields(input.fields);
   const months = toMonths(input.months);
 
-  const monthlyIncome = monthlyFlow(fields, 'income');
-  const monthlyExpenses = monthlyFlow(fields, 'expense');
-  const monthlyNet = roundMoney(monthlyIncome - monthlyExpenses);
-
-  const points = [];
-  for (let month = 0; month <= months; month += 1) {
-    points.push({
-      month,
-      income: roundMoney(monthlyIncome * month),
-      expenses: roundMoney(monthlyExpenses * month),
-      net: roundMoney(monthlyNet * month),
-    });
+  // Accumulated month by month rather than multiplied, so a field whose
+  // contribution varies over time needs no change here — only `contributionOf`.
+  const points = [{ month: 0, income: 0, expenses: 0, net: 0 }];
+  let income = 0;
+  let expenses = 0;
+  for (let month = 1; month <= months; month += 1) {
+    income = roundMoney(income + flowIn(fields, 'income', month));
+    expenses = roundMoney(expenses + flowIn(fields, 'expense', month));
+    points.push({ month, income, expenses, net: roundMoney(income - expenses) });
   }
+
+  // What the reader is moving right now: the first month's flow.
+  const monthlyIncome = flowIn(fields, 'income', 1);
+  const monthlyExpenses = flowIn(fields, 'expense', 1);
+  const monthlyNet = roundMoney(monthlyIncome - monthlyExpenses);
 
   const last = points[points.length - 1];
   return {

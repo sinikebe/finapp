@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  project, seriesOf, extentOf, hasAmounts, monthlyFlow,
+  project, seriesOf, extentOf, hasAmounts, flowIn, contributionOf,
   toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
 import { createField, normalizeFields } from '../assets/js/fields.js';
@@ -111,11 +111,18 @@ test('absurd amounts are capped where doubles stop counting cents', () => {
 
 test('the cap holds for a direction as a whole, not just one field', () => {
   const many = Array.from({ length: 40 }, () => income(MAX_AMOUNT));
-  assert.equal(monthlyFlow(normalizeFields(many), 'income'), MAX_AMOUNT);
+  assert.equal(flowIn(normalizeFields(many), 'income', 1), MAX_AMOUNT);
 
   const worst = project({ fields: many, months: MAX_MONTHS });
   assert.ok(Number.isSafeInteger(worst.totals.income * 100), 'totals stay exact to the cent');
   assert.equal(worst.totals.income, MAX_AMOUNT * MAX_MONTHS);
+});
+
+test('a field contributes the same amount every month, for now', () => {
+  const field = income('1200');
+  assert.equal(contributionOf(field, 1), 1200);
+  assert.equal(contributionOf(field, 600), 1200);
+  assert.equal(contributionOf(income(''), 1), 0);
 });
 
 test('seriesOf pulls one key out as {month, value}', () => {
