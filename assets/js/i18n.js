@@ -9,6 +9,9 @@
 
 export const LANGUAGES = ['en', 'fr'];
 
+/** English needs count agreement where French does not: "mois" is invariant. */
+const plural = (count, one, many) => (count === 1 ? one : many);
+
 /** Fallback Intl tags, used when the browser's own tags don't match the choice. */
 const DEFAULT_LOCALES = { en: 'en-US', fr: 'fr-FR' };
 
@@ -34,14 +37,15 @@ const STRINGS = {
     'inputs.rentHint': 'Rent, paid every month of the projection.',
     'inputs.currencyNote': 'Amounts are in your own currency — the app never converts or stores them anywhere but this device.',
     'summary.heading': 'Projected totals',
-    'summary.heroLabel': (months) => `Net after ${months} months`,
+    'summary.heroLabel': (months) => `Net after ${months} ${plural(months, 'month', 'months')}`,
     'summary.totalIncome': 'Total income',
     'summary.totalExpenses': 'Total expenses',
     'summary.monthlyNet': 'Kept each month',
     'summary.surplus': (amount) => `You keep ${amount} a month`,
     'summary.shortfall': (amount) => `Rent outruns income by ${amount} a month`,
     'filter.label': 'Projection length',
-    'filter.readout': (months, horizon) => `${months} months · ${horizon}`,
+    'filter.readout': (months, horizon) => `${months} ${plural(months, 'month', 'months')} · ${horizon}`,
+    'filter.readoutShort': (months) => `${months} ${plural(months, 'month', 'months')}`,
     'filter.presetsAria': 'Preset projection lengths',
     'filter.preset': (years) => (years === 1 ? '1 yr' : `${years} yr`),
     'charts.heading': 'Cumulative over time',
@@ -64,10 +68,11 @@ const STRINGS = {
     'chart.tableCaption': (title) => `${title} — every month`,
     'chart.monthColumn': 'Month',
     'chart.aria': (title, months, endValue) =>
-      `${title}. Line chart over ${months} months, ending at ${endValue}. `
-      + 'Use the table below this chart for every value.',
+      `${title}. Line chart over ${months} ${plural(months, 'month', 'months')}, `
+      + `ending at ${endValue}. Use the table below this chart for every value.`,
     'month.start': 'Start',
     'month.nth': (month) => `Month ${month}`,
+    'chart.reading': (month, value) => `${month}: ${value}`,
     'horizon.years': (years) => `${years} yr`,
     'horizon.months': (months) => `${months} mo`,
     'footer.note': 'Everything is calculated on your device and saved only in this browser. No account, no network.',
@@ -80,47 +85,48 @@ const STRINGS = {
     'doc.title': 'Finapp — estimez votre avenir financier',
     'doc.description': "Un calculateur hors ligne qui projette les revenus, les dépenses et le solde net cumulés sur les mois à venir.",
     'skip.link': 'Aller au contenu',
-    'action.install': "Installer l'application",
+    'action.install': "Installer l’application",
     'theme.auto': 'Auto',
     'theme.light': 'Clair',
     'theme.dark': 'Sombre',
-    'theme.aria.auto': 'Thème : suivre le système',
-    'theme.aria.light': 'Thème : clair',
-    'theme.aria.dark': 'Thème : sombre',
+    'theme.aria.auto': 'Thème : suivre le système',
+    'theme.aria.light': 'Thème : clair',
+    'theme.aria.dark': 'Thème : sombre',
     'lang.label': 'FR',
-    'lang.aria': "Langue : français. Passer à l'anglais",
+    'lang.aria': "Langue : français. Passer à l’anglais",
     'inputs.heading': 'Vos montants mensuels',
     'inputs.income': 'Revenu mensuel',
     'inputs.incomeHint': 'Ce qui arrive sur votre compte chaque mois, après impôts.',
     'inputs.rent': 'Loyer mensuel',
     'inputs.rentHint': 'Le loyer, payé chaque mois de la projection.',
-    'inputs.currencyNote': "Les montants sont dans votre devise — l'application ne convertit rien et n'enregistre rien ailleurs que sur cet appareil.",
+    'inputs.currencyNote': "Les montants sont dans votre devise — l’application ne convertit rien et n’enregistre rien ailleurs que sur cet appareil.",
     'summary.heading': 'Totaux projetés',
     'summary.heroLabel': (months) => `Solde net après ${months} mois`,
     'summary.totalIncome': 'Revenus cumulés',
     'summary.totalExpenses': 'Dépenses cumulées',
-    'summary.monthlyNet': 'Gardé chaque mois',
+    'summary.monthlyNet': 'Reste chaque mois',
     'summary.surplus': (amount) => `Vous gardez ${amount} par mois`,
     'summary.shortfall': (amount) => `Le loyer dépasse le revenu de ${amount} par mois`,
     'filter.label': 'Durée de la projection',
     'filter.readout': (months, horizon) => `${months} mois · ${horizon}`,
+    'filter.readoutShort': (months) => `${months} mois`,
     'filter.presetsAria': 'Durées de projection prédéfinies',
-    'filter.preset': (years) => (years === 1 ? '1 an' : `${years} ans`),
+    'filter.preset': (years) => (years === 1 ? '1 an' : `${years} ans`),
     'charts.heading': 'Cumul au fil du temps',
     'charts.notePrompt': 'Saisissez un revenu et un loyer mensuels pour projeter les mois à venir.',
     'charts.noteFilled': (horizon, income, expenses, net) =>
-      `Sur ${horizon} : ${income} gagnés, ${expenses} payés en loyer, ${net} restants.`,
-    'charts.scaleNote': "Les trois graphiques partagent la même échelle verticale : ils se lisent les uns par rapport aux autres. Le mois 0, c'est aujourd'hui — rien de gagné, rien de payé.",
+      `Sur ${horizon} : ${income} gagnés, ${expenses} payés en loyer, ${net} restants.`,
+    'charts.scaleNote': "Les trois graphiques partagent la même échelle verticale : ils se lisent les uns par rapport aux autres. Le mois 0, c’est aujourd’hui — rien de gagné, rien de payé.",
     'charts.empty': 'Saisissez votre revenu et votre loyer mensuels ci-dessus.',
     'chart.income.title': 'Revenus cumulés',
     'chart.income.description': 'Tout ce qui a été gagné depuis le mois 0, additionné.',
-    'chart.income.series': 'Revenus à ce jour',
+    'chart.income.series': 'Revenus cumulés',
     'chart.expenses.title': 'Dépenses cumulées',
     'chart.expenses.description': 'Chaque loyer payé depuis le mois 0, additionné.',
-    'chart.expenses.series': 'Dépenses à ce jour',
+    'chart.expenses.series': 'Dépenses cumulées',
     'chart.net.title': 'Solde net cumulé',
-    'chart.net.description': "Ce qu'il reste une fois le loyer déduit du revenu.",
-    'chart.net.series': 'Solde net à ce jour',
+    'chart.net.description': "Ce qu’il reste une fois le loyer déduit du revenu.",
+    'chart.net.series': 'Solde net cumulé',
     'chart.showTable': 'Afficher le tableau',
     'chart.hideTable': 'Masquer le tableau',
     'chart.tableCaption': (title) => `${title} — mois par mois`,
@@ -130,7 +136,8 @@ const STRINGS = {
       + 'Le tableau sous ce graphique donne toutes les valeurs.',
     'month.start': 'Début',
     'month.nth': (month) => `Mois ${month}`,
-    'horizon.years': (years) => (years === 1 ? '1 an' : `${years} ans`),
+    'chart.reading': (month, value) => `${month} : ${value}`,
+    'horizon.years': (years) => (years === 1 ? '1 an' : `${years} ans`),
     'horizon.months': (months) => `${months} mois`,
     'footer.note': "Tout est calculé sur votre appareil et enregistré uniquement dans ce navigateur. Aucun compte, aucun réseau.",
     'update.ready': 'Une nouvelle version est prête.',
@@ -139,8 +146,8 @@ const STRINGS = {
 };
 
 /** The language a browser asks for, if the app speaks it. */
-export function detectLanguage(nav = typeof navigator === 'undefined' ? null : navigator) {
-  const tags = [...(nav && nav.languages ? nav.languages : []), nav && nav.language];
+export function detectLanguage(nav = typeof navigator === 'undefined' ? null : navigator) {
+  const tags = [...(nav && nav.languages ? nav.languages : []), nav && nav.language];
   for (const tag of tags) {
     if (typeof tag !== 'string') continue;
     const base = tag.toLowerCase().split(/[-_@]/)[0];
@@ -149,9 +156,9 @@ export function detectLanguage(nav = typeof navigator === 'undefined' ? null : n
   return 'en';
 }
 
-/** The best Intl tag for a chosen language: the reader's own region if it matches. */
-export function localeFor(language, nav = typeof navigator === 'undefined' ? null : navigator) {
-  const tags = [...(nav && nav.languages ? nav.languages : []), nav && nav.language];
+/** The best Intl tag for a chosen language: the reader’s own region if it matches. */
+export function localeFor(language, nav = typeof navigator === 'undefined' ? null : navigator) {
+  const tags = [...(nav && nav.languages ? nav.languages : []), nav && nav.language];
   for (const tag of tags) {
     if (typeof tag !== 'string' || !tag) continue;
     if (tag.toLowerCase().split(/[-_@]/)[0] !== language) continue;
@@ -169,9 +176,9 @@ export function localeFor(language, nav = typeof navigator === 'undefined' ? nul
 export function makeTranslator(language) {
   const dictionary = STRINGS[language] || STRINGS.en;
   return function t(key, ...params) {
-    const entry = key in dictionary ? dictionary[key] : STRINGS.en[key];
+    const entry = key in dictionary ? dictionary[key] : STRINGS.en[key];
     if (entry === undefined) return key;
-    return typeof entry === 'function' ? entry(...params) : entry;
+    return typeof entry === 'function' ? entry(...params) : entry;
   };
 }
 

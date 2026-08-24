@@ -104,7 +104,10 @@ English, `72 000` in French.
 To add a language, add a block to `STRINGS` in
 [`assets/js/i18n.js`](assets/js/i18n.js) (the English block is the key list to
 match) and add its code to `LANGUAGES`. Static markup is translated through
-`data-i18n` attributes; anything dynamic goes through the same dictionary.
+`data-i18n` attributes; anything dynamic goes through the same dictionary —
+including punctuation that differs between languages, such as the no-break space
+French sets before a colon. The tests check that every language carries the same
+keys with the same parameters, so a half-translated release fails the build.
 
 ## Your data
 

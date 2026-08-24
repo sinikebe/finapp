@@ -111,6 +111,7 @@ function buildCharts() {
           tableCaption: t('chart.tableCaption', title),
           monthColumn: t('chart.monthColumn'),
           ariaLabel: (months, endValue) => t('chart.aria', title, months, endValue),
+          reading: (month, value) => t('chart.reading', month, value),
         },
         formatValue: formatAmount,
         formatTick: formatCompact,
@@ -190,7 +191,11 @@ function render() {
     });
   });
 
-  const readout = t('filter.readout', projection.months, formatHorizon(projection.months, t));
+  // Under a year the horizon restates the month count ("1 month · 1 mo"), so it
+  // is only worth spelling out once there are years to spell out.
+  const readout = projection.months < 12
+    ? t('filter.readoutShort', projection.months)
+    : t('filter.readout', projection.months, formatHorizon(projection.months, t));
   ui.monthsReadout.textContent = readout;
   ui.months.setAttribute('aria-valuetext', readout);
   for (const button of ui.presets) {

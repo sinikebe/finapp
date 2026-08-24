@@ -405,7 +405,9 @@ export function createLineChart(options) {
     emitHover(next);
 
     const point = state.points[next];
-    if (point) announcer.textContent = `${formatMonth(point.month)}: ${formatValue(point.value)}`;
+    if (point) {
+      announcer.textContent = labels.reading(formatMonth(point.month), formatValue(point.value));
+    }
   });
 
   toggle.addEventListener('click', () => {
