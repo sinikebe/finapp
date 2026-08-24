@@ -3,8 +3,8 @@
 A small progressive web app that estimates your financial future. List what
 comes in and what goes out each month, choose a horizon, and it plots three
 cumulative curves — income, expenses and net — over the months ahead, plus what
-you are worth in total once investments are in play. Lay out more than one plan
-and it puts them side by side.
+you are worth in total once there is a balance sheet to speak of. Lay out more
+than one plan and it puts them side by side.
 
 Everything runs on the device. No build step, no dependencies, no network, no
 account. The whole app is static files served from a folder.
@@ -70,9 +70,14 @@ months, not a name**, so the projection can do arithmetic with it and a new one
   paid in today has not had time to earn yet. Each balance is tracked
   separately, so two investments can carry different rates.
 
-Two invariants belong to the model rather than the form, so a hand-edited store
-can't break them: an investment is always money going out, and a loan always
-repays monthly whatever period is stored against it.
+- **Something you own** — a flat, a car, anything with a value. It moves no
+  cash in any month: it simply is worth what it is worth, and gains at whatever
+  rate you give it. It exists so that a loan has something to be set against.
+
+Three invariants belong to the model rather than the form, so a hand-edited
+store can't break them: an investment is always money going out, a loan always
+repays monthly whatever period is stored against it, and something you own has
+neither a direction nor a period, because it never lands.
 
 ### How often an amount lands
 
@@ -140,18 +145,32 @@ expenses(m)        = expenses(m−1) + Σ contribution(expense fields, m)
 net(m)             = income(m) − expenses(m)
 invested(m)        = Σ over investments of
                        balance(f, m−1) × (1 + f.annualRate/12) + contribution(f, m)
-worth(m)           = net(m) + invested(m)
+owned(m)           = Σ assets, each gaining at its own rate
+                     + principal still outstanding on loans owed *to* you
+debt(m)            = principal still outstanding on loans you are repaying
+worth(m)           = net(m) + invested(m) + owned(m) − debt(m)
 ```
 
 for `m = 0 … X`, where month 0 is today — nothing earned, nothing paid.
 
-**`worth` is the bottom line: the cash kept plus what the investments are
-worth.** Adding the balance back is a sum rather than double-counting, because
-money put into an investment has already left `net` as an outgoing — the two
-halves never hold the same coin at the same time. With nothing invested it
-equals `net` to the cent, which is why the app only shows it once there is an
-investment: a card and a tile that restate the ones beside them are questions
-nobody asked.
+**`worth` is the bottom line: the whole balance sheet.** Adding the balances
+back is a sum rather than double-counting, because money put into an investment
+has already left `net` as an outgoing — the two halves never hold the same coin
+at the same time. With nothing invested, owned or owed it equals `net` to the
+cent, which is why the app only shows it once there is something to say: a card
+and a tile that restate the ones beside them are questions nobody asked.
+
+The flows start at zero because nothing has flowed yet. **The balances do not**:
+you already own what you own and owe what you owe, so month 0 carries them, and
+`worth` at month 0 is your net worth today rather than a polite zero.
+
+This is what makes a repayment read correctly. Clearing principal moves cash and
+debt by the same amount, so **only the interest in a payment makes anyone
+poorer** — which is why a mortgage of 120,000 at 6% over ten years costs exactly
+its interest against `worth`, not the 160,000 that leaves the account. A loan on
+its own still drags the total down, and that is honest: the app cannot see what
+the money bought. So when there is debt and nothing owned, the form says as
+much and asks for the flat to be listed.
  The
 series are accumulated month by month rather than multiplied, which is what lets
 a field's contribution vary over time: **`contributionOf(field, month)` is the
@@ -164,6 +183,35 @@ of a direction are capped where doubles stop counting cents exactly.
 
 Amounts carry no currency symbol. The app never asks which currency you use, so
 it never claims to know.
+
+### Today's money
+
+354,000 in ten years is not 354,000. **In today's money** divides every figure
+at month *m* by the same deflator, `(1 + i)^m` — what that pile would buy now.
+
+One factor per month is what makes it safe: it leaves every identity standing,
+so net is still income less expenses and worth is still the balance sheet.
+Deflating each flow at the month it landed would break the second, which is the
+one a reader is most likely to check by hand. For the same reason the two
+derived series are recomputed from the restated parts rather than restated
+themselves — four independently rounded numbers need not add up to the rounded
+whole, and a total a cent away from its own components is exactly the kind of
+thing this model refuses to print.
+
+### A range instead of a line
+
+One rate drawn as one crisp curve claims to know something nobody knows. **Show
+a range** re-runs the projection with every *return* moved down and up by a few
+points and shades the region between, on the two cards a return can move.
+
+Loan interest is deliberately left where it is: what a loan costs was agreed,
+not guessed. And the pessimistic run is allowed to go **negative** — growth and
+loan interest use separate functions precisely so that a bad decade reads as a
+loss rather than bottoming out at flat, which would understate the very case the
+reader turned the band on to see.
+
+The comparison chart gets no band: four strategies with a shaded region each is
+mud, and colour there already means strategy.
 
 ## The charts
 
@@ -195,7 +243,19 @@ chart passes one per strategy.
   follows the pointer (and the arrow keys: `Shift` jumps a year, `Home`/`End`
   jump to the ends), hovering one flow card moves all three, and every card has
   a table view with the exact monthly figures.
+- **A band is context, not a mark.** It is painted under everything, at low
+  opacity, in its line's own colour — and its bounds are columns in the card's
+  table, because no figure in this app lives only inside a drawing.
 - **Dark mode is a selected palette**, not an inverted one.
+
+**Five series colours is the ceiling, and dark mode is why.** A debt card was
+the obvious sixth and was dropped after measuring: every crimson that clears the
+all-pairs CVD target beside the existing five sits at chroma 0.10 — the floor
+where a colour starts reading grey — *and* under 3:1 against the dark surface.
+Two gates at their limits at once, which the shipped aqua (2.74:1 in light, but
+chroma 0.14) never was. So debt is a tile and a comparison column instead. The
+search is worth re-running before anyone adds a sixth: it is in the history of
+this file, and it returns nothing better.
 
 ## Layout
 
@@ -261,7 +321,8 @@ keys with the same parameters, so a half-translated release fails the build.
 ## Your data
 
 Three keys in `localStorage`, on your device only: `finapp.state.v3` (your
-strategies and horizon), `finapp.theme.v1` and `finapp.language.v1`. Older
+strategies, horizon, and the two assumptions — inflation and the spread on
+returns — with their toggles), `finapp.theme.v1` and `finapp.language.v1`. Older
 stores are read on first load and then retired, so nobody loses what they had
 typed: `finapp.state.v2`, a flat list of fields, becomes the first strategy, and
 `finapp.inputs.v1`, a lone income and rent from before fields existed, becomes
@@ -310,7 +371,9 @@ part that took real work.
 
 **A new kind of field** (a mortgage with an offset, a pension with employer
 matching) is an entry in `KINDS`, a branch in `contributionOf`, the controls it
-needs in `createRow`, and which of them to show in `syncRow`.
+needs in `createRow`, and which of them to show in `syncRow`. A kind that holds
+a balance rather than moving cash — the way *something you own* does — adds its
+running total to the loop in `project()` and returns `0` from `contributionOf`.
 
 **Something a strategy carries** (a note, a start date, a colour of its own) is
 the same shape one level up: `strategies.js` owns the shape and the operations,

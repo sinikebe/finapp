@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  project, seriesOf, extentOf, hasAmounts, hasInvestments, flowIn, contributionOf,
+  project, inTodaysMoney, shiftReturns, monthlyGrowth,
+  seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
+  flowIn, contributionOf, outstandingOf,
   loanPayment, loanInterest, monthlyRate,
   toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
@@ -15,7 +17,7 @@ test('a horizon of N months yields N + 1 points, starting at zero', () => {
   const result = project({ fields: [income(3000), expense(1200)], months: 24 });
   assert.equal(result.points.length, 25);
   assert.deepEqual(result.points[0], {
-    month: 0, income: 0, expenses: 0, net: 0, invested: 0, worth: 0,
+    month: 0, income: 0, expenses: 0, net: 0, invested: 0, owned: 0, debt: 0, worth: 0,
   }, 'every series starts at nothing');
 });
 
@@ -54,6 +56,8 @@ test('totals match the last point', () => {
     expenses: last.expenses,
     net: last.net,
     invested: last.invested,
+    owned: last.owned,
+    debt: last.debt,
     worth: last.worth,
   });
   assert.equal(result.totals.income, 4200 * 60);
@@ -83,7 +87,7 @@ test('an empty projection is all zeroes, not NaN', () => {
   assert.equal(result.averages.expenses, 0);
   assert.equal(result.months, 1);
   assert.deepEqual(result.totals, {
-    income: 0, expenses: 0, net: 0, invested: 0, worth: 0,
+    income: 0, expenses: 0, net: 0, invested: 0, owned: 0, debt: 0, worth: 0,
   });
   assert.equal(hasAmounts(result), false);
 });
@@ -235,8 +239,8 @@ test('the per-month cap holds whatever the period', () => {
 
 /* --------------------------------------------------------------- borrowing */
 
-const loan = (amount, annualRate, termMonths) => createField({
-  kind: 'loan', direction: 'expense', amount, annualRate, termMonths,
+const loan = (amount, annualRate, termMonths, direction = 'expense') => createField({
+  kind: 'loan', direction, amount, annualRate, termMonths,
 });
 
 test('a loan repays what was borrowed, interest included', () => {
@@ -403,4 +407,151 @@ test('a lumpy investment moves the total only when it lands', () => {
   assert.equal(result.points[24].worth, 0);
   assert.equal(result.points[24].invested, 2400);
   assert.equal(result.points[24].net, -2400);
+});
+
+/* -------------------------------------------------------- owning and owing */
+
+const asset = (amount, annualRate = '') => createField({ kind: 'asset', amount, annualRate });
+
+test('an asset moves no cash at all', () => {
+  const result = project({ fields: [asset('250000', '2')], months: 12 });
+  assert.equal(result.totals.income, 0);
+  assert.equal(result.totals.expenses, 0);
+  assert.equal(result.totals.net, 0);
+  assert.equal(contributionOf(asset('250000'), 1), 0);
+});
+
+test('the balance sheet starts at what you already own and owe', () => {
+  const result = project({ fields: [asset('250000'), loan('200000', '3', 240)], months: 60 });
+  const [start] = result.points;
+  assert.equal(start.owned, 250000, 'you already own it');
+  assert.equal(start.debt, 200000, 'and already owe it');
+  assert.equal(start.worth, 50000, 'net worth today is the difference');
+  assert.equal(start.net, 0, 'the flows still start at nothing');
+});
+
+test('what is still owed falls to nothing across the term', () => {
+  const field = loan('200000', '3', 240);
+  assert.equal(outstandingOf(field, 0), 200000);
+  assert.ok(outstandingOf(field, 120) < 200000, 'it comes down');
+  assert.ok(outstandingOf(field, 120) > 100000, 'but slowly at first — that is amortisation');
+  assert.equal(outstandingOf(field, 240), 0, 'cleared by the last payment');
+  assert.equal(outstandingOf(field, 300), 0, 'and stays cleared');
+});
+
+test('a repayment costs you only its interest, not the whole payment', () => {
+  // Clearing principal moves cash and debt by the same amount, so the only
+  // thing that leaves for good is the interest.
+  const field = loan('120000', '6', 120);
+  const result = project({ fields: [field], months: 120 });
+  const drop = roundMoney(result.points[0].worth - result.points[120].worth);
+  assert.equal(drop, loanInterest(field), 'the whole cost is the interest');
+  // ...and paying the full payment against worth would be this much worse.
+  assert.ok(result.totals.expenses > drop, 'payments far exceed the true cost');
+});
+
+test('a loan pointing the other way is something you own, not something you owe', () => {
+  const result = project({ fields: [loan('10000', '5', 24, 'income')], months: 24 });
+  assert.equal(result.points[0].debt, 0, 'you owe nothing');
+  assert.equal(result.points[0].owned, 10000, 'you are owed it');
+  assert.ok(result.totals.income > 10000, 'repaid with interest');
+});
+
+test('an asset appreciates, and does so on its own rate', () => {
+  const flat = project({ fields: [asset('100000')], months: 120 });
+  const rising = project({ fields: [asset('100000', '3')], months: 120 });
+  assert.equal(flat.totals.owned, 100000, 'no rate, no growth');
+  assert.ok(rising.totals.owned > 134000 && rising.totals.owned < 136000, rising.totals.owned);
+});
+
+test('worth is the whole balance sheet, every month', () => {
+  const result = project({
+    fields: [income(4000), expense(1200), invest('500', '6'), asset('250000', '2'), loan('200000', '3', 240)],
+    months: 240,
+  });
+  for (const p of result.points) {
+    assert.equal(p.worth, roundMoney(p.net + p.invested + p.owned - p.debt), `month ${p.month}`);
+  }
+});
+
+test('the app knows what is owned and what is owed', () => {
+  assert.equal(hasDebt(project({ fields: [loan('1000', '3', 12)] })), true);
+  assert.equal(hasDebt(project({ fields: [loan('1000', '3', 12, 'income')] })), false, 'lending is not owing');
+  assert.equal(hasDebt(project({ fields: [loan('', '3', 12)] })), false, 'nothing borrowed yet');
+  assert.equal(hasOwned(project({ fields: [asset('1000')] })), true);
+  assert.equal(hasOwned(project({ fields: [loan('1000', '3', 12, 'income')] })), true, 'being owed counts');
+  assert.equal(hasOwned(project({ fields: [income(1000)] })), false);
+});
+
+/* --------------------------------------------------------- today's money */
+
+test('restating divides every figure by the same month\'s deflator', () => {
+  const nominal = project({ fields: [income(3000)], months: 120 });
+  const real = inTodaysMoney(nominal, '2');
+  const rate = 0.02 / 12;
+  assert.equal(real.totals.net, roundMoney(nominal.totals.net / (1 + rate) ** 120));
+  assert.equal(real.points[60].income, roundMoney(nominal.points[60].income / (1 + rate) ** 60));
+  assert.equal(real.points[0].income, 0, 'today is today');
+});
+
+test('restating leaves every identity in the model standing', () => {
+  const nominal = project({
+    fields: [income(4000), expense(1200), invest('500', '6'), asset('200000', '2'), loan('150000', '3', 180)],
+    months: 180,
+  });
+  const real = inTodaysMoney(nominal, '2.5');
+  for (const p of real.points) {
+    assert.equal(p.net, roundMoney(p.income - p.expenses), `net at month ${p.month}`);
+    assert.equal(p.worth, roundMoney(p.net + p.invested + p.owned - p.debt), `worth at month ${p.month}`);
+  }
+});
+
+test('no inflation is not a transformation at all', () => {
+  const nominal = project({ fields: [income(1000)], months: 12 });
+  assert.equal(inTodaysMoney(nominal, '0'), nominal);
+  assert.equal(inTodaysMoney(nominal, ''), nominal);
+});
+
+test('restating carries the fields through untouched', () => {
+  const nominal = project({ fields: [income(1000)], months: 12 });
+  const real = inTodaysMoney(nominal, '3');
+  assert.deepEqual(real.fields, nominal.fields, 'the plan itself did not change');
+  assert.equal(real.months, nominal.months);
+});
+
+/* ------------------------------------------------------------- a range */
+
+test('a shift moves returns and leaves loan interest alone', () => {
+  const fields = [invest('500', '7'), asset('100000', '2'), loan('50000', '4', 60), income(3000)];
+  const lower = shiftReturns(fields, -3);
+  assert.equal(lower[0].annualRate, '4', 'the investment');
+  assert.equal(lower[1].annualRate, '-1', 'the asset');
+  assert.equal(lower[2].annualRate, '4', 'the loan was agreed, not guessed');
+  assert.equal(lower[3].annualRate, fields[3].annualRate, 'a plain field has no return to move');
+});
+
+test('a shift of nothing is the same list', () => {
+  const fields = [invest('500', '7')];
+  assert.equal(shiftReturns(fields, 0), fields);
+  assert.equal(shiftReturns(fields, ''), fields);
+});
+
+test('growth can be negative, so a bad run really loses money', () => {
+  assert.ok(monthlyGrowth('-6') < 0, 'a loss is a loss');
+  assert.equal(monthlyGrowth(''), 0);
+  const paid = 1000 * 120;
+  const bad = project({ fields: shiftReturns([invest('1000', '2')], -8), months: 120 });
+  assert.ok(bad.totals.invested < paid, `${bad.totals.invested} should be under the ${paid} paid in`);
+  assert.ok(bad.totals.invested > 0, 'but not wiped out');
+});
+
+test('the pessimistic run is never above the hopeful one', () => {
+  const fields = [income(3000), invest('600', '6')];
+  const low = project({ fields: shiftReturns(fields, -4), months: 240 });
+  const high = project({ fields: shiftReturns(fields, 4), months: 240 });
+  const mid = project({ fields, months: 240 });
+  for (let m = 0; m <= 240; m += 1) {
+    assert.ok(low.points[m].worth <= mid.points[m].worth, `low ≤ mid at ${m}`);
+    assert.ok(mid.points[m].worth <= high.points[m].worth, `mid ≤ high at ${m}`);
+  }
 });

@@ -9,15 +9,16 @@
  */
 
 import {
-  project, seriesOf, extentOf, hasAmounts, hasInvestments,
-  loanPayment, loanInterest, toAmount, toMonths,
+  project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
+  hasAmounts, hasInvestments, hasDebt, hasOwned,
+  loanPayment, loanInterest, monthlyRate, toAmount, toMonths,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
   normalizeFields, defaultFields, migrateLegacyInputs,
 } from './fields.js';
 import {
-  formatAmount, formatCompact, formatMonth, formatHorizon, setFormatLocale,
+  formatAmount, formatCompact, formatMonth, formatHorizon, formatRate, setFormatLocale,
 } from './format.js';
 import { html } from './dom.js';
 import { createLineChart, endLabelPad } from './chart.js';
@@ -38,6 +39,14 @@ const LANG_KEY = 'finapp.language.v1';
 const THEME_ORDER = ['auto', 'light', 'dark'];
 const THEME_COLORS = { light: '#f9f9f7', dark: '#0d0d0d' };
 const DEFAULT_MONTHS = 24;
+/** Enough that pressing the toggle visibly does something, low enough to be a
+ *  reasonable thing to assume on the reader's behalf. They can change it. */
+const DEFAULT_INFLATION = '2';
+/** How far returns are moved for the pessimistic and hopeful runs, in points. */
+const DEFAULT_SPREAD = '3';
+/** The series a return can move. The flows are fixed amounts, so a range on
+ *  them would be a range around nothing. */
+const BAND_KEYS = new Set(['invested', 'worth']);
 
 const $ = (id) => document.getElementById(id);
 
@@ -53,7 +62,9 @@ const ui = {
   compareBody: $('compare-body'),
   months: $('months'),
   monthsReadout: $('months-readout'),
-  presets: Array.from(document.querySelectorAll('.preset')),
+  // Selected by what makes one a horizon preset — the months it sets — not by
+  // the chip styling, which the money toggle and the comparison chips share.
+  presets: Array.from(document.querySelectorAll('.preset[data-months]')),
   heroLabel: $('hero-label'),
   heroValue: $('hero-value'),
   heroChip: $('hero-chip'),
@@ -64,6 +75,18 @@ const ui = {
   monthlyNet: $('monthly-net'),
   investedTile: $('invested-tile'),
   investedValue: $('invested-value'),
+  ownedTile: $('owned-tile'),
+  ownedValue: $('owned-value'),
+  debtTile: $('debt-tile'),
+  debtValue: $('debt-value'),
+  debtHint: $('debt-hint'),
+  realToggle: $('real-toggle'),
+  inflationFilter: $('inflation-filter'),
+  inflation: $('inflation'),
+  moneyNote: $('money-note'),
+  rangeToggle: $('range-toggle'),
+  spreadFilter: $('spread-filter'),
+  spread: $('spread'),
   worthTile: $('worth-tile'),
   worthLabel: $('worth-label'),
   worthValue: $('worth-value'),
@@ -121,8 +144,18 @@ function dropStore(key) {
 
 /* -------------------------------------------------------------------- state */
 
+/** Inflation as typed, kept as text like a field's rate so a half-typed
+ *  "2." survives the keystroke that follows it. */
+function toRateText(value, fallback = DEFAULT_INFLATION) {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return typeof value === 'string' ? value : fallback;
+}
+
 /**
- * The stored shape is `{ strategies, activeId, months }`. Two older shapes are
+ * The stored shape is `{ strategies, activeId, months, inflation, realMoney }`.
+ * The last two arrived later and are simply absent from an older store, which
+ * reads as the defaults — no migration, because nothing changed shape. Two
+ * older shapes are
  * carried over once and retired, so nobody loses what they had entered: a bare
  * list of fields from before strategies, and before that a single income and a
  * single rent.
@@ -135,6 +168,10 @@ function loadState() {
       strategies,
       activeId: activeIdOf(strategies, saved.activeId),
       months: toMonths(saved.months ?? DEFAULT_MONTHS),
+      inflation: toRateText(saved.inflation),
+      realMoney: saved.realMoney === true,
+      spread: toRateText(saved.spread, DEFAULT_SPREAD),
+      showRange: saved.showRange === true,
     };
   }
 
@@ -151,7 +188,15 @@ function loadState() {
   }
 
   const strategies = migrateFields(defaultFields());
-  return { strategies, activeId: strategies[0].id, months: DEFAULT_MONTHS };
+  return {
+    strategies,
+    activeId: strategies[0].id,
+    months: DEFAULT_MONTHS,
+    inflation: DEFAULT_INFLATION,
+    realMoney: false,
+    spread: DEFAULT_SPREAD,
+    showRange: false,
+  };
 }
 
 /**
@@ -164,6 +209,10 @@ function adopt(strategies, months, oldKey) {
     strategies,
     activeId: strategies[0].id,
     months: toMonths(months ?? DEFAULT_MONTHS),
+    inflation: DEFAULT_INFLATION,
+    realMoney: false,
+    spread: DEFAULT_SPREAD,
+    showRange: false,
   };
   if (writeStore(STATE_KEY, next)) dropStore(oldKey);
   return next;
@@ -197,7 +246,13 @@ function save() {
   window.clearTimeout(saveTimer);
   saveTimer = 0;
   writeStore(STATE_KEY, {
-    strategies: state.strategies, activeId: state.activeId, months: state.months,
+    strategies: state.strategies,
+    activeId: state.activeId,
+    months: state.months,
+    inflation: state.inflation,
+    realMoney: state.realMoney,
+    spread: state.spread,
+    showRange: state.showRange,
   });
 }
 
@@ -232,7 +287,13 @@ window.addEventListener('storage', (event) => {
     state.strategies = normalizeStrategies(incoming.strategies);
     state.activeId = activeIdOf(state.strategies, incoming.activeId);
     state.months = toMonths(incoming.months ?? DEFAULT_MONTHS);
+    state.inflation = toRateText(incoming.inflation);
+    state.realMoney = incoming.realMoney === true;
+    state.spread = toRateText(incoming.spread, DEFAULT_SPREAD);
+    state.showRange = incoming.showRange === true;
     ui.months.value = String(state.months);
+    ui.inflation.value = state.inflation;
+    ui.spread.value = state.spread;
     render();
   } catch {
     /* another tab wrote something unreadable — keep what we have */
@@ -245,14 +306,14 @@ const CHARTS = [
   { id: 'chart-income', key: 'income', colorVar: '--series-income' },
   { id: 'chart-expenses', key: 'expenses', colorVar: '--series-expenses' },
   { id: 'chart-net', key: 'net', colorVar: '--series-net' },
-  // Both of these are only drawn when something is being invested. Without an
-  // investment the total is the net to the cent, and a card that restates the
-  // one beside it is a question nobody asked.
+  // Each of these is drawn only once it has something to say. Without an
+  // investment, a debt or a thing owned, the total is the net to the cent, and
+  // a card that restates the one beside it is a question nobody asked.
   {
     id: 'chart-worth',
     key: 'worth',
     colorVar: '--series-worth',
-    onlyWithInvestments: true,
+    when: (projection) => hasInvestments(projection) || hasDebt(projection) || hasOwned(projection),
     // Deliberately on the flows' shared scale rather than its own: the whole
     // point of the card is the gap between the total and the net beside it,
     // which is what the investments have added. Its own scale would hide it.
@@ -261,7 +322,7 @@ const CHARTS = [
     id: 'chart-invested',
     key: 'invested',
     colorVar: '--series-invested',
-    onlyWithInvestments: true,
+    when: hasInvestments,
     // A balance is not a cumulative flow: put it on the flows' scale and a
     // realistic pot reads as a flat line along the axis. Its own scale makes it
     // readable, and the note under the charts says which card is on its own.
@@ -270,16 +331,18 @@ const CHARTS = [
 ];
 
 let charts = [];
-let chartsShowInvestments = false;
+/** Which cards were built last, so they are rebuilt only when the set changes. */
+let chartsBuilt = '';
 
-function activeCharts() {
-  return CHARTS.filter((spec) => !spec.onlyWithInvestments || chartsShowInvestments);
+function activeCharts(projection) {
+  return CHARTS.filter((spec) => !spec.when || spec.when(projection));
 }
 
-function buildCharts() {
+function buildCharts(specs) {
   for (const chart of charts) chart.instance.destroy();
   ui.charts.textContent = '';
-  charts = activeCharts().map((spec) => {
+  chartsBuilt = specs.map((spec) => spec.id).join(',');
+  charts = specs.map((spec) => {
     const title = t(`chart.${spec.key}.title`);
     return {
       ...spec,
@@ -310,10 +373,15 @@ function buildCharts() {
 /* --------------------------------------------------------------- comparing */
 
 /** Which quantity the comparison chart is showing. */
-const METRICS = ['net', 'worth', 'income', 'expenses', 'invested'];
+const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'owned', 'debt'];
 
-/** Metrics that say nothing until something is invested. */
-const INVESTMENT_METRICS = new Set(['worth', 'invested']);
+/** Metrics that say nothing until the thing they measure exists. */
+const CONDITIONAL_METRICS = {
+  worth: (projections) => projections.some((p) => hasInvestments(p) || hasDebt(p) || hasOwned(p)),
+  invested: (projections) => projections.some((p) => hasInvestments(p)),
+  owned: (projections) => projections.some((p) => hasOwned(p)),
+  debt: (projections) => projections.some((p) => hasDebt(p)),
+};
 let metric = 'net';
 /** Whether the reader has picked a column themselves; until then it follows. */
 let metricChosen = false;
@@ -357,12 +425,15 @@ const metricButtons = new Map();
  * and something as ordinary as leaving the strategy-name box triggers a render,
  * so a rebuild here would silently eat the reader's next click.
  */
-function renderMetrics(anyInvestments) {
-  const wanted = METRICS.filter((key) => !INVESTMENT_METRICS.has(key) || anyInvestments);
+function renderMetrics(projections) {
+  const wanted = METRICS.filter((key) => {
+    const gate = CONDITIONAL_METRICS[key];
+    return !gate || gate(projections);
+  });
   // Until the reader picks a column, show the one the note and the gap are
   // judged on. Otherwise a strategy that invests everything is announced as
   // coming out ahead directly above a chart showing its net far behind.
-  if (!metricChosen) metric = anyInvestments ? 'worth' : 'net';
+  if (!metricChosen) metric = wanted.includes('worth') ? 'worth' : 'net';
   if (!wanted.includes(metric)) metric = 'net';
 
   let cursor = ui.compareMetrics.firstChild;
@@ -394,15 +465,21 @@ function renderMetrics(anyInvestments) {
 }
 
 /** A row per strategy: what each one comes to, and the gap to the first. */
-function renderCompareTable(projections, anyInvestments) {
+function renderCompareTable(projections) {
+  // The same gates as the chips, so the table and the switch never disagree
+  // about which halves of the balance sheet this comparison actually has.
+  const shows = (key) => {
+    const gate = CONDITIONAL_METRICS[key];
+    return !gate || gate(projections);
+  };
   const columns = [
     { key: 'income', total: (p) => p.totals.income },
     { key: 'expenses', total: (p) => p.totals.expenses },
     { key: 'net', total: (p) => p.totals.net },
-    ...(anyInvestments ? [
-      { key: 'invested', total: (p) => p.totals.invested },
-      { key: 'worth', total: (p) => p.totals.worth },
-    ] : []),
+    ...(shows('invested') ? [{ key: 'invested', total: (p) => p.totals.invested }] : []),
+    ...(shows('owned') ? [{ key: 'owned', total: (p) => p.totals.owned }] : []),
+    ...(shows('debt') ? [{ key: 'debt', total: (p) => p.totals.debt }] : []),
+    ...(shows('worth') ? [{ key: 'worth', total: (p) => p.totals.worth }] : []),
   ];
 
   ui.compareHead.textContent = '';
@@ -416,7 +493,7 @@ function renderCompareTable(projections, anyInvestments) {
   }
   const deltaHead = html('th', 'num', ui.compareHead);
   deltaHead.scope = 'col';
-  deltaHead.textContent = t('compare.deltaColumn', t(`compare.metric.${anyInvestments ? 'worth' : 'net'}`));
+  deltaHead.textContent = t('compare.deltaColumn', t(`compare.metric.${shows('worth') ? 'worth' : 'net'}`));
 
   // Judged on the total, not the net: a strategy that puts everything into an
   // investment keeps less cash and would read as "behind" while being ahead.
@@ -453,6 +530,16 @@ function renderCompareTable(projections, anyInvestments) {
   ui.compareCaption.textContent = t('compare.tableCaption', state.months);
 }
 
+/**
+ * One projection, in whichever money the reader asked for. Restating happens
+ * once, here, so every reader below — cards, tiles, tables, the comparison, and
+ * the two extra runs behind a band — is looking at the same money.
+ */
+function projectionFor(planFields) {
+  const projection = project({ fields: planFields, months: state.months });
+  return state.realMoney ? inTodaysMoney(projection, state.inflation) : projection;
+}
+
 /** Cents, so a difference of two rounded totals doesn't show float noise. */
 function roundToCent(value) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -465,8 +552,7 @@ function renderComparison(projections) {
 
   if (!compareChart) buildCompareChart();
 
-  const anyInvestments = projections.some((projection) => hasInvestments(projection));
-  renderMetrics(anyInvestments);
+  renderMetrics(projections);
 
   const metricName = t(`compare.metric.${metric}`);
   compareChart.setHeading({
@@ -490,7 +576,7 @@ function renderComparison(projections) {
     emptyMessage: t('charts.empty'),
   });
 
-  renderCompareTable(projections, anyInvestments);
+  renderCompareTable(projections);
 
   window.clearTimeout(compareNoteTimer);
   compareNoteTimer = window.setTimeout(() => {
@@ -724,28 +810,58 @@ function renderSummary(projection, hasInput) {
 
 function render() {
   const projections = state.strategies.map(
-    (strategy) => project({ fields: strategy.fields, months: state.months }),
+    (strategy) => projectionFor(strategy.fields),
   );
   const projection = projections[activeIndex()];
   const hasInput = hasAmounts(projection);
 
-  // The fourth card comes and goes with the fields, so the cards are rebuilt
-  // only when that actually changes rather than on every keystroke.
+  // The conditional cards come and go with the fields, so they are rebuilt
+  // only when the set actually changes rather than on every keystroke.
   const wantsInvestments = hasInvestments(projection);
-  if (wantsInvestments !== chartsShowInvestments) {
-    chartsShowInvestments = wantsInvestments;
-    buildCharts();
-  }
-
-  const specs = activeCharts();
+  const specs = activeCharts(projection);
+  if (specs.map((spec) => spec.id).join(',') !== chartsBuilt) buildCharts(specs);
   const series = specs.map((spec) => seriesOf(projection, spec.key));
-  const shared = extentOf(series.filter((_, index) => !specs[index].ownScale));
+
+  // The two runs behind a band: the same plan with every return moved down and
+  // up. Only worth computing when something actually depends on a return.
+  const spread = Number.parseFloat(state.spread);
+  const ranged = state.showRange && Number.isFinite(spread) && spread > 0
+    && (hasInvestments(projection) || hasOwned(projection));
+  const lower = ranged ? projectionFor(shiftReturns(projection.fields, -spread)) : null;
+  const upper = ranged ? projectionFor(shiftReturns(projection.fields, spread)) : null;
+  const bands = specs.map((spec) => (ranged && BAND_KEYS.has(spec.key) ? {
+    low: seriesOf(lower, spec.key),
+    high: seriesOf(upper, spec.key),
+    lowLabel: t('chart.bandLow'),
+    highLabel: t('chart.bandHigh'),
+  } : null));
+
+  // A band that ran off the plot would be worse than no band, so the scale
+  // counts its edges as points of their own.
+  const spanOf = (index) => (bands[index]
+    ? [series[index], bands[index].low, bands[index].high]
+    : [series[index]]);
+  const shared = extentOf(specs.flatMap((spec, index) => (spec.ownScale ? [] : spanOf(index))));
   // One geometry for all three cards: the widest end-label decides the gutter,
   // so the small multiples are drawn to the same pixel scale and can be
   // compared by eye, not just by their axes.
   const labelPad = Math.max(...series.map(
     (points) => endLabelPad(formatAmount(points[points.length - 1].value)),
   ));
+
+  ui.realToggle.setAttribute('aria-pressed', state.realMoney ? 'true' : 'false');
+  ui.inflationFilter.hidden = !state.realMoney;
+  ui.rangeToggle.setAttribute('aria-pressed', state.showRange ? 'true' : 'false');
+  ui.spreadFilter.hidden = !state.showRange;
+  // Worth saying outright: between them these change what every figure on the
+  // page means, and a pressed button is easy to miss on a page this dense.
+  const notes = [];
+  if (state.realMoney && monthlyRate(state.inflation) > 0) {
+    notes.push(t('filter.moneyNote', formatRate(state.inflation)));
+  }
+  if (ranged) notes.push(t('filter.rangeNote', formatRate(spread)));
+  ui.moneyNote.hidden = notes.length === 0;
+  ui.moneyNote.textContent = notes.join(' ');
 
   bar.update(state.strategies, state.activeId, strategyLabels(), t);
   list.update(projection.fields, fieldLabels(), t);
@@ -758,7 +874,18 @@ function render() {
   // The bottom line, and the only tile that names its own horizon: without an
   // investment it would repeat the hero to the cent, so it comes and goes with
   // the investment cards.
-  ui.worthTile.hidden = !wantsInvestments;
+  // The balance sheet only shows the halves that exist. The hint is the one
+  // that matters: a loan drags the total down until the thing it bought is
+  // listed, and nothing else in the app would say so.
+  const owing = hasDebt(projection);
+  const owning = hasOwned(projection);
+  ui.ownedTile.hidden = !owning;
+  ui.ownedValue.textContent = hasInput ? formatAmount(projection.totals.owned) : '—';
+  ui.debtTile.hidden = !owing;
+  ui.debtValue.textContent = hasInput ? formatAmount(projection.totals.debt) : '—';
+  ui.debtHint.hidden = !(owing && !owning);
+
+  ui.worthTile.hidden = !(wantsInvestments || owing || owning);
   ui.worthLabel.textContent = t('summary.worth', projection.months);
   ui.worthValue.textContent = hasInput ? formatAmount(projection.totals.worth) : '—';
 
@@ -769,8 +896,9 @@ function render() {
         label: t(`chart.${chart.key}.series`),
         color: `var(${chart.colorVar})`,
         points: series[index],
+        band: bands[index],
       }],
-      domain: specs[index].ownScale ? extentOf([series[index]]) : shared,
+      domain: specs[index].ownScale ? extentOf(spanOf(index)) : shared,
       months: projection.months,
       labelPad,
       isEmpty: !hasInput,
@@ -803,6 +931,32 @@ function render() {
 // leaving the readout and the slider disagreeing.
 ui.months.value = String(state.months);
 state.months = toMonths(ui.months.value);
+ui.inflation.value = state.inflation;
+ui.spread.value = state.spread;
+
+ui.rangeToggle.addEventListener('click', () => {
+  state.showRange = !state.showRange;
+  persist();
+  render();
+});
+
+ui.spread.addEventListener('input', () => {
+  state.spread = ui.spread.value;
+  persist();
+  render();
+});
+
+ui.realToggle.addEventListener('click', () => {
+  state.realMoney = !state.realMoney;
+  persist();
+  render();
+});
+
+ui.inflation.addEventListener('input', () => {
+  state.inflation = ui.inflation.value;
+  persist();
+  render();
+});
 
 ui.months.addEventListener('input', () => {
   state.months = toMonths(ui.months.value);
@@ -873,7 +1027,9 @@ function applyLanguage(next) {
   ui.langButton.setAttribute('aria-label', t('lang.aria'));
 
   applyTheme(theme);
-  buildCharts();
+  // The language owns every label on a card, so they are rebuilt wholesale;
+  // `render` puts the data back a moment later.
+  buildCharts(activeCharts(project({ fields: fields(), months: state.months })));
   if (compareChart) buildCompareChart();
   render();
 }

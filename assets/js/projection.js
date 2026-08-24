@@ -51,6 +51,36 @@ export function monthlyRate(annualRate) {
 }
 
 /**
+ * A yearly percentage into the fraction one month earns — or loses.
+ *
+ * Separate from `monthlyRate` because the two cannot share a floor: a return
+ * can be negative, and a pessimistic run that bottomed out at "flat" would
+ * understate exactly the case the reader wanted to see. A loan's interest is
+ * in a contract rather than in the market, so loans keep `monthlyRate`.
+ */
+export function monthlyGrowth(annualRate) {
+  const percent = Number.parseFloat(annualRate);
+  if (!Number.isFinite(percent)) return 0;
+  return Math.max(-100, Math.min(percent, 1000)) / 100 / 12;
+}
+
+/**
+ * The same fields with every *return* moved by `points` percentage points —
+ * the pessimistic run, or the hopeful one. Loan interest is deliberately left
+ * where it is: what a loan costs was agreed, not guessed.
+ */
+export function shiftReturns(fields, points) {
+  const shift = Number.parseFloat(points);
+  if (!Number.isFinite(shift) || shift === 0) return fields;
+  return fields.map((field) => {
+    if (field.kind !== 'investment' && field.kind !== 'asset') return field;
+    const rate = Number.parseFloat(field.annualRate);
+    if (!Number.isFinite(rate)) return field;
+    return { ...field, annualRate: String(rate + shift) };
+  });
+}
+
+/**
  * The level repayment that clears `principal` over `termMonths`, interest
  * included — the standard amortisation formula. At 0% it is simply the
  * principal split evenly, which is also what the formula tends to.
@@ -72,6 +102,29 @@ export function loanInterest(field) {
 }
 
 /**
+ * What is still owed on a loan after `month` payments — the principal that has
+ * not been repaid yet. Walked a month at a time rather than closed-form so it
+ * rounds exactly the way the projection does, and so a payment that does not
+ * cover the interest still behaves (the balance simply stops falling).
+ */
+export function outstandingOf(field, month) {
+  const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
+  const principal = toAmount(field.amount);
+  if (!principal) return 0;
+  // The term is up: amortisation has cleared it by construction, and saying so
+  // outright keeps a rounding residue from lingering as a few cents of debt.
+  if (month >= term) return 0;
+
+  const rate = monthlyRate(field.annualRate);
+  const payment = loanPayment(field.amount, field.annualRate, term);
+  let balance = principal;
+  for (let m = 1; m <= Math.max(0, Math.trunc(month)); m += 1) {
+    balance = roundMoney(Math.max(0, balance * (1 + rate) - payment));
+  }
+  return balance;
+}
+
+/**
  * What one field moves in a given month. **This is the seam.** Every attribute
  * a field grows — a start month, an end month, a growth rate — decides its
  * meaning here, and nothing else in the app has to change.
@@ -85,6 +138,10 @@ export function loanInterest(field) {
  * @param {number} month 1-based: month 1 is the first month of the projection
  */
 export function contributionOf(field, month) {
+  // An asset is a thing you own, not a flow. It never lands, so it moves no
+  // cash in any month; what it is worth is a balance, tracked in `project`.
+  if (field.kind === 'asset') return 0;
+
   if (field.kind === 'loan') {
     // Repayments are monthly and stop with the term; nothing lands after it.
     const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
@@ -109,17 +166,18 @@ export function flowIn(fields, direction, month) {
 /**
  * Project cumulative income, expenses and net over a horizon.
  *
- * The series start at month 0 with zero — nothing has been earned or paid yet —
- * so a horizon of N months yields N + 1 points.
+ * The flows start at month 0 with zero — nothing has been earned or paid yet —
+ * so a horizon of N months yields N + 1 points. The balances do not: you
+ * already own what you own and owe what you owe, so month 0 carries them.
  *
  * @param {{fields?: Array<object>, months?: number|string}} input
  * @returns {{
  *   fields: Array<object>, months: number,
  *   monthlyIncome: number, monthlyExpenses: number, monthlyNet: number,
  *   points: Array<{month: number, income: number, expenses: number, net: number,
- *                  invested: number, worth: number}>,
+ *                  invested: number, owned: number, debt: number, worth: number}>,
  *   totals: {income: number, expenses: number, net: number,
- *            invested: number, worth: number}
+ *            invested: number, owned: number, debt: number, worth: number}
  * }}
  */
 export function project(input = {}) {
@@ -132,10 +190,33 @@ export function project(input = {}) {
   const investments = fields.filter((field) => field.kind === 'investment');
   const balances = new Map(investments.map((field) => [field.id, 0]));
 
+  // The balance sheet. Unlike the flows, these do not start at nothing: you
+  // already own what you own and already owe what you owe, so month 0 carries
+  // their present values. A loan you are repaying is a debt; a loan pointing
+  // the other way is money owed *to* you, which is something you own.
+  const assets = fields.filter((field) => field.kind === 'asset');
+  const loans = fields.filter((field) => field.kind === 'loan');
+  const values = new Map(assets.map((field) => [field.id, toAmount(field.amount)]));
+  const owing = new Map(loans.map((field) => [field.id, toAmount(field.amount)]));
+  const sumOf = (map, list) => roundMoney(
+    list.reduce((total, field) => total + (map.get(field.id) || 0), 0),
+  );
+  const lent = loans.filter((field) => field.direction === 'income');
+  const borrowed = loans.filter((field) => field.direction === 'expense');
+  const ownedNow = () => roundMoney(sumOf(values, assets) + sumOf(owing, lent));
+  const debtNow = () => sumOf(owing, borrowed);
+
   // Accumulated month by month rather than multiplied, so a field whose
   // contribution varies over time needs no change here — only `contributionOf`.
   const points = [{
-    month: 0, income: 0, expenses: 0, net: 0, invested: 0, worth: 0,
+    month: 0,
+    income: 0,
+    expenses: 0,
+    net: 0,
+    invested: 0,
+    owned: ownedNow(),
+    debt: debtNow(),
+    worth: roundMoney(ownedNow() - debtNow()),
   }];
   let income = 0;
   let expenses = 0;
@@ -148,18 +229,45 @@ export function project(input = {}) {
       // A month's growth, then the month's contribution: money invested today
       // has not had time to earn yet. Rounded to the cent each month, the way
       // a statement does, rather than carrying fractions of a cent forever.
-      const grown = balances.get(field.id) * (1 + monthlyRate(field.annualRate));
+      const grown = balances.get(field.id) * (1 + monthlyGrowth(field.annualRate));
       const balance = roundMoney(grown + contributionOf(field, month));
       balances.set(field.id, balance);
       invested = roundMoney(invested + balance);
     }
 
-    // What the reader actually has: the cash they kept plus what the
-    // investments are worth. Money put in has already left `net` as an
-    // outgoing, so adding the balance back is a sum, not double-counting.
+    for (const field of assets) {
+      // An asset simply appreciates — or does not, at the default of no rate.
+      values.set(field.id, roundMoney(values.get(field.id) * (1 + monthlyGrowth(field.annualRate))));
+    }
+    for (const field of loans) {
+      const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
+      if (month > term) { owing.set(field.id, 0); continue; }
+      // A month's interest, then the payment against it: what is left is the
+      // principal still outstanding. Floored at zero so the last payment's
+      // rounding cannot leave a debt behind.
+      const rate = monthlyRate(field.annualRate);
+      const payment = loanPayment(field.amount, field.annualRate, term);
+      owing.set(field.id, roundMoney(Math.max(0, owing.get(field.id) * (1 + rate) - payment)));
+    }
+
+    // What the reader is actually worth: the cash kept, plus what the
+    // investments are worth, plus what they own, less what they still owe.
+    // Money put into an investment has already left `net` as an outgoing, so
+    // adding the balance back is a sum rather than double-counting — and a
+    // repayment that clears principal moves cash and debt by the same amount,
+    // so only the interest in it makes anyone poorer.
     const net = roundMoney(income - expenses);
+    const owned = ownedNow();
+    const debt = debtNow();
     points.push({
-      month, income, expenses, net, invested, worth: roundMoney(net + invested),
+      month,
+      income,
+      expenses,
+      net,
+      invested,
+      owned,
+      debt,
+      worth: roundMoney(net + invested + owned - debt),
     });
   }
 
@@ -183,8 +291,67 @@ export function project(input = {}) {
       expenses: last.expenses,
       net: last.net,
       invested: last.invested,
+      owned: last.owned,
+      debt: last.debt,
       worth: last.worth,
     },
+  };
+}
+
+/**
+ * Restate a projection in today's money: what each figure would actually buy
+ * now, rather than what it will say on a statement years from here.
+ *
+ * Every figure at month `m` is divided by the same deflator, `(1 + i)^m`. That
+ * is the honest reading for a balance — this pile, then, buys that much, now —
+ * and because it is one factor per month it leaves every identity in the model
+ * standing: net is still income less expenses, worth is still the balance
+ * sheet, and the comparison's gaps still add up. Deflating each flow at the
+ * month it landed instead would break the second of those, which is the one
+ * the reader is most likely to check by hand.
+ *
+ * @param {object} projection a projection in the money of its own time
+ * @param {string|number} annualRate inflation a year, as a percentage
+ */
+/**
+ * The series defined in terms of the others, in dependency order.
+ *
+ * Deflating every figure independently rounds each to the cent, and four
+ * rounded parts need not add up to the rounded whole — a total could sit a cent
+ * away from its own components. So these are recomputed from the restated parts
+ * rather than restated themselves, and the arithmetic on screen stays something
+ * the reader can check by hand.
+ */
+const DERIVED = [
+  ['net', (p) => p.income - p.expenses],
+  ['worth', (p) => p.net + p.invested + p.owned - p.debt],
+];
+
+export function inTodaysMoney(projection, annualRate) {
+  const rate = monthlyRate(annualRate);
+  if (!rate) return projection;
+
+  const deflate = (value, month) => roundMoney(value / (1 + rate) ** month);
+  const points = projection.points.map((point) => {
+    const restated = { month: point.month };
+    for (const [key, value] of Object.entries(point)) {
+      if (key !== 'month') restated[key] = deflate(value, point.month);
+    }
+    for (const [key, of] of DERIVED) {
+      if (key in restated) restated[key] = roundMoney(of(restated));
+    }
+    return restated;
+  });
+
+  const last = points[points.length - 1];
+  return {
+    ...projection,
+    points,
+    // Every series the projection carries, without naming any of them: a new
+    // one is restated here the day it is added, with no edit.
+    totals: Object.fromEntries(Object.keys(projection.totals).map((key) => [key, last[key]])),
+    averages: Object.fromEntries(Object.entries(projection.averages)
+      .map(([key, value]) => [key, deflate(value, projection.months)])),
   };
 }
 
@@ -201,6 +368,20 @@ export function hasAmounts(projection) {
 /** True when any field builds a balance worth charting on its own. */
 export function hasInvestments(projection) {
   return projection.fields.some((field) => field.kind === 'investment' && toAmount(field.amount) > 0);
+}
+
+/** True when something is still owed — a loan being repaid. */
+export function hasDebt(projection) {
+  return projection.fields.some(
+    (field) => field.kind === 'loan' && field.direction === 'expense' && toAmount(field.amount) > 0,
+  );
+}
+
+/** True when something is owned outright, or owed to the reader. */
+export function hasOwned(projection) {
+  return projection.fields.some((field) => toAmount(field.amount) > 0 && (
+    field.kind === 'asset' || (field.kind === 'loan' && field.direction === 'income')
+  ));
 }
 
 /** Extract one cumulative series from a projection. */

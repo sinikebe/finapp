@@ -226,12 +226,14 @@ export function createFieldList(options) {
     syncValue(row.kind, field.kind);
 
     // Each kind asks for what it needs and hides the rest: a loan has a term
-    // and no period of its own, an investment is always money going out.
+    // and no period of its own, an investment is always money going out, and an
+    // asset moves no cash at all — so it has neither a direction nor a period.
     const isLoan = field.kind === 'loan';
     const isInvestment = field.kind === 'investment';
-    setVisible(row.direction, row.directionLabel, !isInvestment);
-    setVisible(row.period, row.periodLabel, !isLoan);
-    setVisible(row.rateWrap, row.rateLabel, isLoan || isInvestment);
+    const isAsset = field.kind === 'asset';
+    setVisible(row.direction, row.directionLabel, !isInvestment && !isAsset);
+    setVisible(row.period, row.periodLabel, !isLoan && !isAsset);
+    setVisible(row.rateWrap, row.rateLabel, isLoan || isInvestment || isAsset);
     setVisible(row.termWrap, row.termLabel, isLoan);
 
     row.amountLabel.textContent = labels.amountFor(field.kind);
