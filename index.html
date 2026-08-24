@@ -45,7 +45,8 @@
       <div id="strategies"></div>
       <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, and set what it repeats every month.</p>
       <div id="fields"></div>
-      <p class="hint" id="period-note" data-i18n="inputs.periodNote" hidden>Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.</p>
+      <p class="hint" id="debt-hint" data-i18n="inputs.debtHint" hidden></p>
+    <p class="hint" id="period-note" data-i18n="inputs.periodNote" hidden>Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.</p>
       <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency — the app never converts or stores them anywhere but this device.</p>
     </section>
 
@@ -73,6 +74,14 @@
         <div class="stat-tile">
           <dt data-i18n="summary.monthlyNet">Kept per month, on average</dt>
           <dd id="monthly-net">—</dd>
+        </div>
+        <div class="stat-tile" id="owned-tile" hidden>
+          <dt data-i18n="summary.owned">Things you own are worth</dt>
+          <dd id="owned-value">—</dd>
+        </div>
+        <div class="stat-tile" id="debt-tile" hidden>
+          <dt data-i18n="summary.debt">You still owe</dt>
+          <dd id="debt-value">—</dd>
         </div>
         <div class="stat-tile" id="invested-tile" hidden>
           <dt data-i18n="summary.invested">Investments are worth</dt>
@@ -104,6 +113,30 @@
         <button type="button" class="preset" data-months="120">10 yr</button>
       </div>
     </div>
+
+    <div class="filter-row money-row">
+      <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
+        <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today's money</button>
+      </div>
+      <div class="filter money-filter" id="inflation-filter" hidden>
+        <label for="inflation" data-i18n="filter.inflation">Inflation a year</label>
+        <div class="range-line">
+          <input id="inflation" type="number" min="0" max="100" step="0.1" inputmode="decimal">
+          <span class="rate-unit" aria-hidden="true">%</span>
+        </div>
+      </div>
+      <div class="presets" role="group" data-i18n-aria="filter.rangeAria">
+        <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
+      </div>
+      <div class="filter money-filter" id="spread-filter" hidden>
+        <label for="spread" data-i18n="filter.spread">Returns, give or take</label>
+        <div class="range-line">
+          <input id="spread" type="number" min="0" max="50" step="0.5" inputmode="decimal">
+          <span class="rate-unit" aria-hidden="true">%</span>
+        </div>
+      </div>
+    </div>
+    <p class="hint money-note" id="money-note" hidden></p>
 
     <section class="charts-section" aria-labelledby="charts-heading">
       <h2 id="charts-heading" data-i18n="charts.heading">Cumulative over time</h2>

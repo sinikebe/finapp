@@ -26,11 +26,12 @@ export const DEFAULT_PERIOD = 1;
 
 /**
  * What a field *is*. A plain field simply repeats; a loan repays a borrowed sum
- * over a term; an investment puts money in and lets it grow. The kind decides
+ * over a term; an investment puts money in and lets it grow; an asset is
+ * something you already own, which moves no cash at all. The kind decides
  * which attributes matter — the projection reads them, the row shows them — so
  * a new kind is an entry here, a rule in `contributionOf`, and its controls.
  */
-export const KINDS = ['plain', 'loan', 'investment'];
+export const KINDS = ['plain', 'loan', 'investment', 'asset'];
 export const DEFAULT_TERM = 60;
 
 /**
@@ -124,6 +125,13 @@ export function normalizeField(value) {
   // A loan repays on a monthly schedule, so its period is not the reader's to
   // set: the term says how many payments, `contributionOf` says when.
   if (field.kind === 'loan') field.periodMonths = DEFAULT_PERIOD;
+  // An asset is a thing you own, not a flow: it never lands, so a period would
+  // mean nothing, and it counts towards what you are worth rather than against
+  // it. Both are settled here so a hand-edited store can't say otherwise.
+  if (field.kind === 'asset') {
+    field.direction = 'income';
+    field.periodMonths = DEFAULT_PERIOD;
+  }
 
   return field;
 }

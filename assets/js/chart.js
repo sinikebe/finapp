@@ -134,6 +134,9 @@ export function createLineChart(options) {
   // the paint order right however many series arrive: grid, fills, lines, then
   // everything that has to stay readable on top.
   const gridLayer = svgEl('g', { class: 'layer-grid' }, svg);
+  // Beneath everything: a band is context for its line, never a mark in its
+  // own right, so it is painted first and the line goes over the top of it.
+  const bandGroup = svgEl('g', { class: 'layer-bands' }, svg);
   const areaGroup = svgEl('g', { class: 'layer-areas' }, svg);
   const lineGroup = svgEl('g', { class: 'layer-lines' }, svg);
   const zeroLine = svgEl('line', { class: 'axis-zero' }, svg);
@@ -147,6 +150,7 @@ export function createLineChart(options) {
   const layers = [];
 
   function addLayer() {
+    const band = svgEl('path', { class: 'series-band' }, bandGroup);
     const area = svgEl('path', { class: 'series-area' }, areaGroup);
     const line = svgEl('path', { class: 'series-line' }, lineGroup);
     const endRing = svgEl('circle', { class: 'end-ring', r: MARKER_RADIUS + 2 }, markerGroup);
@@ -165,7 +169,7 @@ export function createLineChart(options) {
     const tipValue = html('strong', 'chart-tip-value', tipRow);
 
     const layer = {
-      area, line, endRing, endDot, focusRing, focusDot, endLabel,
+      band, area, line, endRing, endDot, focusRing, focusDot, endLabel,
       legendItem, legendLabel, tipRow, tipLabel, tipValue,
       th: null,
     };
@@ -177,11 +181,13 @@ export function createLineChart(options) {
     while (layers.length < count) addLayer();
     while (layers.length > count) {
       const layer = layers.pop();
-      for (const node of [layer.area, layer.line, layer.endRing, layer.endDot,
+      for (const node of [layer.band, layer.area, layer.line, layer.endRing, layer.endDot,
         layer.focusRing, layer.focusDot, layer.endLabel, layer.legendItem, layer.tipRow]) {
         node.remove();
       }
       if (layer.th) layer.th.remove();
+      if (layer.thLow) layer.thLow.remove();
+      if (layer.thHigh) layer.thHigh.remove();
     }
   }
 
@@ -193,6 +199,23 @@ export function createLineChart(options) {
         layer.th.scope = 'col';
       }
       layer.th.textContent = series[index].label;
+      // A band's bounds belong in the table too: the app's rule is that no
+      // figure lives only inside a drawing.
+      if (series[index].band) {
+        if (!layer.thLow) {
+          layer.thLow = html('th', 'num', headRow);
+          layer.thLow.scope = 'col';
+          layer.thHigh = html('th', 'num', headRow);
+          layer.thHigh.scope = 'col';
+        }
+        layer.thLow.textContent = series[index].band.lowLabel;
+        layer.thHigh.textContent = series[index].band.highLabel;
+      } else if (layer.thLow) {
+        layer.thLow.remove();
+        layer.thHigh.remove();
+        layer.thLow = null;
+        layer.thHigh = null;
+      }
     });
   }
 
@@ -309,6 +332,7 @@ export function createLineChart(options) {
       const drawn = hasSeries && points.length > 1;
 
       layer.line.style.stroke = s ? s.color : '';
+      layer.band.style.fill = s ? s.color : '';
       layer.area.style.fill = s ? s.color : '';
       layer.endDot.style.fill = s ? s.color : '';
       layer.focusDot.style.fill = s ? s.color : '';
@@ -317,7 +341,9 @@ export function createLineChart(options) {
       layer.legendLabel.textContent = s ? s.label : '';
       layer.tipLabel.textContent = s ? s.label : '';
 
+      const band = s && s.band && points.length > 1 ? s.band : null;
       layer.line.style.display = drawn ? '' : 'none';
+      layer.band.style.display = drawn && band ? '' : 'none';
       layer.area.style.display = drawn && showArea ? '' : 'none';
       layer.endRing.style.display = drawn ? '' : 'none';
       layer.endDot.style.display = drawn ? '' : 'none';
@@ -331,6 +357,18 @@ export function createLineChart(options) {
         (p, i) => `${i ? 'L' : 'M'}${xOf(p.month).toFixed(2)},${yOf(p.value).toFixed(2)}`,
       ).join('');
       layer.line.setAttribute('d', commands);
+
+      if (band) {
+        // Out along the top, back along the bottom, closed: the region the
+        // outcome could land in, rather than two more lines to tell apart.
+        const top = band.high.map(
+          (p, i) => `${i ? 'L' : 'M'}${xOf(p.month).toFixed(2)},${yOf(p.value).toFixed(2)}`,
+        ).join('');
+        const bottom = band.low.slice().reverse().map(
+          (p) => `L${xOf(p.month).toFixed(2)},${yOf(p.value).toFixed(2)}`,
+        ).join('');
+        layer.band.setAttribute('d', `${top}${bottom}Z`);
+      }
 
       if (showArea) {
         const zeroY = yOf(Math.min(Math.max(0, scale.min), scale.max));
@@ -405,7 +443,14 @@ export function createLineChart(options) {
       layer.focusRing.setAttribute('cy', y);
       layer.focusDot.setAttribute('cx', x);
       layer.focusDot.setAttribute('cy', y);
-      layer.tipValue.textContent = formatValue(own.value);
+      // The same clamped index the value used, so a band never reads a month
+      // the line is not showing.
+      const at = Math.min(index, points.length - 1);
+      const band = state.series[layerIndex] && state.series[layerIndex].band;
+      const range = band && band.low[at] && band.high[at]
+        ? ` (${formatValue(band.low[at].value)} – ${formatValue(band.high[at].value)})`
+        : '';
+      layer.tipValue.textContent = `${formatValue(own.value)}${range}`;
     });
 
     tipMonth.textContent = formatMonth(point.month);
@@ -465,6 +510,13 @@ export function createLineChart(options) {
         const own = s.points[index];
         cell.textContent = own ? formatValue(own.value) : '';
         row.appendChild(cell);
+        if (!s.band) continue;
+        for (const bound of [s.band.low, s.band.high]) {
+          const edge = document.createElement('td');
+          edge.className = 'num';
+          edge.textContent = bound[index] ? formatValue(bound[index].value) : '';
+          row.appendChild(edge);
+        }
       }
       fragment.appendChild(row);
     });

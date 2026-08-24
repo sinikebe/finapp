@@ -712,6 +712,42 @@ main {
 
 .scale-note { font-size: 12.5px; color: var(--text-secondary); }
 
+/* The money row sits under the horizon row and carries one toggle plus, once
+   it is on, the assumption behind it. Its own row so the horizon presets keep
+   their line on a narrow screen. */
+.money-row {
+  margin-top: -4px;
+}
+
+.money-filter {
+  flex: 0 0 auto;
+}
+
+.money-filter .range-line {
+  gap: 6px;
+}
+
+.money-filter input {
+  /* Wide enough for "12.5", no wider: it is a rate, not an amount. */
+  width: 5.5ch;
+  text-align: right;
+  padding: 6px 8px;
+  font: inherit;
+  color: inherit;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.money-filter .rate-unit {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.money-note {
+  margin: -2px 0 2px;
+}
+
 .chart-grid {
   display: grid;
   gap: 16px;
@@ -789,6 +825,11 @@ main {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
+
+/* A band is context, not a mark: it must read as "somewhere in here" without
+   ever competing with the line it belongs to. Its fill is set inline, like the
+   area's, so both follow whichever series they belong to. */
+.series-band { fill-opacity: 0.14; stroke: none; }
 
 .series-area { fill: var(--series); fill-opacity: 0.1; stroke: none; }
 

@@ -58,6 +58,17 @@ export function formatAmount(value) {
   return current.amount(value);
 }
 
+/**
+ * A rate as the reader would write it: 2 · 2,5 · 0 — never 2.00, and never a
+ * half-typed "2." echoed back at them. Grouping is off: a rate is never large
+ * enough to need it, and "1 000 %" would read as a typo rather than a number.
+ */
+export function formatRate(value) {
+  const rate = Number.parseFloat(value);
+  if (!Number.isFinite(rate)) return current.amount(0);
+  return current.amount(Math.max(0, Math.min(rate, 1000)));
+}
+
 /** Whole amounts for headline figures: 72,012 */
 export function formatWhole(value) {
   return current.whole(value);
