@@ -1,0 +1,159 @@
+/**
+ * fields.js — the money fields.
+ *
+ * Every amount in the app is a field. Income and rent are simply the two the
+ * app starts with, not special cases: any field can be renamed, switched
+ * between income and expense, duplicated or removed, the starting two included.
+ *
+ * To give fields a new attribute later — a start month, a yearly cadence, a
+ * growth rate — add it to FIELD_SHAPE with a sensible default and teach
+ * `normalizeField` how to read it. Everything downstream (storage, migration,
+ * duplication, the UI's reconciliation) carries it without further changes;
+ * only the code that gives it meaning, the projection, needs to know about it.
+ */
+
+/** The two directions money can flow. A field's direction carries the sign, so
+ *  amounts themselves stay positive and can't smuggle in a negative. */
+export const DIRECTIONS = ['income', 'expense'];
+
+/** Every attribute a field has, with the value used when one is missing. */
+export const FIELD_SHAPE = {
+  id: '',
+  labelKey: '',        // dictionary key, while the reader hasn't renamed it
+  label: '',           // the reader's own name; wins over labelKey when set
+  direction: 'expense',
+  amount: '',          // kept as typed; the projection coerces it to money
+};
+
+/** Guard rails against a hand-edited or corrupted store. */
+export const MAX_LABEL_LENGTH = 60;
+export const MAX_FIELDS = 100;
+
+let sequence = 0;
+
+/** A collision-free id, from the platform where it exists. */
+export function newId() {
+  const uuid = globalThis.crypto && globalThis.crypto.randomUUID;
+  if (uuid) return globalThis.crypto.randomUUID();
+  sequence += 1;
+  return `field-${sequence}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Coerce anything into a well-formed field. */
+export function normalizeField(value) {
+  const source = value && typeof value === 'object' ? value : {};
+  const label = typeof source.label === 'string' ? source.label.trim().slice(0, MAX_LABEL_LENGTH) : '';
+  const amount = typeof source.amount === 'number' || typeof source.amount === 'string'
+    ? String(source.amount)
+    : '';
+
+  return {
+    ...FIELD_SHAPE,
+    id: typeof source.id === 'string' && source.id ? source.id : newId(),
+    labelKey: typeof source.labelKey === 'string' ? source.labelKey : '',
+    label,
+    direction: DIRECTIONS.includes(source.direction) ? source.direction : FIELD_SHAPE.direction,
+    amount,
+  };
+}
+
+/** Coerce anything into a well-formed list: unique ids, bounded length. */
+export function normalizeFields(value) {
+  const list = Array.isArray(value) ? value.slice(0, MAX_FIELDS) : [];
+  const seen = new Set();
+  return list.map((entry) => {
+    const field = normalizeField(entry);
+    if (seen.has(field.id)) field.id = newId();
+    seen.add(field.id);
+    return field;
+  });
+}
+
+/** A new field, ready to be added. */
+export function createField(patch = {}) {
+  return normalizeField({ ...patch, id: patch.id || newId() });
+}
+
+/** The reader's name for a field, its translated default, or nothing. */
+export function labelOf(field, t) {
+  if (field.label) return field.label;
+  if (field.labelKey) return t(field.labelKey);
+  return '';
+}
+
+/* ------------------------------------------------------------- operations */
+/* All of these return a new list; none mutate the one they are given. */
+
+export function addField(fields, patch = {}) {
+  const list = normalizeFields(fields);
+  if (list.length >= MAX_FIELDS) return list;
+  // A new field usually continues what the reader was already listing.
+  const direction = patch.direction || (list.length ? list[list.length - 1].direction : FIELD_SHAPE.direction);
+  return [...list, createField({ ...patch, direction })];
+}
+
+export function updateField(fields, id, patch = {}) {
+  return normalizeFields(fields).map((field) => {
+    if (field.id !== id) return field;
+    const next = normalizeField({ ...field, ...patch, id: field.id });
+    // Naming a field makes the name the reader's own; clearing it hands the
+    // field back to its translated default, if it had one.
+    return next;
+  });
+}
+
+/**
+ * Copy a field in place, right below the original.
+ * @param {(label: string) => string} nameCopy how to name the copy — the model
+ *   stays out of the dictionary, so the caller supplies the wording.
+ */
+export function duplicateField(fields, id, nameCopy, t) {
+  const list = normalizeFields(fields);
+  const index = list.findIndex((field) => field.id === id);
+  if (index === -1 || list.length >= MAX_FIELDS) return list;
+
+  const source = list[index];
+  const copy = createField({
+    ...source,
+    id: newId(),
+    // A copy carries a name of its own, so it no longer follows the dictionary.
+    labelKey: '',
+    label: nameCopy(labelOf(source, t)),
+  });
+  return [...list.slice(0, index + 1), copy, ...list.slice(index + 1)];
+}
+
+export function removeField(fields, id) {
+  return normalizeFields(fields).filter((field) => field.id !== id);
+}
+
+/** The field that should take focus once `id` is gone: the next, else the previous. */
+export function neighbourOf(fields, id) {
+  const list = normalizeFields(fields);
+  const index = list.findIndex((field) => field.id === id);
+  if (index === -1) return null;
+  const neighbour = list[index + 1] || list[index - 1];
+  return neighbour ? neighbour.id : null;
+}
+
+/* ---------------------------------------------------------------- defaults */
+
+/** What a first-time reader starts with: one income, one expense. */
+export function defaultFields() {
+  return [
+    createField({ labelKey: 'field.default.income', direction: 'income' }),
+    createField({ labelKey: 'field.default.rent', direction: 'expense' }),
+  ];
+}
+
+/**
+ * Carry a v1 store — a single income and a single rent — into the field model.
+ * The two become ordinary fields, keeping their translated names.
+ */
+export function migrateLegacyInputs(legacy) {
+  const source = legacy && typeof legacy === 'object' ? legacy : {};
+  return [
+    createField({ labelKey: 'field.default.income', direction: 'income', amount: source.income }),
+    createField({ labelKey: 'field.default.rent', direction: 'expense', amount: source.rent }),
+  ];
+}

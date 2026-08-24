@@ -214,39 +214,137 @@ main {
   letter-spacing: -0.01em;
 }
 
-/* ----------------------------------------------------------------- fields */
+/* ------------------------------------------------------------- field list */
 
-.field-grid {
+.field-list { display: grid; gap: 14px; }
+.field-rows { display: grid; gap: 8px; }
+
+.field-row {
   display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: 3px minmax(0, 1fr) minmax(120px, 154px) minmax(104px, 136px) auto;
+  grid-template-areas: "key name direction amount actions";
+  gap: 8px;
+  align-items: center;
 }
 
-.field { display: grid; gap: 6px; }
-
-.field label {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
+/* A key in the row's own series colour, so a line here ties to a chart below.
+   It repeats what the select already says — direction never rides on colour. */
+.field-row::before {
+  content: "";
+  grid-area: key;
+  align-self: stretch;
+  min-height: 34px;
+  border-radius: 2px;
+  background: var(--series-expenses);
 }
+.field-row[data-direction="income"]::before { background: var(--series-income); }
 
-.field input {
-  min-height: 46px;
+.field-name { grid-area: name; }
+.field-direction { grid-area: direction; }
+.field-amount { grid-area: amount; }
+.field-actions { grid-area: actions; }
+
+.field-row input,
+.field-row select {
+  min-width: 0;
+  min-height: 44px;
   padding: 8px 12px;
   background: var(--surface-1);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 16px;
 }
-.field input:hover { border-color: var(--text-muted); }
+.field-row input:hover,
+.field-row select:hover { border-color: var(--text-muted); }
 
-/* The placeholder is a hint, not a value: it must not read as a typed 0. */
-.field input::placeholder {
+.field-name { font-weight: 600; letter-spacing: -0.01em; }
+
+.field-amount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.field-row input::placeholder {
   color: var(--text-muted);
   font-weight: 400;
   opacity: 1;
+}
+
+.field-actions { display: flex; gap: 2px; }
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.icon-button:hover:not([disabled]) {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+.icon-button[disabled],
+.add-field[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.action-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.add-field {
+  justify-self: start;
+  min-height: 40px;
+  padding: 8px 14px;
+  background: none;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.add-field:hover:not([disabled]) {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.fields-empty {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 640px) {
+  /* Two lines: what it is, then what it does and how much. The amount takes a
+     stated width rather than sitting in an `auto` track — an auto track sizes
+     to a number input's intrinsic ~20-character width and starves the name
+     beside it, down to a couple of visible characters. */
+  .field-row {
+    grid-template-columns: 3px minmax(0, 1fr) auto;
+    grid-template-areas:
+      "key name actions"
+      "key direction amount";
+  }
+
+  .field-amount {
+    width: 120px;
+    justify-self: end;
+  }
+
+  .field-actions { justify-self: end; }
 }
 
 .hint {
@@ -401,7 +499,9 @@ main {
 .chart-grid {
   display: grid;
   gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  /* min() keeps the floor from outgrowing the viewport itself: a bare 320px
+     minimum makes the grid wider than a 320px screen and scrolls the page. */
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   margin: 4px 0 2px;
 }
 

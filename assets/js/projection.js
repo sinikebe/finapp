@@ -1,19 +1,24 @@
 /**
  * projection.js — the money model.
  *
- * Pure functions, no DOM, no globals. Everything the app draws comes from here,
- * so this is the file to unit-test and the file to extend when new inputs
- * (savings, raises, extra expenses) arrive.
+ * Pure functions, no DOM, no globals. It takes the reader's fields and turns
+ * them into the cumulative series the app draws, so this is the file to test
+ * and the file to extend when fields learn a new trick (a start month, a yearly
+ * cadence, a growth rate): the loop below is the only place that has to change.
  */
 
-/** Hard limits, so a pasted value or a crafted URL can't ask for a million points. */
+import { normalizeFields } from './fields.js';
+
+/** Hard limits, so a pasted value or a hand-edited store can't ask for a million points. */
 export const MIN_MONTHS = 1;
 export const MAX_MONTHS = 600;
 
 /**
- * The largest monthly amount that keeps every cumulative total exact: at the
- * longest horizon, MAX_AMOUNT * MAX_MONTHS in cents (6e15) still sits inside
- * Number.MAX_SAFE_INTEGER (9.007e15), so no total ever drifts off whole cents.
+ * The largest monthly flow, per direction, that keeps every cumulative total
+ * exact: at the longest horizon, MAX_AMOUNT * MAX_MONTHS in cents (6e15) still
+ * sits inside Number.MAX_SAFE_INTEGER (9.007e15), so no total ever drifts off
+ * whole cents. It caps single fields and their sum alike — twenty fields can't
+ * add up to something the arithmetic can no longer represent.
  */
 export const MAX_AMOUNT = 1e11;
 
@@ -36,46 +41,61 @@ export function toMonths(value) {
   return Math.min(MAX_MONTHS, Math.max(MIN_MONTHS, Math.trunc(n)));
 }
 
+/** What one direction contributes each month, across every field. */
+export function monthlyFlow(fields, direction) {
+  const total = fields
+    .filter((field) => field.direction === direction)
+    .reduce((sum, field) => sum + toAmount(field.amount), 0);
+  return roundMoney(Math.min(total, MAX_AMOUNT));
+}
+
 /**
  * Project cumulative income, expenses and net over a horizon.
  *
  * The series start at month 0 with zero — nothing has been earned or paid yet —
  * so a horizon of N months yields N + 1 points.
  *
- * @param {{monthlyIncome?: number|string, monthlyRent?: number|string, months?: number|string}} input
+ * @param {{fields?: Array<object>, months?: number|string}} input
  * @returns {{
- *   monthlyIncome: number, monthlyRent: number, monthlyNet: number, months: number,
+ *   fields: Array<object>, months: number,
+ *   monthlyIncome: number, monthlyExpenses: number, monthlyNet: number,
  *   points: Array<{month: number, income: number, expenses: number, net: number}>,
- *   totals: {income: number, expenses: number, net: number},
- *   breakEvenMonth: number|null
+ *   totals: {income: number, expenses: number, net: number}
  * }}
  */
 export function project(input = {}) {
-  const monthlyIncome = toAmount(input.monthlyIncome);
-  const monthlyRent = toAmount(input.monthlyRent);
+  const fields = normalizeFields(input.fields);
   const months = toMonths(input.months);
-  const monthlyNet = roundMoney(monthlyIncome - monthlyRent);
+
+  const monthlyIncome = monthlyFlow(fields, 'income');
+  const monthlyExpenses = monthlyFlow(fields, 'expense');
+  const monthlyNet = roundMoney(monthlyIncome - monthlyExpenses);
 
   const points = [];
   for (let month = 0; month <= months; month += 1) {
     points.push({
       month,
       income: roundMoney(monthlyIncome * month),
-      expenses: roundMoney(monthlyRent * month),
+      expenses: roundMoney(monthlyExpenses * month),
       net: roundMoney(monthlyNet * month),
     });
   }
 
   const last = points[points.length - 1];
   return {
-    monthlyIncome,
-    monthlyRent,
-    monthlyNet,
+    fields,
     months,
+    monthlyIncome,
+    monthlyExpenses,
+    monthlyNet,
     points,
     totals: { income: last.income, expenses: last.expenses, net: last.net },
-    breakEvenMonth: monthlyNet > 0 ? 1 : null,
   };
+}
+
+/** True once any field carries an amount — before that, there is nothing to draw. */
+export function hasAmounts(projection) {
+  return projection.monthlyIncome > 0 || projection.monthlyExpenses > 0;
 }
 
 /** Extract one cumulative series from a projection. */

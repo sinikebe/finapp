@@ -1,27 +1,39 @@
 /**
- * app.js — wiring. Reads the two inputs and the horizon, runs the projection,
+ * app.js — wiring. Holds the reader's fields and horizon, runs the projection,
  * pushes it into three charts that share one scale, and keeps the whole thing
  * usable offline.
+ *
+ * The app knows nothing about "income" and "rent" as such: they are two
+ * ordinary fields the reader can rename, retype, duplicate or delete like any
+ * other. Everything here works from the list, never from a named field.
  */
 
-import { project, seriesOf, extentOf, toAmount, toMonths } from './projection.js';
+import {
+  project, seriesOf, extentOf, hasAmounts, toAmount, toMonths,
+} from './projection.js';
+import {
+  addField, updateField, duplicateField, removeField, neighbourOf,
+  normalizeFields, defaultFields, migrateLegacyInputs,
+} from './fields.js';
 import {
   formatAmount, formatCompact, formatMonth, formatHorizon, setFormatLocale,
 } from './format.js';
 import { createLineChart, endLabelPad } from './chart.js';
+import { createFieldList } from './field-list.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
 
-const INPUT_KEY = 'finapp.inputs.v1';
+const STATE_KEY = 'finapp.state.v2';
+const LEGACY_INPUT_KEY = 'finapp.inputs.v1';
 const THEME_KEY = 'finapp.theme.v1';
 const LANG_KEY = 'finapp.language.v1';
 const THEME_ORDER = ['auto', 'light', 'dark'];
 const THEME_COLORS = { light: '#f9f9f7', dark: '#0d0d0d' };
+const DEFAULT_MONTHS = 24;
 
 const $ = (id) => document.getElementById(id);
 
 const ui = {
-  income: $('income'),
-  rent: $('rent'),
+  fields: $('fields'),
   months: $('months'),
   monthsReadout: $('months-readout'),
   presets: Array.from(document.querySelectorAll('.preset')),
@@ -34,18 +46,18 @@ const ui = {
   totalExpenses: $('total-expenses'),
   monthlyNet: $('monthly-net'),
   chartsNote: $('charts-note'),
-  summary: document.querySelector('.summary'),
   charts: $('charts'),
+  summary: document.querySelector('.summary'),
   themeButton: $('theme'),
   themeLabel: $('theme-label'),
   langButton: $('lang'),
   langLabel: $('lang-label'),
+  themeColor: $('theme-color'),
   description: $('doc-description'),
   manifestLink: $('manifest-link'),
   installButton: $('install'),
   updateToast: $('update-toast'),
   updateReload: $('update-reload'),
-  themeColor: $('theme-color'),
 };
 
 const ICONS = {
@@ -73,14 +85,50 @@ function writeStore(key, value) {
   }
 }
 
+function dropStore(key) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    /* nothing to do: the app never depended on it */
+  }
+}
+
 /* -------------------------------------------------------------------- state */
 
-const saved = readStore(INPUT_KEY, {}) || {};
-const state = {
-  income: Number.isFinite(Number(saved.income)) && Number(saved.income) > 0 ? String(toAmount(saved.income)) : '',
-  rent: Number.isFinite(Number(saved.rent)) && Number(saved.rent) > 0 ? String(toAmount(saved.rent)) : '',
-  months: toMonths(saved.months ?? 24),
-};
+/**
+ * The stored shape is `{ fields, months }`. A store from before fields existed
+ * held a single income and a single rent; it is carried over once and retired,
+ * so nobody loses the numbers they had typed.
+ */
+function loadState() {
+  const saved = readStore(STATE_KEY, null);
+  if (saved && typeof saved === 'object' && Array.isArray(saved.fields)) {
+    return { fields: normalizeFields(saved.fields), months: toMonths(saved.months ?? DEFAULT_MONTHS) };
+  }
+
+  const legacy = readStore(LEGACY_INPUT_KEY, null);
+  if (legacy && typeof legacy === 'object') {
+    const migrated = {
+      fields: migrateLegacyInputs(legacy),
+      months: toMonths(legacy.months ?? DEFAULT_MONTHS),
+    };
+    writeStore(STATE_KEY, migrated);
+    dropStore(LEGACY_INPUT_KEY);
+    return migrated;
+  }
+
+  return { fields: defaultFields(), months: DEFAULT_MONTHS };
+}
+
+const state = loadState();
+
+let saveTimer = 0;
+function persist() {
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => {
+    writeStore(STATE_KEY, { fields: state.fields, months: state.months });
+  }, 250);
+}
 
 /* ------------------------------------------------------------------- charts */
 
@@ -125,6 +173,79 @@ function buildCharts() {
   });
 }
 
+/* --------------------------------------------------------------- field list */
+
+function fieldLabels() {
+  return {
+    name: t('field.name'),
+    namePlaceholder: t('field.namePlaceholder'),
+    direction: t('field.direction'),
+    amount: t('field.amount'),
+    income: t('field.income'),
+    expense: t('field.expense'),
+    untitled: t('field.untitled'),
+    add: t('field.add'),
+    empty: t('fields.empty'),
+    duplicateNamed: (name) => t('field.duplicateNamed', name),
+    removeNamed: (name) => t('field.removeNamed', name),
+  };
+}
+
+/** Every edit the list can ask for. Each one ends in the same place: new
+ *  fields, saved, redrawn, with focus left where the reader expects it. */
+function runCommand(command) {
+  switch (command.type) {
+    case 'update':
+      state.fields = updateField(state.fields, command.id, command.patch);
+      break;
+
+    case 'settle': {
+      // The reader left a box: show what the projection will actually use —
+      // the rounded amount, the trimmed name, or the default name restored.
+      const patch = { ...command.patch };
+      if ('amount' in patch) {
+        const amount = toAmount(patch.amount);
+        patch.amount = amount ? String(amount) : '';
+      }
+      state.fields = updateField(state.fields, command.id, patch);
+      break;
+    }
+
+    case 'add': {
+      state.fields = addField(state.fields);
+      persist();
+      render();
+      list.focus(state.fields.length ? state.fields[state.fields.length - 1].id : null);
+      return;
+    }
+
+    case 'duplicate': {
+      const before = new Set(state.fields.map((field) => field.id));
+      state.fields = duplicateField(state.fields, command.id, (name) => t('field.copyOf', name), t);
+      const copy = state.fields.find((field) => !before.has(field.id));
+      persist();
+      render();
+      list.focus(copy ? copy.id : command.id);
+      return;
+    }
+
+    case 'remove': {
+      const neighbour = neighbourOf(state.fields, command.id);
+      state.fields = removeField(state.fields, command.id);
+      persist();
+      render();
+      list.focus(neighbour);
+      return;
+    }
+
+    default:
+      return;
+  }
+
+  persist();
+  render();
+}
+
 /* ------------------------------------------------------------------- render */
 
 let noteTimer = 0;
@@ -166,12 +287,8 @@ function renderSummary(projection, hasInput) {
 }
 
 function render() {
-  const projection = project({
-    monthlyIncome: state.income,
-    monthlyRent: state.rent,
-    months: state.months,
-  });
-  const hasInput = projection.monthlyIncome > 0 || projection.monthlyRent > 0;
+  const projection = project({ fields: state.fields, months: state.months });
+  const hasInput = hasAmounts(projection);
   const series = CHARTS.map((spec) => seriesOf(projection, spec.key));
   const domain = extentOf(series);
   // One geometry for all three cards: the widest end-label decides the gutter,
@@ -180,6 +297,8 @@ function render() {
   const labelPad = Math.max(...series.map(
     (points) => endLabelPad(formatAmount(points[points.length - 1].value)),
   ));
+
+  list.update(projection.fields, fieldLabels(), t);
 
   charts.forEach((chart, index) => {
     chart.instance.update({
@@ -199,6 +318,7 @@ function render() {
     : t('filter.readout', projection.months, formatHorizon(projection.months, t));
   ui.monthsReadout.textContent = readout;
   ui.months.setAttribute('aria-valuetext', readout);
+
   for (const button of ui.presets) {
     const active = Number(button.dataset.months) === projection.months;
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
@@ -207,47 +327,11 @@ function render() {
   renderSummary(projection, hasInput);
 }
 
-// Touch keeps the last tapped reading on screen; a tap anywhere else clears it.
-document.addEventListener('pointerdown', (event) => {
-  if (event.pointerType !== 'touch') return;
-  if (event.target instanceof Element && event.target.closest('.chart-svg')) return;
-  for (const chart of charts) chart.instance.setActive(null);
-});
-
-/* ------------------------------------------------------------------- inputs */
-
-let saveTimer = 0;
-function persist() {
-  window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => {
-    writeStore(INPUT_KEY, { income: state.income, rent: state.rent, months: state.months });
-  }, 250);
-}
-
-function bindAmount(input, key) {
-  input.value = state[key];
-  input.addEventListener('input', () => {
-    // A negative amount is meaningless here; snap it back rather than modelling it.
-    if (input.value !== '' && Number(input.value) < 0) input.value = '';
-    state[key] = input.value;
-    persist();
-    render();
-  });
-  input.addEventListener('blur', () => {
-    const amount = toAmount(input.value);
-    input.value = amount ? String(amount) : '';
-    state[key] = input.value;
-    persist();
-    render();
-  });
-}
-
-bindAmount(ui.income, 'income');
-bindAmount(ui.rent, 'rent');
+/* ------------------------------------------------------------------ horizon */
 
 // The slider's own max is the source of truth for the horizon: a stored value
-// beyond it (a hand-edited localStorage entry) is pulled back into range here
-// rather than leaving the readout and the slider disagreeing.
+// beyond it (a hand-edited store) is pulled back into range here rather than
+// leaving the readout and the slider disagreeing.
 ui.months.value = String(state.months);
 state.months = toMonths(ui.months.value);
 
@@ -266,11 +350,25 @@ for (const button of ui.presets) {
   });
 }
 
+// Touch keeps the last tapped reading on screen; a tap anywhere else clears it.
+document.addEventListener('pointerdown', (event) => {
+  if (event.pointerType !== 'touch') return;
+  if (event.target instanceof Element && event.target.closest('.chart-svg')) return;
+  for (const chart of charts) chart.instance.setActive(null);
+});
+
 /* ----------------------------------------------------------------- language */
 
 const savedLanguage = readStore(LANG_KEY, null);
 let language = LANGUAGES.includes(savedLanguage) ? savedLanguage : detectLanguage();
 let t = makeTranslator(language);
+
+const list = createFieldList({
+  mount: ui.fields,
+  labels: fieldLabels(),
+  t,
+  onCommand: runCommand,
+});
 
 function applyLanguage(next) {
   language = LANGUAGES.includes(next) ? next : 'en';

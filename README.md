@@ -1,7 +1,7 @@
 # Finapp
 
-A small progressive web app that estimates your financial future. Enter what you
-earn and what you pay in rent each month, choose a horizon, and it plots three
+A small progressive web app that estimates your financial future. List what
+comes in and what goes out each month, choose a horizon, and it plots three
 cumulative curves — income, expenses and net — over the months ahead.
 
 Everything runs on the device. No build step, no dependencies, no network, no
@@ -23,21 +23,47 @@ A service worker only registers over `http(s)`, so open the app through the dev
 server rather than as a `file://` URL. Any static host works for deployment —
 copy the repository contents as-is.
 
+## Fields
+
+**Everything you enter is a field, and every field is the same kind of thing.**
+Income and rent are simply the two the app starts with — not special cases, not
+privileged code paths. Any field can be renamed, switched between income and
+expense, duplicated or deleted, the starting two included. Nothing in the app
+reaches for a field by name.
+
+A field is defined once, in [`assets/js/fields.js`](assets/js/fields.js):
+
+```js
+{
+  id,               // stable, generated
+  labelKey,         // dictionary key, while you haven't renamed it
+  label,            // your own name; wins over labelKey when set
+  direction,        // 'income' | 'expense' — the direction carries the sign
+  amount,           // as typed; the projection coerces it to money
+}
+```
+
+Two details that matter later. **The direction carries the sign**, so amounts
+are always positive and no field can smuggle in a negative. And **a field keeps
+its `labelKey` after you rename it**, so clearing the name box hands it back its
+translated default rather than leaving it nameless.
+
 ## What it computes
 
 The model lives in [`assets/js/projection.js`](assets/js/projection.js) and is
 deliberately the simplest thing that is honest:
 
 ```
-income(m)   = monthlyIncome × m
-expenses(m) = monthlyRent   × m
+income(m)   = (sum of every income field)  × m
+expenses(m) = (sum of every expense field) × m
 net(m)      = income(m) − expenses(m)
 ```
 
 for `m = 0 … X`, where month 0 is today — nothing earned, nothing paid. Amounts
 are rounded to whole cents at every step, so what you read is what adds up.
-Inputs are coerced rather than trusted: a negative or unparseable amount becomes
-`0`, and the horizon is clamped to 1–600 months.
+Input is coerced rather than trusted: a negative or unparseable amount becomes
+`0`, the horizon is clamped to 1–600 months, and both a single field and the sum
+of a direction are capped where doubles stop counting cents exactly.
 
 Amounts carry no currency symbol. The app never asks which currency you use, so
 it never claims to know.
@@ -67,7 +93,9 @@ manifest.webmanifest       installability (manifest.fr.webmanifest: the same
                            app, named in French)
 sw.js                      offline shell
 assets/css/app.css         design tokens (light + dark), shell, chart chrome
-assets/js/projection.js    the money model — pure, tested
+assets/js/fields.js        the field model — shape, coercion, operations
+assets/js/projection.js    fields + horizon → the cumulative series
+assets/js/field-list.js    the editable list of fields
 assets/js/chart.js         the SVG line chart
 assets/js/format.js        locale-aware number formatting
 assets/js/i18n.js          English and French copy
@@ -117,16 +145,40 @@ keys with the same parameters, so a half-translated release fails the build.
 
 ## Your data
 
-Three keys in `localStorage`, on your device only:
-`finapp.inputs.v1`, `finapp.theme.v1`, `finapp.language.v1`. Nothing is sent
-anywhere — the app makes no network requests after loading its own files.
+Three keys in `localStorage`, on your device only: `finapp.state.v2` (your
+fields and horizon), `finapp.theme.v1` and `finapp.language.v1`. A store written
+before fields existed (`finapp.inputs.v1`, a lone income and rent) is carried
+over on first load and then retired, so nobody loses what they had typed.
+Nothing is sent anywhere — the app makes no network requests after loading its
+own files.
 
 ## Extending it
 
-The projection is the seam. `project()` already returns a per-month array, so a
-second expense, a savings balance or an annual raise means adding a field to its
-input, a term to the loop, and — if it deserves its own card — one more entry in
-the `CHARTS` list in `app.js`. The charts take any `{month, value}` series.
+The point of the field model is that the common kind of growth — *more things to
+track* — costs nothing: that is what the "Add a field" button already does, and
+the projection sums whatever it is given.
+
+**Giving fields a new attribute** (a start month, a yearly cadence, a growth
+rate, a category) is the next-cheapest kind of change, and it has one seam:
+
+1. Add it to `FIELD_SHAPE` in `fields.js` with a sensible default, and teach
+   `normalizeField` how to read it. Storage, migration, duplication and the
+   list's reconciliation carry it from there without knowing what it is.
+2. Give it meaning in `project()` — the per-month loop is the only place that
+   decides what an attribute *does*.
+3. If it needs a control, add it to `createRow` and one line to `syncRow` in
+   `field-list.js`, then send its edits through the existing command stream.
+
+**A new derived series** (savings, taxes, a running balance) is a key on each
+point in `project()` plus one entry in the `CHARTS` list in `app.js`. The chart
+component takes any `{month, value}` series and needs no changes.
+
+**A new language** is a block in `i18n.js`; the tests fail if it is missing a
+key that another language has.
+
+Two habits keep this cheap: model operations are pure and return new lists, so
+state changes stay traceable; and the list UI reconciles rows in place rather
+than re-rendering, so nothing you add can start stealing focus mid-edit.
 
 ## Browser support
 

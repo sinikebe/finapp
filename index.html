@@ -42,20 +42,8 @@
   <main id="main">
     <section class="panel" aria-labelledby="inputs-heading">
       <h2 id="inputs-heading" data-i18n="inputs.heading">Your monthly numbers</h2>
-      <div class="field-grid">
-        <div class="field">
-          <label for="income" data-i18n="inputs.income">Monthly income</label>
-          <input id="income" name="income" type="number" inputmode="decimal" min="0" step="any"
-                 autocomplete="off" enterkeyhint="done" placeholder="0" aria-describedby="income-hint">
-          <p class="hint" id="income-hint" data-i18n="inputs.incomeHint">What lands in your account each month, after tax.</p>
-        </div>
-        <div class="field">
-          <label for="rent" data-i18n="inputs.rent">Monthly rent</label>
-          <input id="rent" name="rent" type="number" inputmode="decimal" min="0" step="any"
-                 autocomplete="off" enterkeyhint="done" placeholder="0" aria-describedby="rent-hint">
-          <p class="hint" id="rent-hint" data-i18n="inputs.rentHint">Rent, paid every month of the projection.</p>
-        </div>
-      </div>
+      <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, and set what it repeats every month.</p>
+      <div id="fields"></div>
       <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency — the app never converts or stores them anywhere but this device.</p>
     </section>
 
