@@ -84,6 +84,7 @@ const ui = {
   debtValue: $('debt-value'),
   debtHint: $('debt-hint'),
   syncHint: $('sync-hint'),
+  windowNote: $('window-note'),
   realToggle: $('real-toggle'),
   inflationFilter: $('inflation-filter'),
   inflation: $('inflation'),
@@ -634,6 +635,15 @@ function fieldLabels() {
     rateFor: (kind) => t(`field.rate.${kind}`),
     ratePlaceholder: t('field.ratePlaceholder'),
     term: t('field.term'),
+    from: t('field.from'),
+    to: t('field.to'),
+    fromWord: t('field.fromWord'),
+    fromWordShort: t('field.fromWordShort'),
+    toWord: t('field.toWord'),
+    toWordShort: t('field.toWordShort'),
+    onceMonth: t('field.onceMonth'),
+    onceWord: t('field.onceWord'),
+    onceWordShort: t('field.onceWordShort'),
     rateUnit: t('field.rateUnit'),
     rateUnitShort: t('field.rateUnitShort'),
     termUnit: t('field.termUnit'),
@@ -934,7 +944,13 @@ function render() {
   ui.syncHint.hidden = !(comparing && !projection.fields.some((field) => field.synced));
   // Where the periods land only needs saying once something lands somewhere
   // other than every month.
-  ui.periodNote.hidden = !projection.fields.some((field) => field.periodMonths !== 1);
+  ui.periodNote.hidden = !projection.fields.some(
+    (field) => field.periodMonths !== 1 && field.kind !== 'once',
+  );
+  // Only worth saying once something has a window to be read against.
+  ui.windowNote.hidden = !projection.fields.some(
+    (field) => field.startMonth || field.endMonth,
+  );
   ui.charts.dataset.count = String(specs.length);
   // What went in, what it became, and what is left of the difference after
   // tax — the three figures that answer "is this actually working?".

@@ -431,6 +431,32 @@ main {
 .field-unit-rate input { padding-right: 62px; }
 .field-unit-term input { padding-right: 56px; }
 
+/* When a field runs. The word leads — "from month 6" is a phrase, and a unit
+   trailing the number would read as "6 from month". Same box, mirrored. */
+/* One item in the wrapping row, so "from" and "to" never separate. */
+.field-window { display: flex; gap: 8px; min-width: 0; flex: 0 1 auto; }
+
+.field-when { position: relative; display: flex; min-width: 0; }
+.field-when-from { flex: 0 1 104px; }
+.field-when-to { flex: 0 1 92px; }
+.field-when input {
+  flex: 1 1 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding-left: 46px;
+}
+.field-when-to input { padding-left: 36px; }
+.field-when .unit-full { display: none; }
+.field-when .when-word {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
 /* On a phone the name takes its own line, the buttons take the last one, and
    the rest pair up two by two. */
 @media (max-width: 640px) {
@@ -459,6 +485,11 @@ main {
   .field-period { flex: 1 1 176px; max-width: none; }
   .field-unit-rate { flex: 1 1 116px; max-width: none; }
   .field-unit-term { flex: 1 1 116px; max-width: none; }
+
+  /* "from"/"to" rather than "from month"/"to month": half a row leaves little
+     room, and the sr-only label still spells it out. */
+  .field-when-from { flex: 1 1 110px; max-width: none; }
+  .field-when-to { flex: 1 1 100px; max-width: none; }
 }
 
 /* What a loan works out to, under the row that describes it. */

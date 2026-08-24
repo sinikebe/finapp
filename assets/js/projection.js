@@ -101,6 +101,29 @@ export function loanInterest(field) {
   return roundMoney(loanPayment(field.amount, field.annualRate, term) * term - toAmount(field.amount));
 }
 
+/** The first month a field can land. 0 means "from the beginning". */
+export function startOf(field) {
+  const start = Math.trunc(Number(field.startMonth) || 0);
+  return start > 0 ? start : 0;
+}
+
+/**
+ * A loan's first payment. With no start of its own that is month 1, which is
+ * what every loan written before windows existed means.
+ */
+export function firstPaymentOf(field) {
+  return Math.max(1, startOf(field));
+}
+
+/**
+ * The month a loan's money actually arrives: the instant before the first
+ * payment. It matters because that is when the debt appears — a mortgage you
+ * plan to take next year is not a debt you carry today.
+ */
+export function drawMonthOf(field) {
+  return firstPaymentOf(field) - 1;
+}
+
 /**
  * What is still owed on a loan after `month` payments — the principal that has
  * not been repaid yet. Walked a month at a time rather than closed-form so it
@@ -111,14 +134,19 @@ export function outstandingOf(field, month) {
   const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
   const principal = toAmount(field.amount);
   if (!principal) return 0;
+
+  const drawn = drawMonthOf(field);
+  // Not borrowed yet, so nothing is owed yet.
+  if (month < drawn) return 0;
+  const paid = Math.trunc(month) - drawn;
   // The term is up: amortisation has cleared it by construction, and saying so
   // outright keeps a rounding residue from lingering as a few cents of debt.
-  if (month >= term) return 0;
+  if (paid >= term) return 0;
 
   const rate = monthlyRate(field.annualRate);
   const payment = loanPayment(field.amount, field.annualRate, term);
   let balance = principal;
-  for (let m = 1; m <= Math.max(0, Math.trunc(month)); m += 1) {
+  for (let m = 1; m <= Math.max(0, paid); m += 1) {
     balance = roundMoney(Math.max(0, balance * (1 + rate) - payment));
   }
   return balance;
@@ -142,14 +170,34 @@ export function contributionOf(field, month) {
   // cash in any month; what it is worth is a balance, tracked in `project`.
   if (field.kind === 'asset') return 0;
 
+  const start = startOf(field);
+  // Nothing lands before a field begins.
+  if (month < start) return 0;
+
+  // A one-off is its own window: one month, once, done.
+  if (field.kind === 'once') {
+    return month === firstPaymentOf(field) ? toAmount(field.amount) : 0;
+  }
+
   if (field.kind === 'loan') {
     // Repayments are monthly and stop with the term; nothing lands after it.
     const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
-    return month <= term ? loanPayment(field.amount, field.annualRate, term) : 0;
+    const first = firstPaymentOf(field);
+    return month >= first && month < first + term
+      ? loanPayment(field.amount, field.annualRate, term)
+      : 0;
   }
 
+  // ...and nothing lands after it ends, where 0 means it never does.
+  const end = Math.trunc(Number(field.endMonth) || 0);
+  if (end && month > end) return 0;
+
+  // Counted from the start, so a yearly amount beginning in month 3 lands in
+  // months 3, 15, 27 rather than on a calendar nobody set. With no start of
+  // its own the count runs from month 0, which is what every field written
+  // before windows existed already does.
   const period = field.periodMonths || DEFAULT_PERIOD;
-  return month % period === 0 ? toAmount(field.amount) : 0;
+  return (month - start) % period === 0 ? toAmount(field.amount) : 0;
 }
 
 /** What one direction moves in a given month, across every field. */
@@ -205,7 +253,11 @@ export function project(input = {}) {
   const assets = fields.filter((field) => field.kind === 'asset');
   const loans = fields.filter((field) => field.kind === 'loan');
   const values = new Map(assets.map((field) => [field.id, toAmount(field.amount)]));
-  const owing = new Map(loans.map((field) => [field.id, toAmount(field.amount)]));
+  // A loan not yet drawn is not yet a debt: only one taken from the outset is
+  // owed at month 0.
+  const owing = new Map(loans.map(
+    (field) => [field.id, drawMonthOf(field) === 0 ? toAmount(field.amount) : 0],
+  ));
   const sumOf = (map, list) => roundMoney(
     list.reduce((total, field) => total + (map.get(field.id) || 0), 0),
   );
@@ -253,7 +305,12 @@ export function project(input = {}) {
     }
     for (const field of loans) {
       const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
-      if (month > term) { owing.set(field.id, 0); continue; }
+      const drawn = drawMonthOf(field);
+      if (month < drawn) { owing.set(field.id, 0); continue; }
+      // The month the money arrives: the debt appears, and nothing is repaid
+      // yet — the first payment is the month after.
+      if (month === drawn) { owing.set(field.id, toAmount(field.amount)); continue; }
+      if (month - drawn > term) { owing.set(field.id, 0); continue; }
       // A month's interest, then the payment against it: what is left is the
       // principal still outstanding. Floored at zero so the last payment's
       // rounding cannot leave a debt behind.

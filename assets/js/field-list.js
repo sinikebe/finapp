@@ -126,6 +126,39 @@ export function createFieldList(options) {
       return option;
     });
 
+    // When a field runs. The word comes *before* the box here — "from month 6"
+    // reads as a sentence where a trailing unit would not.
+    // The two boxes are one item in the wrapping row, so they move to the next
+    // line together — a lone "to" box under a full line reads as a mistake.
+    const window = html('span', 'field-window', controls);
+    const fromLabel = html('label', 'sr-only', window);
+    const fromWrap = html('span', 'field-when field-when-from', window);
+    const fromUnit = html('span', 'when-word', fromWrap);
+    const fromWordFull = html('span', 'unit-full', fromUnit);
+    const fromWordShort = html('span', 'unit-short', fromUnit);
+    const from = html('input', 'field-from', fromWrap);
+    from.type = 'number';
+    from.id = `field-${field.id}-from`;
+    from.inputMode = 'numeric';
+    from.min = '1';
+    from.step = '1';
+    from.autocomplete = 'off';
+    fromLabel.htmlFor = from.id;
+
+    const toLabel = html('label', 'sr-only', window);
+    const toWrap = html('span', 'field-when field-when-to', window);
+    const toUnit = html('span', 'when-word', toWrap);
+    const toWordFull = html('span', 'unit-full', toUnit);
+    const toWordShort = html('span', 'unit-short', toUnit);
+    const to = html('input', 'field-to', toWrap);
+    to.type = 'number';
+    to.id = `field-${field.id}-to`;
+    to.inputMode = 'numeric';
+    to.min = '1';
+    to.step = '1';
+    to.autocomplete = 'off';
+    toLabel.htmlFor = to.id;
+
     const rateLabel = html('label', 'sr-only', controls);
     const rateWrap = html('span', 'field-unit field-unit-rate', controls);
     const rate = html('input', 'field-rate', rateWrap);
@@ -175,6 +208,9 @@ export function createFieldList(options) {
       element, name, nameLabel, kind, kindLabel, kindOptions,
       direction, directionLabel, income, expense,
       amount, amountLabel, period, periodLabel, periodOptions,
+      window,
+      from, fromLabel, fromWrap, fromWordFull, fromWordShort,
+      to, toLabel, toWrap, toWordFull, toWordShort,
       rate, rateLabel, rateWrap, rateUnitFull, rateUnitShort,
       term, termLabel, termWrap, termUnitFull, termUnitShort,
       derived, sync, duplicate, remove, shown: '',
@@ -206,6 +242,11 @@ export function createFieldList(options) {
     rate.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { annualRate: rate.value } }));
     term.addEventListener('input', () => onCommand({ type: 'update', id, patch: { termMonths: term.value } }));
     term.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { termMonths: term.value } }));
+    // An empty box is "not set", which the model reads as 0 — from the
+    // beginning, or with no end.
+    from.addEventListener('input', () => onCommand({ type: 'update', id, patch: { startMonth: from.value } }));
+    to.addEventListener('input', () => onCommand({ type: 'update', id, patch: { endMonth: to.value } }));
+
     sync.addEventListener('click', () => onCommand({ type: 'sync', id }));
     duplicate.addEventListener('click', () => onCommand({ type: 'duplicate', id }));
     remove.addEventListener('click', () => onCommand({ type: 'remove', id }));
@@ -239,10 +280,29 @@ export function createFieldList(options) {
     const isLoan = field.kind === 'loan';
     const isInvestment = field.kind === 'investment';
     const isAsset = field.kind === 'asset';
+    const isOnce = field.kind === 'once';
     setVisible(row.direction, row.directionLabel, !isInvestment && !isAsset);
-    setVisible(row.period, row.periodLabel, !isLoan && !isAsset);
+    setVisible(row.period, row.periodLabel, !isLoan && !isAsset && !isOnce);
     setVisible(row.rateWrap, row.rateLabel, isLoan || isInvestment || isAsset);
     setVisible(row.termWrap, row.termLabel, isLoan);
+    // A one-off has a month rather than a window; a loan's term is its end; an
+    // asset never lands at all.
+    setVisible(row.fromWrap, row.fromLabel, !isAsset);
+    setVisible(row.toWrap, row.toLabel, !isAsset && !isLoan && !isOnce);
+    // An empty group would still take its gap in the row.
+    row.window.hidden = isAsset;
+
+    row.fromLabel.textContent = isOnce ? labels.onceMonth : labels.from;
+    row.fromWordFull.textContent = isOnce ? labels.onceWord : labels.fromWord;
+    row.fromWordShort.textContent = isOnce ? labels.onceWordShort : labels.fromWordShort;
+    row.from.placeholder = '';
+    syncValue(row.from, field.startMonth ? String(field.startMonth) : '');
+
+    row.toLabel.textContent = labels.to;
+    row.toWordFull.textContent = labels.toWord;
+    row.toWordShort.textContent = labels.toWordShort;
+    row.to.placeholder = '';
+    syncValue(row.to, field.endMonth ? String(field.endMonth) : '');
 
     row.amountLabel.textContent = labels.amountFor(field.kind);
     row.amount.placeholder = '0';
