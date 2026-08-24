@@ -29,6 +29,11 @@
   --series-income: #2a78d6;   /* categorical slot 1 */
   --series-expenses: #eb6834; /* categorical slot 2 */
   --series-net: #1baf7a;      /* categorical slot 3 */
+  /* A fourth series the palette has no slot for: no documented step clears the
+     all-pairs floors beside these three in dark mode, so this purple was found
+     by searching OKLCH space against the validator — it passes every gate in
+     both modes (worst all-pairs CVD ΔE 9.2, normal-vision 20.9). */
+  --series-invested: #703879;
 
   --status-good: #006300;     /* success text step — AA on the light surface */
   --status-critical: #d03b3b;
@@ -58,6 +63,7 @@
     --series-income: #3987e5;
     --series-expenses: #d95926;
     --series-net: #199e70;
+    --series-invested: #9f3dae;
 
     --status-good: #0ca30c;
     --status-critical: #e66767;
@@ -83,6 +89,7 @@
   --series-income: #3987e5;
   --series-expenses: #d95926;
   --series-net: #199e70;
+  --series-invested: #9f3dae;
 
   --status-good: #0ca30c;
   --status-critical: #e66767;
@@ -230,6 +237,23 @@ main {
   min-width: 0;
 }
 
+/* Everything but the colour key stacks: the controls and their buttons on one
+   line, anything derived from them underneath. */
+.field-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-main {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
 /* A key in the row's own series colour, so a line here ties to a chart below.
    It repeats what the select already says — direction never rides on colour. */
 .field-row::before {
@@ -273,11 +297,76 @@ main {
   letter-spacing: -0.01em;
 }
 
-.field-direction { flex: 1 1 92px; }
+.field-direction { flex: 1 1 96px; }
 
 /* Wide enough for its longest option ("Every 6 months") without stretching:
    the period is a qualifier on the amount, not a headline. */
-.field-period { flex: 1 1 128px; }
+.field-period { flex: 1 1 172px; }
+
+/* A loan and an investment ask for a rate; only a loan asks for a term. Both
+   are narrow: two or three digits and a unit. */
+.field-kind { flex: 1 1 132px; }
+/* The unit rides inside the box, so a rate reads as "5.9 % a year" rather than
+   as a bare number whose meaning lives in a screen-reader label. */
+.field-unit { position: relative; display: flex; min-width: 0; }
+.field-unit-rate { flex: 0 1 148px; }
+.field-unit-term { flex: 0 1 140px; }
+.field-unit input {
+  flex: 1 1 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.field-unit .unit-short { display: none; }
+
+.field-unit .unit {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+.field-unit-rate input { padding-right: 62px; }
+.field-unit-term input { padding-right: 56px; }
+
+/* On a phone the name takes its own line, the buttons take the last one, and
+   the rest pair up two by two. */
+@media (max-width: 640px) {
+  .field-name { flex-basis: 100%; }
+
+  /* The buttons sit beside the controls on a desktop, where 82px costs
+     nothing. On a phone that 82px is a third of the row, and it was squeezing
+     every select into truncating its own label. */
+  .field-main { flex-direction: column; }
+  .field-actions { align-self: flex-end; }
+
+  /* Half a row leaves ~40px for the number once the unit is in the box, so the
+     unit says "%" rather than "% a year" — the label still spells it out. */
+  .field-unit .unit-full { display: none; }
+  .field-unit .unit-short { display: inline; }
+  .field-unit-rate input { padding-right: 30px; }
+  .field-unit-term input { padding-right: 46px; }
+
+  /* Bases in pixels, sized to the longest word each control has to show — a
+     select truncates its own label silently, and French is longer than English.
+     Only the numeric boxes grow, so the slack goes where it costs nothing.
+     Any two of these fit a phone row side by side; three do not. */
+  .field-kind { flex: 0 1 132px; max-width: none; }
+  .field-direction { flex: 1 1 108px; max-width: none; }
+  .field-amount { flex: 1 1 104px; max-width: none; }
+  .field-period { flex: 1 1 176px; max-width: none; }
+  .field-unit-rate { flex: 1 1 116px; max-width: none; }
+  .field-unit-term { flex: 1 1 116px; max-width: none; }
+}
+
+/* What a loan works out to, under the row that describes it. */
+.field-derived {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
 
 .field-amount {
   flex: 1 1 96px;
@@ -529,6 +618,11 @@ main {
      minimum makes the grid wider than a 320px screen and scrolls the page. */
   grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   margin: 4px 0 2px;
+}
+
+/* Four cards read better two-by-two than as three and a lonely fourth. */
+@media (min-width: 720px) {
+  .chart-grid[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .chart-card {

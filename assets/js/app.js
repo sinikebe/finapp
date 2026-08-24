@@ -9,7 +9,8 @@
  */
 
 import {
-  project, seriesOf, extentOf, hasAmounts, toAmount, toMonths,
+  project, seriesOf, extentOf, hasAmounts, hasInvestments,
+  loanPayment, loanInterest, toAmount, toMonths,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
@@ -45,6 +46,8 @@ const ui = {
   totalIncome: $('total-income'),
   totalExpenses: $('total-expenses'),
   monthlyNet: $('monthly-net'),
+  investedTile: $('invested-tile'),
+  investedValue: $('invested-value'),
   chartsNote: $('charts-note'),
   periodNote: $('period-note'),
   charts: $('charts'),
@@ -178,14 +181,31 @@ const CHARTS = [
   { id: 'chart-income', key: 'income', colorVar: '--series-income' },
   { id: 'chart-expenses', key: 'expenses', colorVar: '--series-expenses' },
   { id: 'chart-net', key: 'net', colorVar: '--series-net' },
+  // Only drawn when something is being invested: an empty fourth card would be
+  // a question nobody asked.
+  {
+    id: 'chart-invested',
+    key: 'invested',
+    colorVar: '--series-invested',
+    onlyWithInvestments: true,
+    // A balance is not a cumulative flow: put it on the flows' scale and a
+    // realistic pot reads as a flat line along the axis. Its own scale makes it
+    // readable, and the note under the charts says which card is on its own.
+    ownScale: true,
+  },
 ];
 
 let charts = [];
+let chartsShowInvestments = false;
+
+function activeCharts() {
+  return CHARTS.filter((spec) => !spec.onlyWithInvestments || chartsShowInvestments);
+}
 
 function buildCharts() {
   for (const chart of charts) chart.instance.destroy();
   ui.charts.textContent = '';
-  charts = CHARTS.map((spec) => {
+  charts = activeCharts().map((spec) => {
     const title = t(`chart.${spec.key}.title`);
     return {
       ...spec,
@@ -225,6 +245,22 @@ function fieldLabels() {
     amount: t('field.amount'),
     period: t('field.period'),
     periodName: (months) => t(`field.period.${months}`),
+    kind: t('field.kind'),
+    kindName: (kind) => t(`field.kind.${kind}`),
+    amountFor: (kind) => t(`field.amount.${kind}`),
+    rateFor: (kind) => t(`field.rate.${kind}`),
+    ratePlaceholder: t('field.ratePlaceholder'),
+    term: t('field.term'),
+    rateUnit: t('field.rateUnit'),
+    rateUnitShort: t('field.rateUnitShort'),
+    termUnit: t('field.termUnit'),
+    termUnitShort: t('field.termUnitShort'),
+    loanSummary: (field) => t(
+      'field.loanSummary',
+      formatAmount(loanPayment(field.amount, field.annualRate, field.termMonths)),
+      field.termMonths,
+      formatAmount(loanInterest(field)),
+    ),
     income: t('field.income'),
     expense: t('field.expense'),
     untitled: t('field.untitled'),
@@ -348,8 +384,18 @@ function renderSummary(projection, hasInput) {
 function render() {
   const projection = project({ fields: state.fields, months: state.months });
   const hasInput = hasAmounts(projection);
-  const series = CHARTS.map((spec) => seriesOf(projection, spec.key));
-  const domain = extentOf(series);
+
+  // The fourth card comes and goes with the fields, so the cards are rebuilt
+  // only when that actually changes rather than on every keystroke.
+  const wantsInvestments = hasInvestments(projection);
+  if (wantsInvestments !== chartsShowInvestments) {
+    chartsShowInvestments = wantsInvestments;
+    buildCharts();
+  }
+
+  const specs = activeCharts();
+  const series = specs.map((spec) => seriesOf(projection, spec.key));
+  const shared = extentOf(series.filter((_, index) => !specs[index].ownScale));
   // One geometry for all three cards: the widest end-label decides the gutter,
   // so the small multiples are drawn to the same pixel scale and can be
   // compared by eye, not just by their axes.
@@ -361,11 +407,14 @@ function render() {
   // Where the periods land only needs saying once something lands somewhere
   // other than every month.
   ui.periodNote.hidden = !projection.fields.some((field) => field.periodMonths !== 1);
+  ui.charts.dataset.count = String(specs.length);
+  ui.investedTile.hidden = !wantsInvestments;
+  ui.investedValue.textContent = hasInput ? formatAmount(projection.totals.invested) : '—';
 
   charts.forEach((chart, index) => {
     chart.instance.update({
       points: series[index],
-      domain,
+      domain: specs[index].ownScale ? extentOf([series[index]]) : shared,
       months: projection.months,
       labelPad,
       isEmpty: !hasInput,

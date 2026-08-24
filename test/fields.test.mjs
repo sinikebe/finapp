@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  DIRECTIONS, FIELD_SHAPE, FIELD_SCHEMA, MAX_FIELDS, MAX_LABEL_LENGTH, PERIODS, DEFAULT_PERIOD,
+  DIRECTIONS, FIELD_SHAPE, FIELD_SCHEMA, MAX_FIELDS, MAX_LABEL_LENGTH,
+  PERIODS, DEFAULT_PERIOD, KINDS, DEFAULT_TERM,
   createField, normalizeField, normalizeFields, labelOf,
   addField, updateField, duplicateField, removeField, neighbourOf,
   defaultFields, migrateLegacyInputs,
@@ -193,4 +194,56 @@ test('a duplicate keeps how often the original landed', () => {
   const next = duplicateField(list, list[0].id, copyName, t);
   assert.equal(next[1].periodMonths, 12);
   assert.equal(next[1].amount, '1440');
+});
+
+test('a field knows what it is, and coerces anything else to a plain amount', () => {
+  assert.equal(createField().kind, 'plain');
+  for (const kind of KINDS) assert.equal(createField({ kind }).kind, kind);
+  assert.equal(normalizeField({ kind: 'mortgage' }).kind, 'plain');
+  assert.equal(normalizeField({ kind: 42 }).kind, 'plain');
+  assert.equal(normalizeField({}).kind, 'plain', 'a store written before kinds existed');
+});
+
+test('a term is a whole number of months inside the projection horizon', () => {
+  assert.equal(createField().termMonths, DEFAULT_TERM);
+  assert.equal(normalizeField({ termMonths: '240' }).termMonths, 240);
+  assert.equal(normalizeField({ termMonths: 18.7 }).termMonths, 18);
+  assert.equal(normalizeField({ termMonths: 0 }).termMonths, DEFAULT_TERM);
+  assert.equal(normalizeField({ termMonths: -5 }).termMonths, DEFAULT_TERM);
+  assert.equal(normalizeField({ termMonths: 'ages' }).termMonths, DEFAULT_TERM);
+  assert.equal(normalizeField({ termMonths: 1e9 }).termMonths, 600);
+});
+
+test('a rate is kept as typed, for the projection to make sense of', () => {
+  assert.equal(createField({ annualRate: '5.9' }).annualRate, '5.9');
+  assert.equal(normalizeField({ annualRate: 7 }).annualRate, '7');
+  assert.equal(normalizeField({ annualRate: {} }).annualRate, '');
+  assert.equal(createField().annualRate, '');
+});
+
+test('an investment is always money going out, whatever the store says', () => {
+  assert.equal(createField({ kind: 'investment', direction: 'income' }).direction, 'expense');
+  assert.equal(normalizeField({ kind: 'investment', direction: 'income' }).direction, 'expense');
+  const flipped = updateField([createField({ kind: 'investment' })], undefined, {});
+  assert.equal(flipped.length, 1);
+});
+
+test('a loan repays monthly, whatever period the store carries', () => {
+  assert.equal(createField({ kind: 'loan', periodMonths: 12 }).periodMonths, 1);
+  // Switching a quarterly amount into a loan settles its period too.
+  const list = [createField({ periodMonths: 3, amount: '300' })];
+  const asLoan = updateField(list, list[0].id, { kind: 'loan' });
+  assert.equal(asLoan[0].periodMonths, 1);
+  assert.equal(asLoan[0].amount, '300', 'and keeps what was already entered');
+});
+
+test('a duplicate of a loan or an investment is the same instrument', () => {
+  const list = [createField({
+    label: 'Mortgage', kind: 'loan', direction: 'expense', amount: '200000', annualRate: '4.5', termMonths: 300,
+  })];
+  const [, copy] = duplicateField(list, list[0].id, copyName, t);
+  assert.equal(copy.kind, 'loan');
+  assert.equal(copy.annualRate, '4.5');
+  assert.equal(copy.termMonths, 300);
+  assert.equal(copy.amount, '200000');
 });

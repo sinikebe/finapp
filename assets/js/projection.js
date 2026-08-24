@@ -41,6 +41,36 @@ export function toMonths(value) {
   return Math.min(MAX_MONTHS, Math.max(MIN_MONTHS, Math.trunc(n)));
 }
 
+/** A yearly percentage, as typed, into the fraction one month earns. */
+export function monthlyRate(annualRate) {
+  const percent = Number.parseFloat(annualRate);
+  if (!Number.isFinite(percent) || percent <= 0) return 0;
+  // A century of interest a year is already absurd; past that the arithmetic is
+  // the least of anyone's problems.
+  return Math.min(percent, 1000) / 100 / 12;
+}
+
+/**
+ * The level repayment that clears `principal` over `termMonths`, interest
+ * included — the standard amortisation formula. At 0% it is simply the
+ * principal split evenly, which is also what the formula tends to.
+ */
+export function loanPayment(principal, annualRate, termMonths) {
+  const amount = toAmount(principal);
+  const term = Math.max(1, Math.trunc(Number(termMonths) || 0));
+  if (!amount) return 0;
+
+  const rate = monthlyRate(annualRate);
+  if (!rate) return roundMoney(amount / term);
+  return roundMoney((amount * rate) / (1 - (1 + rate) ** -term));
+}
+
+/** What a loan costs beyond what was borrowed. */
+export function loanInterest(field) {
+  const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
+  return roundMoney(loanPayment(field.amount, field.annualRate, term) * term - toAmount(field.amount));
+}
+
 /**
  * What one field moves in a given month. **This is the seam.** Every attribute
  * a field grows — a start month, an end month, a growth rate — decides its
@@ -55,6 +85,12 @@ export function toMonths(value) {
  * @param {number} month 1-based: month 1 is the first month of the projection
  */
 export function contributionOf(field, month) {
+  if (field.kind === 'loan') {
+    // Repayments are monthly and stop with the term; nothing lands after it.
+    const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
+    return month <= term ? loanPayment(field.amount, field.annualRate, term) : 0;
+  }
+
   const period = field.periodMonths || DEFAULT_PERIOD;
   return month % period === 0 ? toAmount(field.amount) : 0;
 }
@@ -88,15 +124,37 @@ export function project(input = {}) {
   const fields = normalizeFields(input.fields);
   const months = toMonths(input.months);
 
+  // Money put into an investment leaves the account like any other outgoing, so
+  // it is already in `expenses`. What it is *worth* is a different quantity: a
+  // balance that grows, tracked per field because each carries its own rate.
+  const investments = fields.filter((field) => field.kind === 'investment');
+  const balances = new Map(investments.map((field) => [field.id, 0]));
+
   // Accumulated month by month rather than multiplied, so a field whose
   // contribution varies over time needs no change here — only `contributionOf`.
-  const points = [{ month: 0, income: 0, expenses: 0, net: 0 }];
+  const points = [{
+    month: 0, income: 0, expenses: 0, net: 0, invested: 0,
+  }];
   let income = 0;
   let expenses = 0;
   for (let month = 1; month <= months; month += 1) {
     income = roundMoney(income + flowIn(fields, 'income', month));
     expenses = roundMoney(expenses + flowIn(fields, 'expense', month));
-    points.push({ month, income, expenses, net: roundMoney(income - expenses) });
+
+    let invested = 0;
+    for (const field of investments) {
+      // A month's growth, then the month's contribution: money invested today
+      // has not had time to earn yet. Rounded to the cent each month, the way
+      // a statement does, rather than carrying fractions of a cent forever.
+      const grown = balances.get(field.id) * (1 + monthlyRate(field.annualRate));
+      const balance = roundMoney(grown + contributionOf(field, month));
+      balances.set(field.id, balance);
+      invested = roundMoney(invested + balance);
+    }
+
+    points.push({
+      month, income, expenses, net: roundMoney(income - expenses), invested,
+    });
   }
 
   const last = points[points.length - 1];
@@ -114,7 +172,9 @@ export function project(input = {}) {
     months,
     averages,
     points,
-    totals: { income: last.income, expenses: last.expenses, net: last.net },
+    totals: {
+      income: last.income, expenses: last.expenses, net: last.net, invested: last.invested,
+    },
   };
 }
 
@@ -126,6 +186,11 @@ export function project(input = {}) {
  */
 export function hasAmounts(projection) {
   return projection.fields.some((field) => toAmount(field.amount) > 0);
+}
+
+/** True when any field builds a balance worth charting on its own. */
+export function hasInvestments(projection) {
+  return projection.fields.some((field) => field.kind === 'investment' && toAmount(field.amount) > 0);
 }
 
 /** Extract one cumulative series from a projection. */
