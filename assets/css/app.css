@@ -305,8 +305,11 @@ main {
 
 .field-actions {
   flex: 0 0 auto;
+  /* Bottom-aligned so that when the row wraps, the buttons sit on the last line
+     of controls rather than floating between the two — which would put them
+     visually before controls that come after them in the tab order. */
+  align-self: flex-end;
   display: flex;
-  align-items: center;
   gap: 2px;
 }
 
@@ -314,7 +317,9 @@ main {
   display: grid;
   place-items: center;
   width: 40px;
-  height: 40px;
+  /* Matches the control height, so bottom-aligning changes nothing on a row
+     that fits on one line — and it is a kinder touch target. */
+  height: 44px;
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);

@@ -229,6 +229,8 @@ function fieldLabels() {
     empty: t('fields.empty'),
     duplicateNamed: (name) => t('field.duplicateNamed', name),
     removeNamed: (name) => t('field.removeNamed', name),
+    directionNamed: (name) => t('field.directionNamed', name),
+    amountNamed: (name) => t('field.amountNamed', name),
   };
 }
 

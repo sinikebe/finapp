@@ -143,6 +143,13 @@ export function createFieldList(options) {
     row.amountLabel.textContent = labels.amount;
     syncValue(row.amount, field.amount);
 
+    // Every row would otherwise announce the same three control names, leaving
+    // a screen-reader user with no idea which field they are editing. The name
+    // box needs no such help: it announces its own value.
+    row.element.setAttribute('aria-label', named);
+    row.direction.setAttribute('aria-label', labels.directionNamed(named));
+    row.amount.setAttribute('aria-label', labels.amountNamed(named));
+
     row.duplicate.setAttribute('aria-label', labels.duplicateNamed(named));
     // At the cap the model would refuse the copy; say so rather than no-op.
     row.duplicate.disabled = atCap;
