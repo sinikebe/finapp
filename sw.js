@@ -9,7 +9,7 @@
  * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v17';
+const CACHE_VERSION = 'v18';
 const CACHE_PREFIX = 'finapp-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const SHELL = './index.html';

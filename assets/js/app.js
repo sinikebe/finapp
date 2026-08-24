@@ -44,6 +44,8 @@ const DEFAULT_MONTHS = 24;
 const DEFAULT_INFLATION = '2';
 /** How far returns are moved for the pessimistic and hopeful runs, in points. */
 const DEFAULT_SPREAD = '3';
+/** What a gain is taxed at when nobody has said otherwise. */
+const DEFAULT_TAX = '30';
 /** The series a return can move. The flows are fixed amounts, so a range on
  *  them would be a range around nothing. */
 const BAND_KEYS = new Set(['invested', 'worth']);
@@ -87,6 +89,13 @@ const ui = {
   rangeToggle: $('range-toggle'),
   spreadFilter: $('spread-filter'),
   spread: $('spread'),
+  taxFilter: $('tax-filter'),
+  tax: $('tax'),
+  contributedTile: $('contributed-tile'),
+  contributedValue: $('contributed-value'),
+  profitTile: $('profit-tile'),
+  profitLabel: $('profit-label'),
+  profitValue: $('profit-value'),
   worthTile: $('worth-tile'),
   worthLabel: $('worth-label'),
   worthValue: $('worth-value'),
@@ -172,6 +181,7 @@ function loadState() {
       realMoney: saved.realMoney === true,
       spread: toRateText(saved.spread, DEFAULT_SPREAD),
       showRange: saved.showRange === true,
+      tax: toRateText(saved.tax, DEFAULT_TAX),
     };
   }
 
@@ -196,6 +206,7 @@ function loadState() {
     realMoney: false,
     spread: DEFAULT_SPREAD,
     showRange: false,
+    tax: DEFAULT_TAX,
   };
 }
 
@@ -213,6 +224,7 @@ function adopt(strategies, months, oldKey) {
     realMoney: false,
     spread: DEFAULT_SPREAD,
     showRange: false,
+    tax: DEFAULT_TAX,
   };
   if (writeStore(STATE_KEY, next)) dropStore(oldKey);
   return next;
@@ -253,6 +265,7 @@ function save() {
     realMoney: state.realMoney,
     spread: state.spread,
     showRange: state.showRange,
+    tax: state.tax,
   });
 }
 
@@ -291,9 +304,11 @@ window.addEventListener('storage', (event) => {
     state.realMoney = incoming.realMoney === true;
     state.spread = toRateText(incoming.spread, DEFAULT_SPREAD);
     state.showRange = incoming.showRange === true;
+    state.tax = toRateText(incoming.tax, DEFAULT_TAX);
     ui.months.value = String(state.months);
     ui.inflation.value = state.inflation;
     ui.spread.value = state.spread;
+    ui.tax.value = state.tax;
     render();
   } catch {
     /* another tab wrote something unreadable — keep what we have */
@@ -323,6 +338,9 @@ const CHARTS = [
     key: 'invested',
     colorVar: '--series-invested',
     when: hasInvestments,
+    // Drawn against what was actually paid in: the gap between the two lines
+    // is the gain, which is the only reason anyone holds the thing.
+    reference: 'contributed',
     // A balance is not a cumulative flow: put it on the flows' scale and a
     // realistic pot reads as a flat line along the axis. Its own scale makes it
     // readable, and the note under the charts says which card is on its own.
@@ -373,12 +391,13 @@ function buildCharts(specs) {
 /* --------------------------------------------------------------- comparing */
 
 /** Which quantity the comparison chart is showing. */
-const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'owned', 'debt'];
+const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'profit', 'owned', 'debt'];
 
 /** Metrics that say nothing until the thing they measure exists. */
 const CONDITIONAL_METRICS = {
   worth: (projections) => projections.some((p) => hasInvestments(p) || hasDebt(p) || hasOwned(p)),
   invested: (projections) => projections.some((p) => hasInvestments(p)),
+  profit: (projections) => projections.some((p) => hasInvestments(p)),
   owned: (projections) => projections.some((p) => hasOwned(p)),
   debt: (projections) => projections.some((p) => hasDebt(p)),
 };
@@ -476,7 +495,10 @@ function renderCompareTable(projections) {
     { key: 'income', total: (p) => p.totals.income },
     { key: 'expenses', total: (p) => p.totals.expenses },
     { key: 'net', total: (p) => p.totals.net },
-    ...(shows('invested') ? [{ key: 'invested', total: (p) => p.totals.invested }] : []),
+    ...(shows('invested') ? [
+      { key: 'invested', total: (p) => p.totals.invested },
+      { key: 'profit', total: (p) => p.totals.profit },
+    ] : []),
     ...(shows('owned') ? [{ key: 'owned', total: (p) => p.totals.owned }] : []),
     ...(shows('debt') ? [{ key: 'debt', total: (p) => p.totals.debt }] : []),
     ...(shows('worth') ? [{ key: 'worth', total: (p) => p.totals.worth }] : []),
@@ -536,7 +558,7 @@ function renderCompareTable(projections) {
  * the two extra runs behind a band — is looking at the same money.
  */
 function projectionFor(planFields) {
-  const projection = project({ fields: planFields, months: state.months });
+  const projection = project({ fields: planFields, months: state.months, taxRate: state.tax });
   return state.realMoney ? inTodaysMoney(projection, state.inflation) : projection;
 }
 
@@ -838,14 +860,17 @@ function render() {
 
   // A band that ran off the plot would be worse than no band, so the scale
   // counts its edges as points of their own.
-  const spanOf = (index) => (bands[index]
-    ? [series[index], bands[index].low, bands[index].high]
-    : [series[index]]);
+  const references = specs.map((spec) => (spec.reference ? seriesOf(projection, spec.reference) : null));
+  const spanOf = (index) => [
+    series[index],
+    ...(bands[index] ? [bands[index].low, bands[index].high] : []),
+    ...(references[index] ? [references[index]] : []),
+  ];
   const shared = extentOf(specs.flatMap((spec, index) => (spec.ownScale ? [] : spanOf(index))));
   // One geometry for all three cards: the widest end-label decides the gutter,
   // so the small multiples are drawn to the same pixel scale and can be
   // compared by eye, not just by their axes.
-  const labelPad = Math.max(...series.map(
+  const labelPad = Math.max(...specs.flatMap((spec, index) => spanOf(index)).map(
     (points) => endLabelPad(formatAmount(points[points.length - 1].value)),
   ));
 
@@ -869,8 +894,16 @@ function render() {
   // other than every month.
   ui.periodNote.hidden = !projection.fields.some((field) => field.periodMonths !== 1);
   ui.charts.dataset.count = String(specs.length);
+  // What went in, what it became, and what is left of the difference after
+  // tax — the three figures that answer "is this actually working?".
+  ui.contributedTile.hidden = !wantsInvestments;
+  ui.contributedValue.textContent = hasInput ? formatAmount(projection.totals.contributed) : '—';
   ui.investedTile.hidden = !wantsInvestments;
   ui.investedValue.textContent = hasInput ? formatAmount(projection.totals.invested) : '—';
+  ui.profitTile.hidden = !wantsInvestments;
+  ui.profitLabel.textContent = t('summary.profit', formatRate(state.tax));
+  ui.profitValue.textContent = hasInput ? formatAmount(projection.totals.profit) : '—';
+  ui.taxFilter.hidden = !wantsInvestments;
   // The bottom line, and the only tile that names its own horizon: without an
   // investment it would repeat the hero to the cent, so it comes and goes with
   // the investment cards.
@@ -891,13 +924,24 @@ function render() {
 
   charts.forEach((chart, index) => {
     chart.instance.update({
-      series: [{
-        id: chart.key,
-        label: t(`chart.${chart.key}.series`),
-        color: `var(${chart.colorVar})`,
-        points: series[index],
-        band: bands[index],
-      }],
+      series: [
+        {
+          id: chart.key,
+          label: t(`chart.${chart.key}.series`),
+          color: `var(${chart.colorVar})`,
+          points: series[index],
+          band: bands[index],
+        },
+        ...(references[index] ? [{
+          id: chart.reference,
+          label: t(`chart.${chart.reference}.series`),
+          // Neutral on purpose: a reference is not a category, so it takes no
+          // slot in a palette that has none left to give.
+          color: 'var(--text-muted)',
+          points: references[index],
+          dashed: true,
+        }] : []),
+      ],
       domain: specs[index].ownScale ? extentOf(spanOf(index)) : shared,
       months: projection.months,
       labelPad,
@@ -933,6 +977,13 @@ ui.months.value = String(state.months);
 state.months = toMonths(ui.months.value);
 ui.inflation.value = state.inflation;
 ui.spread.value = state.spread;
+ui.tax.value = state.tax;
+
+ui.tax.addEventListener('input', () => {
+  state.tax = ui.tax.value;
+  persist();
+  render();
+});
 
 ui.rangeToggle.addEventListener('click', () => {
   state.showRange = !state.showRange;
