@@ -43,9 +43,12 @@ A field is defined once, in [`assets/js/fields.js`](assets/js/fields.js):
   direction,        // 'income' | 'expense' — the direction carries the sign
   amount,           // as typed; the projection coerces it to money
   periodMonths,     // 1 monthly · 3 quarterly · 6 half-yearly · 12 yearly
-  kind,             // 'plain' | 'loan' | 'investment'
-  annualRate,       // % a year: interest on a loan, return on an investment
+  kind,             // 'plain' | 'once' | 'loan' | 'investment' | 'asset'
+  annualRate,       // % a year: interest, return, or appreciation
   termMonths,       // how long a loan runs
+  startMonth,       // first month it can land; 0 means from the beginning
+  endMonth,         // last month it can land; 0 means no end
+  synced,           // whether every strategy holds this same field
 }
 ```
 
@@ -59,6 +62,8 @@ months, not a name**, so the projection can do arithmetic with it and a new one
 ### What a field can be
 
 - **Amount** — the default. It lands, unchanged, every period.
+- **One-off** — it happens in one month and is done: a car, a deposit, a
+  bonus. Its month is the only timing it has.
 - **Loan** — you enter what was borrowed, the yearly interest rate and the
   number of monthly payments; the app works out the level repayment (the
   standard amortisation formula) and charges it every month until the term
@@ -78,6 +83,30 @@ Three invariants belong to the model rather than the form, so a hand-edited
 store can't break them: an investment is always money going out, a loan always
 repays monthly whatever period is stored against it, and something you own has
 neither a direction nor a period, because it never lands.
+
+### When it runs
+
+Every field that moves cash carries a window: **from month** and **to month**,
+both empty by default, which is what every field written before windows existed
+reads as — from the beginning, with no end. Months are counted from today, which
+is month 0.
+
+Three details, each chosen so nothing already stored changes meaning:
+
+- **A period counts from the start.** A yearly amount beginning in month 3 lands
+  in months 3, 15, 27, not on some calendar nobody set. With no start of its own
+  the count runs from month 0, which is exactly `month % period === 0` — the
+  rule as it was before.
+- **A loan's term is its end**, so it has a start and no end box. A start moves
+  the *whole* loan: the money arrives the month before the first payment, so a
+  mortgage you plan to take next year is not a debt you carry today, and the
+  total worth says so.
+- **An end before the beginning** is read as "it starts and stops in the same
+  month" rather than landing nothing and explaining nothing.
+
+A one-off is the degenerate window — one month — but it is its own kind rather
+than something you assemble, because "a car, in month 18" is a thing people
+mean, and making them derive it from `from = to` would be a puzzle.
 
 ### How often an amount lands
 
@@ -164,8 +193,10 @@ The model lives in [`assets/js/projection.js`](assets/js/projection.js) and is
 deliberately the simplest thing that is honest:
 
 ```
-contribution(f, m) = loan      → m ≤ f.termMonths ? payment(f) : 0
-                     otherwise → m % f.periodMonths === 0 ? f.amount : 0
+contribution(f, m) = before f.startMonth, or after f.endMonth → 0
+                     once      → m === f.startMonth ? f.amount : 0
+                     loan      → m within term of its first payment ? payment(f) : 0
+                     otherwise → (m − f.startMonth) % f.periodMonths === 0 ? f.amount : 0
 income(m)          = income(m−1)   + Σ contribution(income fields, m)
 expenses(m)        = expenses(m−1) + Σ contribution(expense fields, m)
 net(m)             = income(m) − expenses(m)

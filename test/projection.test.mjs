@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax,
   seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
-  flowIn, contributionOf, outstandingOf,
+  flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf,
   loanPayment, loanInterest, monthlyRate,
   toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
@@ -635,4 +635,106 @@ test('profit survives being restated in today\'s money', () => {
   const gain = roundMoney(real.totals.invested - real.totals.contributed);
   assert.equal(real.totals.profit, roundMoney(gain * 0.7), 'still the gain on screen, less its tax');
   assert.ok(real.totals.profit < nominal.totals.profit, 'and worth less than it looked');
+});
+
+/* ------------------------------------------------- when a field is running */
+
+const once = (amount, startMonth, direction = 'expense') => createField({
+  kind: 'once', direction, amount, startMonth,
+});
+const between = (amount, startMonth, endMonth, periodMonths = 1) => createField({
+  direction: 'expense', amount, startMonth, endMonth, periodMonths,
+});
+
+test('a one-off lands in its month and in no other', () => {
+  const car = once('25000', 18);
+  assert.equal(contributionOf(car, 17), 0);
+  assert.equal(contributionOf(car, 18), 25000);
+  assert.equal(contributionOf(car, 19), 0);
+  const result = project({ fields: [income(3000), car], months: 36 });
+  assert.equal(result.totals.expenses, 25000, 'paid exactly once');
+  assert.equal(result.points[17].expenses, 0);
+  assert.equal(result.points[18].expenses, 25000);
+});
+
+test('a one-off always has a real month to land in', () => {
+  // Month 0 is today and nothing lands there, so an unset month reads as the first.
+  assert.equal(createField({ kind: 'once', amount: '10' }).startMonth, 1);
+  assert.equal(createField({ kind: 'once', amount: '10', startMonth: 0 }).startMonth, 1);
+  assert.equal(createField({ kind: 'once', amount: '10', startMonth: -5 }).startMonth, 1);
+});
+
+test('a window starts and stops a field', () => {
+  const rent = between('1200', 4, 9);
+  assert.deepEqual([3, 4, 5, 9, 10].map((m) => contributionOf(rent, m)), [0, 1200, 1200, 1200, 0]);
+  const result = project({ fields: [rent], months: 24 });
+  assert.equal(result.totals.expenses, 1200 * 6, 'months 4 to 9 inclusive');
+});
+
+test('a period is counted from the start, not from the calendar', () => {
+  const shifted = between('600', 3, 0, 12);
+  assert.deepEqual([3, 12, 14, 15, 27].map((m) => contributionOf(shifted, m)), [600, 0, 0, 600, 600]);
+});
+
+test('a field with no window behaves exactly as it always did', () => {
+  const plain = createField({ direction: 'expense', amount: '900' });
+  assert.equal(startOf(plain), 0, 'from the beginning');
+  assert.deepEqual([1, 2, 60].map((m) => contributionOf(plain, m)), [900, 900, 900]);
+  assert.deepEqual([11, 12, 13, 24].map((m) => contributionOf(yearly('600'), m)), [0, 600, 0, 600]);
+});
+
+test('an end before the beginning is read as landing once', () => {
+  const odd = between('500', 10, 4);
+  assert.equal(odd.endMonth, 10);
+  assert.equal(project({ fields: [odd], months: 24 }).totals.expenses, 500);
+});
+
+test('a loan taken later is not a debt you carry today', () => {
+  const later = loan('120000', '4', 60);
+  const deferred = createField({ ...later, startMonth: 13, id: undefined });
+  assert.equal(drawMonthOf(deferred), 12, 'the money arrives the month before the first payment');
+  assert.equal(firstPaymentOf(deferred), 13);
+  assert.equal(contributionOf(deferred, 12), 0, 'nothing repaid before it is taken');
+  assert.ok(contributionOf(deferred, 13) > 0);
+
+  assert.equal(outstandingOf(deferred, 6), 0, 'not borrowed yet');
+  assert.equal(outstandingOf(deferred, 12), 120000, 'borrowed');
+  assert.ok(outstandingOf(deferred, 13) < 120000, 'and repaying');
+  assert.equal(outstandingOf(deferred, 72), 0, 'cleared 60 payments later');
+
+  const result = project({ fields: [income(4000), deferred], months: 84 });
+  assert.equal(result.points[0].debt, 0, 'today you owe nothing');
+  assert.equal(result.points[11].debt, 0);
+  assert.equal(result.points[12].debt, 120000);
+  assert.equal(result.points[84].debt, 0);
+});
+
+test('a loan with no start of its own repays exactly as it always did', () => {
+  const field = loan('120000', '6', 120);
+  assert.equal(drawMonthOf(field), 0);
+  assert.equal(firstPaymentOf(field), 1);
+  const result = project({ fields: [field], months: 120 });
+  assert.equal(result.points[0].debt, 120000, 'owed from the outset');
+  assert.equal(result.points[120].debt, 0);
+  assert.equal(roundMoney(result.points[0].worth - result.points[120].worth), loanInterest(field));
+});
+
+test('an investment can be paid into for a while and then left alone', () => {
+  const paying = createField({ kind: 'investment', amount: '500', annualRate: '6', endMonth: 60 });
+  const result = project({ fields: [paying], months: 120 });
+  assert.equal(result.totals.contributed, 500 * 60, 'sixty payments, then nothing');
+  assert.equal(result.points[61].contributed, result.points[120].contributed);
+  assert.ok(result.points[120].invested > result.points[60].invested, 'but it kept growing');
+});
+
+test('an asset never carries a window, because it never lands', () => {
+  const house = createField({ kind: 'asset', amount: '250000', startMonth: 12, endMonth: 40 });
+  assert.equal(house.startMonth, 0);
+  assert.equal(house.endMonth, 0);
+});
+
+test('a window is coerced, never trusted', () => {
+  const wild = createField({ direction: 'expense', amount: '10', startMonth: 'soon', endMonth: 99999 });
+  assert.equal(wild.startMonth, 0);
+  assert.equal(wild.endMonth, 600, 'clamped to the longest projection');
 });

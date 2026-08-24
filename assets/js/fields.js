@@ -25,13 +25,14 @@ export const PERIODS = [1, 3, 6, 12];
 export const DEFAULT_PERIOD = 1;
 
 /**
- * What a field *is*. A plain field simply repeats; a loan repays a borrowed sum
- * over a term; an investment puts money in and lets it grow; an asset is
- * something you already own, which moves no cash at all. The kind decides
+ * What a field *is*. A plain field simply repeats; a one-off happens once and
+ * is done; a loan repays a borrowed sum over a term; an investment puts money
+ * in and lets it grow; an asset is something you already own, which moves no
+ * cash at all. The kind decides
  * which attributes matter — the projection reads them, the row shows them — so
  * a new kind is an entry here, a rule in `contributionOf`, and its controls.
  */
-export const KINDS = ['plain', 'loan', 'investment', 'asset'];
+export const KINDS = ['plain', 'once', 'loan', 'investment', 'asset'];
 export const DEFAULT_TERM = 60;
 
 /**
@@ -90,6 +91,19 @@ export const FIELD_SCHEMA = {
     default: DEFAULT_PERIOD,
     read: (value) => (PERIODS.includes(Number(value)) ? Number(value) : DEFAULT_PERIOD),
   },
+  startMonth: {
+    // The first month this can land. 0 means "from the beginning", which is
+    // also what an empty box means — and, crucially, what every field written
+    // before windows existed reads as, so nothing moves under anyone.
+    default: 0,
+    read: (value) => toMonthMark(value),
+  },
+  endMonth: {
+    // The last month this can land; 0 means "no end", so it runs as long as
+    // the projection does.
+    default: 0,
+    read: (value) => toMonthMark(value),
+  },
   synced: {
     // Whether every strategy holds this same field, so that comparing two
     // plans varies only what you meant to vary. The strategies own what this
@@ -103,6 +117,16 @@ export const FIELD_SCHEMA = {
 export const FIELD_SHAPE = Object.freeze(
   Object.fromEntries(Object.entries(FIELD_SCHEMA).map(([key, spec]) => [key, spec.default])),
 );
+
+/** A month on the projection's timeline, or 0 for "not set". */
+function toMonthMark(value) {
+  const month = Math.trunc(Number(value));
+  if (!Number.isFinite(month) || month < 1) return 0;
+  return Math.min(month, MAX_MONTH_MARK);
+}
+
+/** The far end of the longest projection, so a window can't ask for more. */
+export const MAX_MONTH_MARK = 600;
 
 /** Guard rails against a hand-edited or corrupted store. */
 export const MAX_LABEL_LENGTH = 60;
@@ -138,7 +162,22 @@ export function normalizeField(value) {
   if (field.kind === 'asset') {
     field.direction = 'income';
     field.periodMonths = DEFAULT_PERIOD;
+    // It never lands, so a window would describe nothing.
+    field.startMonth = 0;
+    field.endMonth = 0;
   }
+  // A one-off happens in one month, so that month is its whole window — and it
+  // has to be a real month, since month 0 is today and nothing lands there.
+  if (field.kind === 'once') {
+    field.startMonth = Math.max(1, field.startMonth);
+    field.endMonth = 0;
+    field.periodMonths = DEFAULT_PERIOD;
+  }
+  // A loan ends when its term does; a second end would only contradict it.
+  if (field.kind === 'loan') field.endMonth = 0;
+  // An end before the beginning would land nothing at all and say nothing
+  // about why. Read as "it starts and stops in the same month".
+  if (field.endMonth && field.endMonth < field.startMonth) field.endMonth = field.startMonth;
 
   return field;
 }
