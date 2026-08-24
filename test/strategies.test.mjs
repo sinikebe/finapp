@@ -5,6 +5,7 @@ import {
   MAX_STRATEGIES, MAX_NAME_LENGTH,
   createStrategy, normalizeStrategy, normalizeStrategies, nameOf, activeIdOf,
   addStrategy, updateStrategy, duplicateStrategy, removeStrategy, neighbourOf,
+  spreadField, unlinkField, removeEverywhere,
   migrateFields,
 } from '../assets/js/strategies.js';
 import { createField, labelOf } from '../assets/js/fields.js';
@@ -119,4 +120,113 @@ test('a store from before strategies becomes one unnamed strategy', () => {
   assert.equal(migrated[0].name, '');
   assert.equal(migrated[0].fields.length, 2);
   assert.equal(nameOf(migrated[0], 0, t), 'Strategy 1');
+});
+
+/* ------------------------------------------------------- syncing a field */
+
+const wage = (amount, extra = {}) => createField({
+  direction: 'income', labelKey: 'field.income', amount, ...extra,
+});
+const rent = (amount) => createField({ direction: 'expense', labelKey: 'field.rent', amount });
+const fieldsOf = (strategies, index) => strategies[index].fields;
+const named = (strategy, key) => strategy.fields.find((f) => f.labelKey === key);
+
+test('syncing finds the counterpart by name the first time', () => {
+  // Two strategies built the old way: the same field, different ids.
+  const before = normalizeStrategies([
+    { fields: [wage('4000'), rent('1200')] },
+    { fields: [wage('4000'), rent('1800')] },
+  ]);
+  assert.notEqual(fieldsOf(before, 0)[0].id, fieldsOf(before, 1)[0].id, 'ids differ to begin with');
+
+  const after = spreadField(before, { ...fieldsOf(before, 0)[0], synced: true, amount: '4500' });
+  assert.equal(named(after[1], 'field.income').amount, '4500', 'the other strategy followed');
+  assert.equal(named(after[1], 'field.income').id, fieldsOf(before, 0)[0].id, 'and now shares its id');
+  assert.equal(named(after[1], 'field.rent').amount, '1800', 'its own fields are untouched');
+  assert.equal(after[1].fields.length, 2, 'nothing was added');
+});
+
+test('once synced, the link is by id and a rename travels with it', () => {
+  const base = normalizeStrategies([
+    { fields: [wage('4000')] },
+    { fields: [wage('4000')] },
+  ]);
+  // The first spread is what aligns the ids; everything after goes by id, so a
+  // rename cannot break the link the way matching on the name would.
+  const linked = spreadField(base, { ...fieldsOf(base, 0)[0], synced: true });
+  assert.equal(fieldsOf(linked, 1)[0].id, fieldsOf(linked, 0)[0].id);
+
+  const renamed = spreadField(linked, { ...fieldsOf(linked, 0)[0], label: 'Salary', amount: '5000' });
+  assert.equal(renamed[1].fields[0].label, 'Salary', 'the new name travelled');
+  assert.equal(renamed[1].fields[0].amount, '5000');
+  assert.equal(renamed[1].fields.length, 1, 'and did not become a second field');
+});
+
+test('a strategy with no counterpart gains the field', () => {
+  const before = normalizeStrategies([
+    { fields: [wage('4000')] },
+    { fields: [rent('900')] },
+  ]);
+  const after = spreadField(before, { ...fieldsOf(before, 0)[0], synced: true });
+  assert.equal(after[1].fields.length, 2, 'a synced field exists everywhere by definition');
+  assert.equal(named(after[1], 'field.income').amount, '4000');
+});
+
+test('syncing never steals a field already following something else', () => {
+  const before = normalizeStrategies([
+    { fields: [wage('4000'), wage('500')] },
+    { fields: [wage('4000', { synced: true })] },
+  ]);
+  // The second strategy's only income is already synced to something, so the
+  // new one must not adopt it — it gets appended instead.
+  const after = spreadField(before, { ...fieldsOf(before, 0)[1], synced: true });
+  assert.equal(after[1].fields.length, 2);
+  assert.equal(after[1].fields[0].amount, '4000', 'the field already linked was left alone');
+});
+
+test('unsyncing leaves every copy where it stands', () => {
+  const linked = spreadField(normalizeStrategies([
+    { fields: [wage('4000')] },
+    { fields: [wage('4000')] },
+  ]), { ...wage('4000'), synced: true });
+  const id = linked[0].fields[0].id;
+  const apart = unlinkField(linked, id);
+  assert.equal(apart[0].fields[0].synced, false);
+  assert.equal(apart[1].fields[0].synced, false);
+  assert.equal(apart[1].fields[0].amount, '4000', 'they keep what they had');
+});
+
+test('removing a synced field removes it everywhere', () => {
+  const linked = spreadField(normalizeStrategies([
+    { fields: [wage('4000'), rent('1200')] },
+    { fields: [wage('4000'), rent('1800')] },
+  ]), { ...wage('4000'), synced: true });
+  const id = linked[0].fields.find((f) => f.labelKey === 'field.income').id;
+  const gone = removeEverywhere(linked, id);
+  for (const strategy of gone) {
+    assert.equal(strategy.fields.some((f) => f.id === id), false);
+    assert.equal(strategy.fields.length, 1, 'only that one went');
+  }
+});
+
+test('duplicating a strategy keeps synced ids and renews the rest', () => {
+  const linked = spreadField(normalizeStrategies([
+    { fields: [wage('4000'), rent('1200')] },
+  ]), { ...wage('4000'), synced: true });
+  const copied = duplicateStrategy(linked, linked[0].id, (name) => `Copy of ${name}`, t);
+  const source = copied[0].fields;
+  const copy = copied[1].fields;
+  assert.equal(copy.find((f) => f.synced).id, source.find((f) => f.synced).id, 'the link survives');
+  const ownRent = copy.find((f) => f.labelKey === 'field.rent');
+  const sourceRent = source.find((f) => f.labelKey === 'field.rent');
+  assert.notEqual(ownRent.id, sourceRent.id, 'an unsynced field is its own again');
+});
+
+test('sync operations never mutate what they are given', () => {
+  const before = normalizeStrategies([{ fields: [wage('4000')] }, { fields: [wage('4000')] }]);
+  const snapshot = JSON.stringify(before);
+  spreadField(before, { ...before[0].fields[0], synced: true, amount: '9' });
+  unlinkField(before, before[0].fields[0].id);
+  removeEverywhere(before, before[0].fields[0].id);
+  assert.equal(JSON.stringify(before), snapshot);
 });

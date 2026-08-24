@@ -14,6 +14,8 @@ import { labelOf, MAX_FIELDS, PERIODS, KINDS } from './fields.js';
 import { html, svgEl } from './dom.js';
 
 const ACTION_ICONS = {
+  // Two links of a chain: the field is joined to its counterparts elsewhere.
+  sync: ['M10.4 13.6a3.8 3.8 0 0 0 5.4 0l2.8-2.8a3.8 3.8 0 1 0-5.4-5.4l-1.4 1.4', 'M13.6 10.4a3.8 3.8 0 0 0-5.4 0l-2.8 2.8a3.8 3.8 0 1 0 5.4 5.4l1.4-1.4'],
   duplicate: ['M9 9h9.5a1.5 1.5 0 0 1 1.5 1.5V20a1.5 1.5 0 0 1-1.5 1.5H9A1.5 1.5 0 0 1 7.5 20v-9.5A1.5 1.5 0 0 1 9 9Z', 'M16.5 6H6a1.5 1.5 0 0 0-1.5 1.5V18'],
   remove: ['M5.5 7.5h13', 'M10 7.5V6a1.5 1.5 0 0 1 1.5-1.5h1A1.5 1.5 0 0 1 14 6v1.5', 'M7 7.5V19a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 17 19V7.5'],
 };
@@ -153,6 +155,11 @@ export function createFieldList(options) {
     termLabel.htmlFor = term.id;
 
     const actions = html('div', 'field-actions', main);
+    // Only worth showing once there is another strategy for a field to be the
+    // same as; with one plan there is nothing to keep in step.
+    const sync = html('button', 'icon-button', actions);
+    sync.type = 'button';
+    actionIcon('sync', sync);
     const duplicate = html('button', 'icon-button', actions);
     duplicate.type = 'button';
     actionIcon('duplicate', duplicate);
@@ -170,7 +177,7 @@ export function createFieldList(options) {
       amount, amountLabel, period, periodLabel, periodOptions,
       rate, rateLabel, rateWrap, rateUnitFull, rateUnitShort,
       term, termLabel, termWrap, termUnitFull, termUnitShort,
-      derived, duplicate, remove, shown: '',
+      derived, sync, duplicate, remove, shown: '',
     };
 
     const id = field.id;
@@ -199,13 +206,14 @@ export function createFieldList(options) {
     rate.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { annualRate: rate.value } }));
     term.addEventListener('input', () => onCommand({ type: 'update', id, patch: { termMonths: term.value } }));
     term.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { termMonths: term.value } }));
+    sync.addEventListener('click', () => onCommand({ type: 'sync', id }));
     duplicate.addEventListener('click', () => onCommand({ type: 'duplicate', id }));
     remove.addEventListener('click', () => onCommand({ type: 'remove', id }));
 
     return row;
   }
 
-  function syncRow(row, field, atCap) {
+  function syncRow(row, field, atCap, comparing) {
     const shown = labelOf(field, t);
     const named = shown || labels.untitled;
     row.shown = shown;
@@ -268,6 +276,14 @@ export function createFieldList(options) {
     row.direction.setAttribute('aria-label', labels.directionNamed(named));
     row.amount.setAttribute('aria-label', labels.amountNamed(named));
 
+    row.sync.hidden = !comparing;
+    row.sync.setAttribute('aria-pressed', field.synced ? 'true' : 'false');
+    row.sync.setAttribute(
+      'aria-label',
+      field.synced ? labels.unsyncNamed(named) : labels.syncNamed(named),
+    );
+    row.sync.title = field.synced ? labels.syncedTitle : labels.syncTitle;
+
     row.duplicate.setAttribute('aria-label', labels.duplicateNamed(named));
     // At the cap the model would refuse the copy; say so rather than no-op.
     row.duplicate.disabled = atCap;
@@ -279,7 +295,7 @@ export function createFieldList(options) {
     element: root,
 
     /** Draw `fields`, keeping every row the reader is working in untouched. */
-    update(fields, nextLabels, nextT) {
+    update(fields, nextLabels, nextT, { comparing = false } = {}) {
       if (nextLabels) labels = nextLabels;
       if (nextT) t = nextT;
 
@@ -302,7 +318,7 @@ export function createFieldList(options) {
         // that holds focus would drop the caret out of it.
         if (row.element !== cursor) list.insertBefore(row.element, cursor);
         else cursor = cursor.nextSibling;
-        syncRow(row, field, atCap);
+        syncRow(row, field, atCap, comparing);
       }
 
       for (const [id, row] of rows) {

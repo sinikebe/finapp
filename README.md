@@ -114,6 +114,32 @@ told apart by name alone, which is not a chart.
 next to the operations — add, rename, duplicate, remove — which are pure and
 return new lists, like the field ones.
 
+### Fields two strategies share
+
+A comparison only tells you something if the two plans differ in **one** place.
+Your income does not change because you decided to invest — so a field can be
+**synced**, and then it is one field that every strategy holds. Change it
+anywhere and it changes everywhere: the amount, the name, the kind, all of it.
+
+The link button appears on each row only while there is more than one strategy,
+because with one plan there is nothing to keep in step.
+
+How a counterpart is found is the whole design:
+
+- **By id first.** A synced field keeps its id when a strategy is duplicated,
+  which is the one place `duplicateStrategy` deliberately does not renew one.
+- **By name second, and only at the moment you sync it.** Two lists that both
+  say "Income" mean the same income — that is what makes this work on
+  strategies built before anyone thought to link them. After the first spread
+  their ids agree, so the name is never consulted again and a rename cannot
+  break the link. A field already following something else is never adopted.
+- **Otherwise it is added.** A synced field exists everywhere by definition.
+
+Two consequences worth stating outright. Removing a synced field removes it
+from every strategy, because it is one field — unsync it first to drop it from
+one plan only. And a duplicate is never born synced: two synced fields sharing
+one identity would not be two fields.
+
 ### Side by side
 
 Once there is a second strategy, a chart below the flow cards draws them all on
@@ -357,8 +383,8 @@ The point of the field model is that the common kind of growth — *more things 
 track* — costs nothing: that is what the "Add a field" button already does, and
 the projection sums whatever it is given.
 
-**Giving fields a new attribute** (a start month, an end month, a growth rate, a
-category) is the next-cheapest kind of change, and it has one seam. Periods went
+**Giving fields a new attribute** (a start month, an end month, a category) is
+the next-cheapest kind of change, and it has one seam. Periods went
 in this way — a schema entry, a rule in `contributionOf`, one control — so the
 steps below are a description of a change that has actually been made, not a
 hope:

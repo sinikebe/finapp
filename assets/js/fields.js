@@ -90,6 +90,13 @@ export const FIELD_SCHEMA = {
     default: DEFAULT_PERIOD,
     read: (value) => (PERIODS.includes(Number(value)) ? Number(value) : DEFAULT_PERIOD),
   },
+  synced: {
+    // Whether every strategy holds this same field, so that comparing two
+    // plans varies only what you meant to vary. The strategies own what this
+    // means; a field just carries the flag.
+    default: false,
+    read: (value) => value === true,
+  },
 };
 
 /** Every attribute with the value used when one is missing. */
@@ -201,6 +208,9 @@ export function duplicateField(fields, id, nameCopy, t) {
     // A copy carries a name of its own, so it no longer follows the dictionary.
     labelKey: '',
     label: nameCopy(labelOf(source, t)),
+    // ...and is never born synced: two synced fields sharing one identity
+    // would not be two fields at all.
+    synced: false,
   });
   return [...list.slice(0, index + 1), copy, ...list.slice(index + 1)];
 }

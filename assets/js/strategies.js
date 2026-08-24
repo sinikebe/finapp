@@ -10,7 +10,7 @@
  * appears only once there is something to compare against.
  */
 
-import { normalizeFields, newId } from './fields.js';
+import { normalizeFields, newId, MAX_FIELDS } from './fields.js';
 
 /**
  * Four is the ceiling because four is how many series colours the palette can
@@ -90,8 +90,11 @@ export function duplicateStrategy(strategies, id, nameCopy, t) {
   const source = list[index];
   const copy = createStrategy({
     // Fields are copied with new ids, so editing one strategy never reaches
-    // into another.
-    fields: source.fields.map((field) => ({ ...field, id: newId() })),
+    // into another — except a synced field, which keeps its id precisely
+    // because reaching into the others is the whole point of it.
+    fields: source.fields.map(
+      (field) => (field.synced ? { ...field } : { ...field, id: newId() }),
+    ),
     // A copy of something named is "that, again"; a copy of something unnamed
     // stays unnamed and simply takes the next position.
     name: source.name ? nameCopy(nameOf(source, index, t)) : '',
@@ -104,6 +107,62 @@ export function removeStrategy(strategies, id) {
   const list = normalizeStrategies(strategies);
   if (list.length <= 1) return list;
   return list.filter((strategy) => strategy.id !== id);
+}
+
+/* --------------------------------------------------------------- syncing */
+
+/** What the reader calls a field, for matching one across strategies. */
+function nameKeyOf(field) {
+  return field.label || field.labelKey || '';
+}
+
+/**
+ * Put one field into every strategy: the same field, with the same id.
+ *
+ * A counterpart is looked for by id first — the case once a field is already
+ * synced — and by name second. That second rule is what lets syncing work on
+ * strategies built before anyone thought to link them: two lists that both say
+ * "Income" mean the same income, and after the first spread their ids agree, so
+ * the name is never consulted again. A strategy with no counterpart at all
+ * gains the field, because a synced field exists everywhere by definition.
+ */
+export function spreadField(strategies, field) {
+  return normalizeStrategies(strategies).map((strategy) => {
+    const { fields } = strategy;
+    let index = fields.findIndex((entry) => entry.id === field.id);
+    if (index === -1) {
+      // Never adopt a field that is already following something else.
+      index = fields.findIndex((entry) => !entry.synced && nameKeyOf(entry) === nameKeyOf(field));
+    }
+    if (index === -1) {
+      if (fields.length >= MAX_FIELDS) return strategy;
+      return { ...strategy, fields: [...fields, { ...field }] };
+    }
+    return {
+      ...strategy,
+      fields: fields.map((entry, at) => (at === index ? { ...field } : entry)),
+    };
+  });
+}
+
+/** Stop a field following the others. Every copy keeps what it has now, and
+ *  they go their separate ways from here. */
+export function unlinkField(strategies, fieldId) {
+  return normalizeStrategies(strategies).map((strategy) => ({
+    ...strategy,
+    fields: strategy.fields.map(
+      (field) => (field.id === fieldId ? { ...field, synced: false } : field),
+    ),
+  }));
+}
+
+/** Take a synced field out of every strategy at once: it is one field, so
+ *  removing it in one place is removing it. */
+export function removeEverywhere(strategies, fieldId) {
+  return normalizeStrategies(strategies).map((strategy) => ({
+    ...strategy,
+    fields: strategy.fields.filter((field) => field.id !== fieldId),
+  }));
 }
 
 /** Which strategy takes over when `id` goes: the next, else the previous. */
