@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  DIRECTIONS, FIELD_SHAPE, FIELD_SCHEMA, MAX_FIELDS, MAX_LABEL_LENGTH,
+  DIRECTIONS, FIELD_SHAPE, FIELD_SCHEMA, MAX_FIELDS, MAX_LABEL_LENGTH, PERIODS, DEFAULT_PERIOD,
   createField, normalizeField, normalizeFields, labelOf,
   addField, updateField, duplicateField, removeField, neighbourOf,
   defaultFields, migrateLegacyInputs,
@@ -176,4 +176,21 @@ test('the schema is the only edit a new attribute needs', () => {
   } finally {
     delete FIELD_SCHEMA.startMonth;
   }
+});
+
+test('how often an amount lands is part of the field, and defaults to monthly', () => {
+  assert.equal(createField().periodMonths, DEFAULT_PERIOD);
+  assert.equal(createField({ periodMonths: 12 }).periodMonths, 12);
+  assert.equal(normalizeField({ periodMonths: '3' }).periodMonths, 3, 'a stored string reads as a number');
+  assert.equal(normalizeField({ periodMonths: 5 }).periodMonths, 1, 'an unsupported period reads as monthly');
+  assert.equal(normalizeField({ periodMonths: 'yearly' }).periodMonths, 1);
+  assert.equal(normalizeField({}).periodMonths, 1, 'a store written before periods existed reads as monthly');
+  for (const period of PERIODS) assert.equal(normalizeField({ periodMonths: period }).periodMonths, period);
+});
+
+test('a duplicate keeps how often the original landed', () => {
+  const list = [createField({ label: 'Insurance', direction: 'expense', amount: '1440', periodMonths: 12 })];
+  const next = duplicateField(list, list[0].id, copyName, t);
+  assert.equal(next[1].periodMonths, 12);
+  assert.equal(next[1].amount, '1440');
 });
