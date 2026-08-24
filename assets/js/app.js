@@ -26,6 +26,7 @@ import { createFieldList } from './field-list.js';
 import { createStrategyBar } from './strategy-bar.js';
 import {
   updateStrategy, duplicateStrategy, removeStrategy,
+  spreadField, unlinkField, removeEverywhere,
   neighbourOf as strategyNeighbourOf, normalizeStrategies, activeIdOf, nameOf,
   migrateFields,
 } from './strategies.js';
@@ -82,6 +83,7 @@ const ui = {
   debtTile: $('debt-tile'),
   debtValue: $('debt-value'),
   debtHint: $('debt-hint'),
+  syncHint: $('sync-hint'),
   realToggle: $('real-toggle'),
   inflationFilter: $('inflation-filter'),
   inflation: $('inflation'),
@@ -647,6 +649,10 @@ function fieldLabels() {
     untitled: t('field.untitled'),
     add: t('field.add'),
     empty: t('fields.empty'),
+    syncNamed: (name) => t('field.syncNamed', name),
+    unsyncNamed: (name) => t('field.unsyncNamed', name),
+    syncTitle: t('field.syncTitle'),
+    syncedTitle: t('field.syncedTitle'),
     duplicateNamed: (name) => t('field.duplicateNamed', name),
     removeNamed: (name) => t('field.removeNamed', name),
     directionNamed: (name) => t('field.directionNamed', name),
@@ -734,12 +740,28 @@ function runStrategyCommand(command) {
   render();
 }
 
+/** A field as it now stands in the strategy on screen. */
+function fieldById(id) {
+  return fields().find((field) => field.id === id) || null;
+}
+
+/**
+ * Carry an edit out to the other strategies, if this field is one they share.
+ * Called after the edit has landed locally, so what spreads is the field as it
+ * now reads rather than the patch that produced it.
+ */
+function spreadIfSynced(id) {
+  const field = fieldById(id);
+  if (field && field.synced) state.strategies = spreadField(state.strategies, field);
+}
+
 /** Every edit the list can ask for. Each one ends in the same place: new
  *  fields, saved, redrawn, with focus left where the reader expects it. */
 function runCommand(command) {
   switch (command.type) {
     case 'update':
       setActiveFields(updateField(fields(), command.id, normalizeLabelPatch(command.patch, command.id)));
+      spreadIfSynced(command.id);
       break;
 
     case 'settle': {
@@ -751,6 +773,18 @@ function runCommand(command) {
         patch.amount = amount ? String(amount) : '';
       }
       setActiveFields(updateField(fields(), command.id, normalizeLabelPatch(patch, command.id)));
+      spreadIfSynced(command.id);
+      break;
+    }
+
+    case 'sync': {
+      // Turning it on is what establishes the link, so this is the one moment
+      // a counterpart is looked for by name rather than by id.
+      const field = fieldById(command.id);
+      if (!field) return;
+      state.strategies = field.synced
+        ? unlinkField(state.strategies, command.id)
+        : spreadField(state.strategies, { ...field, synced: true });
       break;
     }
 
@@ -775,7 +809,11 @@ function runCommand(command) {
 
     case 'remove': {
       const neighbour = neighbourOf(fields(), command.id);
-      setActiveFields(removeField(fields(), command.id));
+      const field = fieldById(command.id);
+      // A synced field is one field. Removing it here removes it, full stop —
+      // and a reader who wanted it gone from this plan only unsyncs it first.
+      if (field && field.synced) state.strategies = removeEverywhere(state.strategies, command.id);
+      else setActiveFields(removeField(fields(), command.id));
       persist();
       render();
       list.focus(neighbour);
@@ -889,7 +927,11 @@ function render() {
   ui.moneyNote.textContent = notes.join(' ');
 
   bar.update(state.strategies, state.activeId, strategyLabels(), t);
-  list.update(projection.fields, fieldLabels(), t);
+  const comparing = state.strategies.length > 1;
+  list.update(projection.fields, fieldLabels(), t, { comparing });
+  // Explains itself only while it has not been used: once something is synced,
+  // the pressed links say it better than a paragraph does.
+  ui.syncHint.hidden = !(comparing && !projection.fields.some((field) => field.synced));
   // Where the periods land only needs saying once something lands somewhere
   // other than every month.
   ui.periodNote.hidden = !projection.fields.some((field) => field.periodMonths !== 1);

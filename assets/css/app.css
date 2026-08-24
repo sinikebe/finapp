@@ -751,6 +751,13 @@ main {
   margin: -2px 0 2px;
 }
 
+/* A pressed link reads as a state, not a hover: the field is joined to its
+   counterparts and stays that way until someone says otherwise. */
+.icon-button[aria-pressed="true"] {
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+}
+
 .chart-grid {
   display: grid;
   gap: 16px;
