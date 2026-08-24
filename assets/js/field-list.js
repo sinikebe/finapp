@@ -11,34 +11,19 @@
  */
 
 import { labelOf, MAX_FIELDS } from './fields.js';
+import { html, svgEl } from './dom.js';
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
-
-const ICONS = {
+const ACTION_ICONS = {
   duplicate: ['M9 9h9.5a1.5 1.5 0 0 1 1.5 1.5V20a1.5 1.5 0 0 1-1.5 1.5H9A1.5 1.5 0 0 1 7.5 20v-9.5A1.5 1.5 0 0 1 9 9Z', 'M16.5 6H6a1.5 1.5 0 0 0-1.5 1.5V18'],
   remove: ['M5.5 7.5h13', 'M10 7.5V6a1.5 1.5 0 0 1 1.5-1.5h1A1.5 1.5 0 0 1 14 6v1.5', 'M7 7.5V19a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 17 19V7.5'],
 };
 
-function html(tag, className, parent) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (parent) parent.appendChild(node);
-  return node;
-}
-
 function icon(name, parent) {
-  const svg = document.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('class', 'action-icon');
-  svg.setAttribute('viewBox', '0 0 24 24');
-  svg.setAttribute('aria-hidden', 'true');
-  svg.setAttribute('focusable', 'false');
-  for (const d of ICONS[name]) {
-    const path = document.createElementNS(SVG_NS, 'path');
-    path.setAttribute('d', d);
-    svg.appendChild(path);
-  }
-  parent.appendChild(svg);
-  return svg;
+  const node = svgEl('svg', {
+    class: 'action-icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false',
+  }, parent);
+  for (const d of ACTION_ICONS[name]) svgEl('path', { d }, node);
+  return node;
 }
 
 /** Write a value into a control the reader is not currently editing. */

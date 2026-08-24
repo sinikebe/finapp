@@ -7,7 +7,7 @@
  * each card carries a table view.
  */
 
-const SVG_NS = 'http://www.w3.org/2000/svg';
+import { html, svgEl } from './dom.js';
 
 const PLOT_HEIGHT = 180;
 const TOP_PAD = 14;
@@ -18,22 +18,6 @@ const MIN_PLOT_WIDTH = 120;
 const CHAR_WIDTH = 7.4; // 12px semibold system sans, close enough to reserve space
 const MARKER_RADIUS = 4.5;
 const X_TICK_STEPS = [1, 2, 3, 6, 12, 24, 36, 60, 120, 240];
-
-function el(tag, attrs, parent) {
-  const node = document.createElementNS(SVG_NS, tag);
-  for (const [key, value] of Object.entries(attrs || {})) {
-    node.setAttribute(key, String(value));
-  }
-  if (parent) parent.appendChild(node);
-  return node;
-}
-
-function html(tag, className, parent) {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (parent) parent.appendChild(node);
-  return node;
-}
 
 /** Round a scale value away from float noise (0.30000000000000004 → 0.3). */
 function tidy(value, step) {
@@ -99,7 +83,7 @@ export function createLineChart(options) {
   sub.textContent = description;
 
   const plot = html('div', 'chart-plot', figure);
-  const svg = el('svg', {
+  const svg = svgEl('svg', {
     class: 'chart-svg', role: 'img', tabindex: '0',
     preserveAspectRatio: 'xMidYMid meet',
   }, plot);
@@ -147,20 +131,20 @@ export function createLineChart(options) {
   const tbody = html('tbody', null, table);
 
   // Painted once, then mutated in place on every update.
-  const gridLayer = el('g', { class: 'layer-grid' }, svg);
-  const areaPath = el('path', { class: 'series-area' }, svg);
-  const linePath = el('path', { class: 'series-line' }, svg);
-  const zeroLine = el('line', { class: 'axis-zero' }, svg);
-  const xAxisLine = el('line', { class: 'axis-line' }, svg);
-  const xLabels = el('g', { class: 'layer-xlabels' }, svg);
-  const crosshair = el('line', { class: 'crosshair' }, svg);
+  const gridLayer = svgEl('g', { class: 'layer-grid' }, svg);
+  const areaPath = svgEl('path', { class: 'series-area' }, svg);
+  const linePath = svgEl('path', { class: 'series-line' }, svg);
+  const zeroLine = svgEl('line', { class: 'axis-zero' }, svg);
+  const xAxisLine = svgEl('line', { class: 'axis-line' }, svg);
+  const xLabels = svgEl('g', { class: 'layer-xlabels' }, svg);
+  const crosshair = svgEl('line', { class: 'crosshair' }, svg);
   // Ring + dot: the ring is the 2px surface gap that keeps a marker legible
   // where it crosses the line or the grid.
-  const focusRing = el('circle', { class: 'focus-ring', r: MARKER_RADIUS + 2 }, svg);
-  const focusDot = el('circle', { class: 'focus-dot', r: MARKER_RADIUS }, svg);
-  const endRing = el('circle', { class: 'end-ring', r: MARKER_RADIUS + 2 }, svg);
-  const endDot = el('circle', { class: 'end-dot', r: MARKER_RADIUS }, svg);
-  const endLabel = el('text', { class: 'end-label', 'text-anchor': 'start', dy: '0.32em' }, svg);
+  const focusRing = svgEl('circle', { class: 'focus-ring', r: MARKER_RADIUS + 2 }, svg);
+  const focusDot = svgEl('circle', { class: 'focus-dot', r: MARKER_RADIUS }, svg);
+  const endRing = svgEl('circle', { class: 'end-ring', r: MARKER_RADIUS + 2 }, svg);
+  const endDot = svgEl('circle', { class: 'end-dot', r: MARKER_RADIUS }, svg);
+  const endLabel = svgEl('text', { class: 'end-label', 'text-anchor': 'start', dy: '0.32em' }, svg);
 
   let state = {
     points: [], domain: { min: 0, max: 1 }, months: 1, isEmpty: true, labelPad: 0,
@@ -215,8 +199,8 @@ export function createLineChart(options) {
     gridLayer.textContent = '';
     for (const tick of scale.ticks) {
       const y = yOf(tick);
-      el('line', { class: 'grid-line', x1: LEFT_PAD, x2: LEFT_PAD + plotW, y1: y, y2: y }, gridLayer);
-      const label = el('text', {
+      svgEl('line', { class: 'grid-line', x1: LEFT_PAD, x2: LEFT_PAD + plotW, y1: y, y2: y }, gridLayer);
+      const label = svgEl('text', {
         class: 'tick-label', x: LEFT_PAD - 8, y, 'text-anchor': 'end', dy: '0.32em',
       }, gridLayer);
       label.textContent = formatTick(tick);
@@ -247,7 +231,7 @@ export function createLineChart(options) {
     xLabels.textContent = '';
     const step = monthTickStep(months);
     for (let month = 0; month <= months; month += step) {
-      const label = el('text', {
+      const label = svgEl('text', {
         class: 'tick-label', x: xOf(month), y: baseY + 16, 'text-anchor': 'middle',
       }, xLabels);
       label.textContent = String(month);

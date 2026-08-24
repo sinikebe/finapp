@@ -60,7 +60,7 @@ const ui = {
   updateReload: $('update-reload'),
 };
 
-const ICONS = {
+const STATUS_ICONS = {
   // Both status cues ship as icon + label, never colour alone.
   surplus: 'M4.5 10.5 8 6.5l3.5 4z',
   shortfall: 'M8 3.2v6.2M8 12v.4',
@@ -269,7 +269,7 @@ function renderSummary(projection, hasInput) {
   ui.heroChipText.textContent = shortfall
     ? t('summary.shortfall', formatAmount(Math.abs(projection.monthlyNet)))
     : t('summary.surplus', formatAmount(projection.monthlyNet));
-  ui.chipIconPath.setAttribute('d', shortfall ? ICONS.shortfall : ICONS.surplus);
+  ui.chipIconPath.setAttribute('d', shortfall ? STATUS_ICONS.shortfall : STATUS_ICONS.surplus);
 
   // One polite announcement once typing settles, rather than one per keystroke.
   window.clearTimeout(noteTimer);
