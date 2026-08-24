@@ -35,9 +35,14 @@ test('English agrees with the count; French leaves "mois" alone', () => {
 
 test('French sets a no-break space before a colon', () => {
   const fr = makeTranslator('fr');
-  for (const key of ['theme.aria.light', 'lang.aria', 'charts.scaleNote']) {
-    const text = fr(key);
-    assert.ok(!/[^\s  ] :/.test(text), `${key} uses a breaking space: ${text}`);
+  // Every string, not a list someone has to remember to extend: a phrase that
+  // takes parameters is called with stand-ins so its punctuation is read too.
+  for (const [key, value] of Object.entries(STRINGS.fr)) {
+    const text = typeof value === 'function'
+      ? value(...Array.from({ length: value.length }, () => 2))
+      : value;
+    assert.equal(typeof text, 'string', `${key} should render to a string`);
+    assert.ok(!/[^\s  ] [:;?!»]/.test(text), `${key} uses a breaking space: ${text}`);
   }
   assert.ok(fr('chart.reading', 'Mois 3', '900').includes(' :'));
 });

@@ -15,7 +15,7 @@ test('a horizon of N months yields N + 1 points, starting at zero', () => {
   const result = project({ fields: [income(3000), expense(1200)], months: 24 });
   assert.equal(result.points.length, 25);
   assert.deepEqual(result.points[0], {
-    month: 0, income: 0, expenses: 0, net: 0, invested: 0,
+    month: 0, income: 0, expenses: 0, net: 0, invested: 0, worth: 0,
   }, 'every series starts at nothing');
 });
 
@@ -50,7 +50,11 @@ test('totals match the last point', () => {
   const result = project({ fields: [income(4200), expense(1750)], months: 60 });
   const last = result.points[result.points.length - 1];
   assert.deepEqual(result.totals, {
-    income: last.income, expenses: last.expenses, net: last.net, invested: last.invested,
+    income: last.income,
+    expenses: last.expenses,
+    net: last.net,
+    invested: last.invested,
+    worth: last.worth,
   });
   assert.equal(result.totals.income, 4200 * 60);
 });
@@ -79,7 +83,7 @@ test('an empty projection is all zeroes, not NaN', () => {
   assert.equal(result.averages.expenses, 0);
   assert.equal(result.months, 1);
   assert.deepEqual(result.totals, {
-    income: 0, expenses: 0, net: 0, invested: 0,
+    income: 0, expenses: 0, net: 0, invested: 0, worth: 0,
   });
   assert.equal(hasAmounts(result), false);
 });
@@ -352,4 +356,51 @@ test('loans and investments add up with everything else', () => {
   assert.equal(result.totals.expenses, roundMoney(1200 * 120 + 421.91 * 48 + 500 * 120));
   assert.equal(result.totals.net, roundMoney(result.totals.income - result.totals.expenses));
   assert.ok(result.totals.invested > 86000 && result.totals.invested < 87000);
+});
+
+/* ----------------------------------------------------------- total worth */
+
+test('with nothing invested the total is the net, to the cent', () => {
+  const result = project({ fields: [income(3210.55), expense(1499.99)], months: 36 });
+  for (const point of result.points) {
+    assert.equal(point.worth, point.net, `month ${point.month}`);
+  }
+  assert.equal(result.totals.worth, result.totals.net);
+});
+
+test('the total is the cash kept plus what the investments are worth', () => {
+  const result = project({ fields: [income(2000), invest('500', '6')], months: 48 });
+  for (const point of result.points) {
+    assert.equal(point.worth, roundMoney(point.net + point.invested), `month ${point.month}`);
+  }
+  assert.equal(result.totals.worth, roundMoney(result.totals.net + result.totals.invested));
+});
+
+test('investing does not destroy money: the total beats never investing', () => {
+  // The same 500 a month, once put to work at 6% and once simply kept as cash.
+  const invested = project({ fields: [income(2000), invest('500', '6')], months: 120 });
+  const kept = project({ fields: [income(2000)], months: 120 });
+  assert.ok(
+    invested.totals.worth > kept.totals.worth,
+    `${invested.totals.worth} should beat ${kept.totals.worth}`,
+  );
+  // ...while the cash actually in hand is lower, which is the whole point of
+  // charting the total beside the net.
+  assert.ok(invested.totals.net < kept.totals.net);
+});
+
+test('the total never falls below the money actually invested', () => {
+  const result = project({ fields: [income(1000), invest('250', '0')], months: 24 });
+  assert.equal(result.totals.invested, 6000, 'no growth at 0%');
+  assert.equal(result.totals.worth, result.totals.income - result.totals.expenses + 6000);
+  assert.equal(result.totals.worth, 24000, 'the contributions come back into the total');
+});
+
+test('a lumpy investment moves the total only when it lands', () => {
+  const result = project({ fields: [invest('1200', '0', 12)], months: 24 });
+  assert.equal(result.points[11].worth, 0, 'nothing has moved yet');
+  assert.equal(result.points[12].worth, 0, 'paid out and invested in the same month');
+  assert.equal(result.points[24].worth, 0);
+  assert.equal(result.points[24].invested, 2400);
+  assert.equal(result.points[24].net, -2400);
 });

@@ -64,6 +64,9 @@ const ui = {
   monthlyNet: $('monthly-net'),
   investedTile: $('invested-tile'),
   investedValue: $('invested-value'),
+  worthTile: $('worth-tile'),
+  worthLabel: $('worth-label'),
+  worthValue: $('worth-value'),
   chartsNote: $('charts-note'),
   periodNote: $('period-note'),
   charts: $('charts'),
@@ -242,8 +245,18 @@ const CHARTS = [
   { id: 'chart-income', key: 'income', colorVar: '--series-income' },
   { id: 'chart-expenses', key: 'expenses', colorVar: '--series-expenses' },
   { id: 'chart-net', key: 'net', colorVar: '--series-net' },
-  // Only drawn when something is being invested: an empty fourth card would be
-  // a question nobody asked.
+  // Both of these are only drawn when something is being invested. Without an
+  // investment the total is the net to the cent, and a card that restates the
+  // one beside it is a question nobody asked.
+  {
+    id: 'chart-worth',
+    key: 'worth',
+    colorVar: '--series-worth',
+    onlyWithInvestments: true,
+    // Deliberately on the flows' shared scale rather than its own: the whole
+    // point of the card is the gap between the total and the net beside it,
+    // which is what the investments have added. Its own scale would hide it.
+  },
   {
     id: 'chart-invested',
     key: 'invested',
@@ -297,8 +310,13 @@ function buildCharts() {
 /* --------------------------------------------------------------- comparing */
 
 /** Which quantity the comparison chart is showing. */
-const METRICS = ['net', 'income', 'expenses', 'invested'];
+const METRICS = ['net', 'worth', 'income', 'expenses', 'invested'];
+
+/** Metrics that say nothing until something is invested. */
+const INVESTMENT_METRICS = new Set(['worth', 'invested']);
 let metric = 'net';
+/** Whether the reader has picked a column themselves; until then it follows. */
+let metricChosen = false;
 let compareChart = null;
 
 function strategyColor(index) {
@@ -340,7 +358,11 @@ const metricButtons = new Map();
  * so a rebuild here would silently eat the reader's next click.
  */
 function renderMetrics(anyInvestments) {
-  const wanted = METRICS.filter((key) => key !== 'invested' || anyInvestments);
+  const wanted = METRICS.filter((key) => !INVESTMENT_METRICS.has(key) || anyInvestments);
+  // Until the reader picks a column, show the one the note and the gap are
+  // judged on. Otherwise a strategy that invests everything is announced as
+  // coming out ahead directly above a chart showing its net far behind.
+  if (!metricChosen) metric = anyInvestments ? 'worth' : 'net';
   if (!wanted.includes(metric)) metric = 'net';
 
   let cursor = ui.compareMetrics.firstChild;
@@ -352,6 +374,7 @@ function renderMetrics(anyInvestments) {
       button.dataset.metric = key;
       button.addEventListener('click', () => {
         metric = key;
+        metricChosen = true;
         render();
       });
       metricButtons.set(key, button);
@@ -376,7 +399,10 @@ function renderCompareTable(projections, anyInvestments) {
     { key: 'income', total: (p) => p.totals.income },
     { key: 'expenses', total: (p) => p.totals.expenses },
     { key: 'net', total: (p) => p.totals.net },
-    ...(anyInvestments ? [{ key: 'invested', total: (p) => p.totals.invested }] : []),
+    ...(anyInvestments ? [
+      { key: 'invested', total: (p) => p.totals.invested },
+      { key: 'worth', total: (p) => p.totals.worth },
+    ] : []),
   ];
 
   ui.compareHead.textContent = '';
@@ -390,9 +416,12 @@ function renderCompareTable(projections, anyInvestments) {
   }
   const deltaHead = html('th', 'num', ui.compareHead);
   deltaHead.scope = 'col';
-  deltaHead.textContent = t('compare.deltaColumn');
+  deltaHead.textContent = t('compare.deltaColumn', t(`compare.metric.${anyInvestments ? 'worth' : 'net'}`));
 
-  const baseline = projections[0].totals.net;
+  // Judged on the total, not the net: a strategy that puts everything into an
+  // investment keeps less cash and would read as "behind" while being ahead.
+  // Without an investment the two are equal to the cent, so nothing changes.
+  const baseline = projections[0].totals.worth;
   ui.compareBody.textContent = '';
   state.strategies.forEach((strategy, index) => {
     const row = html('tr', null, ui.compareBody);
@@ -410,7 +439,7 @@ function renderCompareTable(projections, anyInvestments) {
     }
 
     const delta = html('td', 'num', row);
-    const difference = roundToCent(projections[index].totals.net - baseline);
+    const difference = roundToCent(projections[index].totals.worth - baseline);
     if (index === 0) {
       delta.textContent = t('compare.baseline');
       delta.classList.add('is-baseline');
@@ -466,12 +495,12 @@ function renderComparison(projections) {
   window.clearTimeout(compareNoteTimer);
   compareNoteTimer = window.setTimeout(() => {
     const best = state.strategies
-      .map((strategy, index) => ({ strategy, index, net: projections[index].totals.net }))
-      .reduce((a, b) => (b.net > a.net ? b : a));
+      .map((strategy, index) => ({ strategy, index, worth: projections[index].totals.worth }))
+      .reduce((a, b) => (b.worth > a.worth ? b : a));
     ui.compareNote.textContent = t(
       'compare.note',
       nameOf(best.strategy, best.index, t),
-      formatAmount(best.net),
+      formatAmount(best.worth),
       state.months,
     );
   }, 500);
@@ -726,6 +755,12 @@ function render() {
   ui.charts.dataset.count = String(specs.length);
   ui.investedTile.hidden = !wantsInvestments;
   ui.investedValue.textContent = hasInput ? formatAmount(projection.totals.invested) : '—';
+  // The bottom line, and the only tile that names its own horizon: without an
+  // investment it would repeat the hero to the cent, so it comes and goes with
+  // the investment cards.
+  ui.worthTile.hidden = !wantsInvestments;
+  ui.worthLabel.textContent = t('summary.worth', projection.months);
+  ui.worthValue.textContent = hasInput ? formatAmount(projection.totals.worth) : '—';
 
   charts.forEach((chart, index) => {
     chart.instance.update({

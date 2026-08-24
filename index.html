@@ -78,6 +78,12 @@
           <dt data-i18n="summary.invested">Investments are worth</dt>
           <dd id="invested-value">—</dd>
         </div>
+        <!-- Names its own horizon, so it is filled in by render() rather than
+             carrying a data-i18n key of its own. -->
+        <div class="stat-tile" id="worth-tile" hidden>
+          <dt id="worth-label">Total after 24 months</dt>
+          <dd id="worth-value">—</dd>
+        </div>
       </dl>
     </section>
 
