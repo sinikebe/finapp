@@ -77,11 +77,14 @@ function readStore(key, fallback) {
   }
 }
 
+/** @returns {boolean} whether the value is actually stored. */
 function writeStore(key, value) {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
     /* private mode, or a full quota — the app still works, it just forgets. */
+    return false;
   }
 }
 
@@ -112,8 +115,9 @@ function loadState() {
       fields: migrateLegacyInputs(legacy),
       months: toMonths(legacy.months ?? DEFAULT_MONTHS),
     };
-    writeStore(STATE_KEY, migrated);
-    dropStore(LEGACY_INPUT_KEY);
+    // Only retire the old store once the new one is genuinely written: a failed
+    // write plus an eager delete would lose the reader's numbers for good.
+    if (writeStore(STATE_KEY, migrated)) dropStore(LEGACY_INPUT_KEY);
     return migrated;
   }
 
@@ -123,12 +127,49 @@ function loadState() {
 const state = loadState();
 
 let saveTimer = 0;
+
+function save() {
+  window.clearTimeout(saveTimer);
+  saveTimer = 0;
+  writeStore(STATE_KEY, { fields: state.fields, months: state.months });
+}
+
 function persist() {
   window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(() => {
-    writeStore(STATE_KEY, { fields: state.fields, months: state.months });
-  }, 250);
+  saveTimer = window.setTimeout(save, 250);
 }
+
+// A tab can be closed or backgrounded inside the debounce window; the last edit
+// must not be the one that gets lost.
+for (const event of ['pagehide', 'beforeunload']) {
+  window.addEventListener(event, () => { if (saveTimer) save(); });
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && saveTimer) save();
+});
+
+// Two tabs, one store. The tab the reader is actually using keeps its own
+// state; an idle one adopts what the other wrote rather than sitting on stale
+// numbers and overwriting them later.
+window.addEventListener('storage', (event) => {
+  if (event.key !== STATE_KEY || !event.newValue) return;
+  // Never pull the rug out from under someone typing here, and leave the tab
+  // in the foreground alone — it is the one the reader is working in.
+  const editingHere = document.activeElement instanceof Element
+    && document.activeElement.closest('.field-list');
+  if (editingHere) return;
+  if (document.visibilityState === 'visible' && document.hasFocus()) return;
+  try {
+    const incoming = JSON.parse(event.newValue);
+    if (!incoming || !Array.isArray(incoming.fields)) return;
+    state.fields = normalizeFields(incoming.fields);
+    state.months = toMonths(incoming.months ?? DEFAULT_MONTHS);
+    ui.months.value = String(state.months);
+    render();
+  } catch {
+    /* another tab wrote something unreadable — keep what we have */
+  }
+});
 
 /* ------------------------------------------------------------------- charts */
 
@@ -207,6 +248,14 @@ function runCommand(command) {
         const amount = toAmount(patch.amount);
         patch.amount = amount ? String(amount) : '';
       }
+      if ('label' in patch) {
+        // The box is seeded with the field's translated default, so merely
+        // tabbing through it would otherwise freeze that word as a name of the
+        // reader's own — and the field would stop following the language.
+        const field = state.fields.find((entry) => entry.id === command.id);
+        const dictionaryName = field && field.labelKey ? t(field.labelKey) : '';
+        if (patch.label.trim() === dictionaryName) patch.label = '';
+      }
       state.fields = updateField(state.fields, command.id, patch);
       break;
     }
@@ -215,7 +264,7 @@ function runCommand(command) {
       state.fields = addField(state.fields);
       persist();
       render();
-      list.focus(state.fields.length ? state.fields[state.fields.length - 1].id : null);
+      list.focus(state.fields.length ? state.fields[state.fields.length - 1].id : null, { select: true });
       return;
     }
 
@@ -225,7 +274,7 @@ function runCommand(command) {
       const copy = state.fields.find((field) => !before.has(field.id));
       persist();
       render();
-      list.focus(copy ? copy.id : command.id);
+      list.focus(copy ? copy.id : command.id, { select: true });
       return;
     }
 

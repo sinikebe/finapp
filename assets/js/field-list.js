@@ -109,8 +109,12 @@ export function createFieldList(options) {
     name.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { label: name.value } }));
     direction.addEventListener('change', () => onCommand({ type: 'update', id, patch: { direction: direction.value } }));
     amount.addEventListener('input', () => {
-      // A negative amount is meaningless: the direction carries the sign.
-      if (amount.value !== '' && Number(amount.value) < 0) amount.value = '';
+      // A negative amount is meaningless here — the direction carries the sign
+      // — so drop the sign rather than the digits the reader just typed.
+      const typed = Number(amount.value);
+      if (amount.value !== '' && Number.isFinite(typed) && typed < 0) {
+        amount.value = String(Math.abs(typed));
+      }
       onCommand({ type: 'update', id, patch: { amount: amount.value } });
     });
     amount.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { amount: amount.value } }));
@@ -188,9 +192,12 @@ export function createFieldList(options) {
     /**
      * Put focus where the reader expects it after a command.
      * @param {string|null} id field to focus, or null for the add button
-     * @param {'name'|'direction'|'amount'} [control]
+     * @param {{control?: 'name'|'direction'|'amount', select?: boolean}} [options]
+     *   `select` only for a field the reader is about to name — selecting the
+     *   text of a neighbour after a deletion would arm the next keystroke to
+     *   overwrite a name they meant to keep.
      */
-    focus(id, control = 'name') {
+    focus(id, { control = 'name', select = false } = {}) {
       const row = id ? rows.get(id) : null;
       if (!row) {
         addButton.focus();
@@ -198,7 +205,7 @@ export function createFieldList(options) {
       }
       const target = row[control] || row.name;
       target.focus();
-      if (target === row.name && typeof target.select === 'function') target.select();
+      if (select && typeof target.select === 'function') target.select();
     },
   };
 }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  DIRECTIONS, FIELD_SHAPE, MAX_FIELDS, MAX_LABEL_LENGTH,
+  DIRECTIONS, FIELD_SHAPE, FIELD_SCHEMA, MAX_FIELDS, MAX_LABEL_LENGTH,
   createField, normalizeField, normalizeFields, labelOf,
   addField, updateField, duplicateField, removeField, neighbourOf,
   defaultFields, migrateLegacyInputs,
@@ -145,4 +145,35 @@ test('a store from before fields existed becomes two ordinary fields', () => {
   const empty = migrateLegacyInputs(null);
   assert.equal(empty.length, 2);
   assert.deepEqual(empty.map((f) => f.amount), ['', '']);
+});
+
+test('a labelKey the dictionary does not know reads as unnamed, not as the key', () => {
+  const stranger = createField({ labelKey: 'field.from.some.other.version' });
+  assert.equal(labelOf(stranger, t), '');
+  assert.equal(labelOf(createField({ labelKey: 'field.default.rent' }), t), 'Rent');
+});
+
+test('the schema is the only edit a new attribute needs', () => {
+  // The promise the field model makes: add an entry here and normalisation,
+  // creation, duplication and a storage round-trip all carry it.
+  FIELD_SCHEMA.startMonth = {
+    default: '1',
+    read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : '1'),
+  };
+  try {
+    const field = createField({ direction: 'expense', amount: '500', startMonth: 7 });
+    assert.equal(field.startMonth, '7', 'createField carries it');
+    assert.equal(createField().startMonth, '1', 'and defaults it');
+    assert.equal(normalizeField({ startMonth: {} }).startMonth, '1', 'and coerces it');
+
+    const list = duplicateField([field], field.id, (name) => `${name} (copy)`, t);
+    assert.equal(list[1].startMonth, '7', 'duplication carries it');
+
+    const roundTripped = normalizeFields(JSON.parse(JSON.stringify(list)));
+    assert.equal(roundTripped[1].startMonth, '7', 'a storage round trip carries it');
+
+    assert.ok('startMonth' in updateField(list, field.id, { amount: '600' })[0], 'updates keep it');
+  } finally {
+    delete FIELD_SCHEMA.startMonth;
+  }
 });

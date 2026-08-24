@@ -16,14 +16,42 @@
  *  amounts themselves stay positive and can't smuggle in a negative. */
 export const DIRECTIONS = ['income', 'expense'];
 
-/** Every attribute a field has, with the value used when one is missing. */
-export const FIELD_SHAPE = {
-  id: '',
-  labelKey: '',        // dictionary key, while the reader hasn't renamed it
-  label: '',           // the reader's own name; wins over labelKey when set
-  direction: 'expense',
-  amount: '',          // kept as typed; the projection coerces it to money
+/**
+ * Every attribute a field has: its default, and how to make sense of whatever
+ * turns up in its place. **This is the only place to edit to give fields a new
+ * attribute** — normalisation, storage, duplication and migration all read it
+ * from here rather than naming keys of their own.
+ */
+export const FIELD_SCHEMA = {
+  id: {
+    default: '',
+    read: (value) => (typeof value === 'string' && value ? value : newId()),
+  },
+  labelKey: {
+    // A dictionary key, while the reader hasn't renamed the field.
+    default: '',
+    read: (value) => (typeof value === 'string' ? value : ''),
+  },
+  label: {
+    // The reader's own name; wins over labelKey when set.
+    default: '',
+    read: (value) => (typeof value === 'string' ? value.trim().slice(0, MAX_LABEL_LENGTH) : ''),
+  },
+  direction: {
+    default: 'expense',
+    read: (value) => (DIRECTIONS.includes(value) ? value : 'expense'),
+  },
+  amount: {
+    // Kept as typed; the projection coerces it to money.
+    default: '',
+    read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : ''),
+  },
 };
+
+/** Every attribute with the value used when one is missing. */
+export const FIELD_SHAPE = Object.freeze(
+  Object.fromEntries(Object.entries(FIELD_SCHEMA).map(([key, spec]) => [key, spec.default])),
+);
 
 /** Guard rails against a hand-edited or corrupted store. */
 export const MAX_LABEL_LENGTH = 60;
@@ -39,22 +67,14 @@ export function newId() {
   return `field-${sequence}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** Coerce anything into a well-formed field. */
+/** Coerce anything into a well-formed field, one schema entry at a time. */
 export function normalizeField(value) {
   const source = value && typeof value === 'object' ? value : {};
-  const label = typeof source.label === 'string' ? source.label.trim().slice(0, MAX_LABEL_LENGTH) : '';
-  const amount = typeof source.amount === 'number' || typeof source.amount === 'string'
-    ? String(source.amount)
-    : '';
-
-  return {
-    ...FIELD_SHAPE,
-    id: typeof source.id === 'string' && source.id ? source.id : newId(),
-    labelKey: typeof source.labelKey === 'string' ? source.labelKey : '',
-    label,
-    direction: DIRECTIONS.includes(source.direction) ? source.direction : FIELD_SHAPE.direction,
-    amount,
-  };
+  const field = {};
+  for (const [key, spec] of Object.entries(FIELD_SCHEMA)) {
+    field[key] = spec.read(source[key]);
+  }
+  return field;
 }
 
 /** Coerce anything into a well-formed list: unique ids, bounded length. */
@@ -77,8 +97,11 @@ export function createField(patch = {}) {
 /** The reader's name for a field, its translated default, or nothing. */
 export function labelOf(field, t) {
   if (field.label) return field.label;
-  if (field.labelKey) return t(field.labelKey);
-  return '';
+  if (!field.labelKey) return '';
+  // A translator returns the key itself when it doesn't know it; a stored key
+  // from another version should read as unnamed, not as `field.default.rent`.
+  const translated = t(field.labelKey);
+  return translated === field.labelKey ? '' : translated;
 }
 
 /* ------------------------------------------------------------- operations */

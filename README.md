@@ -166,14 +166,16 @@ the projection sums whatever it is given.
 **Giving fields a new attribute** (a start month, a yearly cadence, a growth
 rate, a category) is the next-cheapest kind of change, and it has one seam:
 
-1. Add it to `FIELD_SHAPE` in `fields.js` with a sensible default, and teach
-   `normalizeField` how to read it. Storage, migration, duplication and the
-   list's reconciliation carry it from there without knowing what it is.
+1. Add an entry to `FIELD_SCHEMA` in `fields.js` — a default and how to read
+   whatever turns up in its place. That is the whole edit: normalisation,
+   storage, migration, duplication and the list's reconciliation all read the
+   schema rather than naming keys of their own.
 2. Give it meaning in `contributionOf()` in `projection.js` — the one function
    that decides what a field moves in a given month.
-3. If it needs a control, add it to `createRow` and one line to `syncRow` in
-   `field-list.js`, then send its edits through the existing command stream.
-   The row is a wrapping flex line, so a new control needs no layout change.
+3. If it needs a control: build it in `createRow`, sync it in `syncRow`, and
+   send its edits through the existing command stream — plus its label in
+   `i18n.js` and one line in `fieldLabels()` in `app.js`, since the list owns no
+   English of its own. The row is a wrapping flex line, so no layout change.
 
 This was measured, not assumed: adding a per-field start month took six edits
 across exactly those three files, and duplication, storage round-trips and the
