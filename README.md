@@ -63,7 +63,8 @@ Three single-series line charts, hand-drawn as SVG in
 
 ```
 index.html                 markup + i18n hooks (data-i18n)
-manifest.webmanifest       installability
+manifest.webmanifest       installability (manifest.fr.webmanifest: the same
+                           app, named in French)
 sw.js                      offline shell
 assets/css/app.css         design tokens (light + dark), shell, chart chrome
 assets/js/projection.js    the money model — pure, tested
@@ -100,6 +101,11 @@ The interface ships in English and French. On first load the app picks the
 browser's language if it speaks it; the header toggle overrides that and the
 choice is remembered. Number formatting follows the same choice — `72,000` in
 English, `72 000` in French.
+
+A manifest has no per-language strings, so there is one per language and the app
+points `<link rel="manifest">` at the right one — that is what names the app in
+the install prompt. Both declare the same `id`, `start_url` and `scope`, so it
+stays one installed app; the tests enforce that.
 
 To add a language, add a block to `STRINGS` in
 [`assets/js/i18n.js`](assets/js/i18n.js) (the English block is the key list to

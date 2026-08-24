@@ -41,6 +41,7 @@ const ui = {
   langButton: $('lang'),
   langLabel: $('lang-label'),
   description: $('doc-description'),
+  manifestLink: $('manifest-link'),
   installButton: $('install'),
   updateToast: $('update-toast'),
   updateReload: $('update-reload'),
@@ -279,6 +280,10 @@ function applyLanguage(next) {
   document.documentElement.lang = t('html.lang');
   document.title = t('doc.title');
   if (ui.description) ui.description.setAttribute('content', t('doc.description'));
+  // The manifest names the app in the install prompt, and a manifest has no
+  // per-language strings — so point at the one written in this language. Both
+  // declare the same id, start_url and scope, so it stays the same installed app.
+  if (ui.manifestLink) ui.manifestLink.setAttribute('href', t('manifest.href'));
 
   for (const node of document.querySelectorAll('[data-i18n]')) {
     node.textContent = t(node.dataset.i18n);

@@ -18,6 +18,7 @@ const DEFAULT_LOCALES = { en: 'en-US', fr: 'fr-FR' };
 const STRINGS = {
   en: {
     'html.lang': 'en',
+    'manifest.href': './manifest.webmanifest',
     'doc.title': 'Finapp — estimate your financial future',
     'doc.description': 'An offline-first calculator that projects cumulative income, expenses and net over the months ahead.',
     'skip.link': 'Skip to content',
@@ -82,6 +83,7 @@ const STRINGS = {
 
   fr: {
     'html.lang': 'fr',
+    'manifest.href': './manifest.fr.webmanifest',
     'doc.title': 'Finapp — estimez votre avenir financier',
     'doc.description': "Un calculateur hors ligne qui projette les revenus, les dépenses et le solde net cumulés sur les mois à venir.",
     'skip.link': 'Aller au contenu',

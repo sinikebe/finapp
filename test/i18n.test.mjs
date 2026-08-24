@@ -62,3 +62,23 @@ test('a malformed language tag never reaches Intl', () => {
     assert.doesNotThrow(() => new Intl.NumberFormat(localeFor(language, null)));
   }
 });
+
+test('every language points at a manifest, and they agree on app identity', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const manifests = await Promise.all(LANGUAGES.map(async (language) => {
+    const href = makeTranslator(language)('manifest.href');
+    const json = JSON.parse(await readFile(new URL(`../${href.replace('./', '')}`, import.meta.url), 'utf8'));
+    assert.equal(json.lang, language, `${href} declares its own language`);
+    return json;
+  }));
+
+  // Differing identity would make the browser treat these as two separate apps.
+  const [first, ...rest] = manifests;
+  for (const manifest of rest) {
+    for (const key of ['id', 'start_url', 'scope', 'short_name', 'display', 'theme_color', 'background_color']) {
+      assert.deepEqual(manifest[key], first[key], `manifests disagree on ${key}`);
+    }
+    assert.deepEqual(manifest.icons, first.icons);
+    assert.deepEqual(Object.keys(manifest).sort(), Object.keys(first).sort());
+  }
+});
