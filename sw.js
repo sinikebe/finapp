@@ -1,17 +1,21 @@
 /**
  * sw.js — offline shell.
  *
- * Navigations are network-first so a deploy is picked up on the next online
- * visit; everything else is served from the cache and refreshed in the
- * background. Bump CACHE_VERSION whenever a precached file changes.
+ * The cache is treated as one immutable generation: index.html, the CSS and the
+ * JS are precached together on install and served together from that same
+ * generation. Nothing is refreshed behind the app's back, so a reader never gets
+ * a fresh page wired to stale scripts. A new version arrives as a whole — a new
+ * worker installs its own cache and the app offers a Reload — which is why
+ * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v1';
-const CACHE_NAME = `finapp-${CACHE_VERSION}`;
+const CACHE_VERSION = 'v3';
+const CACHE_PREFIX = 'finapp-';
+const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
+const SHELL = './index.html';
 
 const PRECACHE = [
-  './',
-  './index.html',
+  SHELL,
   './manifest.webmanifest',
   './assets/css/app.css',
   './assets/js/app.js',
@@ -34,11 +38,12 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
+    // Only this app's own generations: the origin may host other apps whose
+    // caches are none of our business.
     const names = await caches.keys();
-    await Promise.all(names.map((name) => (name === CACHE_NAME ? null : caches.delete(name))));
-    if (self.registration.navigationPreload) {
-      await self.registration.navigationPreload.enable();
-    }
+    await Promise.all(names
+      .filter((name) => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+      .map((name) => caches.delete(name)));
     await self.clients.claim();
   })());
 });
@@ -47,43 +52,50 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
-async function networkFirst(event) {
+/** Store a response only if it is a complete, same-origin, cacheable one. */
+async function cacheIfSound(cache, request, response) {
+  if (!response || !response.ok || response.status !== 200 || response.type !== 'basic') return;
+  await cache.put(request, response.clone());
+}
+
+/**
+ * Navigations are answered from this worker's own shell, so the page always
+ * matches the scripts beside it. The network is only asked when the shell is
+ * missing — the very first visit, or a cache that was evicted.
+ */
+async function serveShell(event) {
   const cache = await caches.open(CACHE_NAME);
+  const shell = await cache.match(SHELL);
+  if (shell) return shell;
+
   try {
-    const preloaded = await event.preloadResponse;
-    const response = preloaded || await fetch(event.request);
-    if (response && response.ok) cache.put('./index.html', response.clone());
+    const response = await fetch(event.request);
+    await cacheIfSound(cache, SHELL, response);
     return response;
   } catch {
-    return (await cache.match(event.request))
-      || (await cache.match('./index.html'))
-      || Response.error();
+    return (await cache.match(event.request)) || Response.error();
   }
 }
 
-async function cacheFirst(request) {
+/** Everything else: this generation's copy, or the network on a miss. */
+async function serveAsset(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
-  const network = fetch(request)
-    .then((response) => {
-      if (response && response.ok && response.type === 'basic') cache.put(request, response.clone());
-      return response;
-    })
-    .catch(() => cached);
-  return cached || network;
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    await cacheIfSound(cache, request, response);
+    return response;
+  } catch {
+    return Response.error();
+  }
 }
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
+  if (new URL(request.url).origin !== self.location.origin) return;
 
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
-
-  if (request.mode === 'navigate') {
-    event.respondWith(networkFirst(event));
-    return;
-  }
-
-  event.respondWith(cacheFirst(request));
+  event.respondWith(request.mode === 'navigate' ? serveShell(event) : serveAsset(request));
 });

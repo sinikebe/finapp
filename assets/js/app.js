@@ -187,6 +187,13 @@ function render() {
   renderSummary(projection, hasInput);
 }
 
+// Touch keeps the last tapped reading on screen; a tap anywhere else clears it.
+document.addEventListener('pointerdown', (event) => {
+  if (event.pointerType !== 'touch') return;
+  if (event.target instanceof Element && event.target.closest('.chart-svg')) return;
+  for (const chart of charts) chart.instance.setActive(null);
+});
+
 /* ------------------------------------------------------------------- inputs */
 
 let saveTimer = 0;
@@ -218,7 +225,12 @@ function bindAmount(input, key) {
 bindAmount(ui.income, 'income');
 bindAmount(ui.rent, 'rent');
 
+// The slider's own max is the source of truth for the horizon: a stored value
+// beyond it (a hand-edited localStorage entry) is pulled back into range here
+// rather than leaving the readout and the slider disagreeing.
 ui.months.value = String(state.months);
+state.months = toMonths(ui.months.value);
+
 ui.months.addEventListener('input', () => {
   state.months = toMonths(ui.months.value);
   persist();
@@ -282,7 +294,9 @@ function applyTheme(choice) {
 
   const dark = choice === 'dark'
     || (choice === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  ui.themeColor.setAttribute('content', dark ? THEME_COLORS.dark : THEME_COLORS.light);
+  // The two <meta> tags live in the document head; the app still works without
+  // them (an embedded or inlined copy of the markup, for instance).
+  if (ui.themeColor) ui.themeColor.setAttribute('content', dark ? THEME_COLORS.dark : THEME_COLORS.light);
   ui.themeLabel.textContent = t(`theme.${choice}`);
   ui.themeButton.setAttribute('aria-label', t(`theme.aria.${choice}`));
 }
@@ -356,7 +370,12 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' })
-      .then(watchForUpdate)
+      .then((registration) => {
+        watchForUpdate(registration);
+        // The shell is served from the cache, so ask explicitly whether a newer
+        // worker exists rather than waiting for the browser's own schedule.
+        registration.update().catch(() => {});
+      })
       .catch(() => { /* offline support is a bonus, never a blocker */ });
   });
 }

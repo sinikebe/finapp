@@ -14,6 +14,7 @@ const TOP_PAD = 14;
 const X_AXIS_BAND = 26;
 const LEFT_PAD = 46;
 const MIN_RIGHT_PAD = 44;
+const MIN_PLOT_WIDTH = 120;
 const CHAR_WIDTH = 7.4; // 12px semibold system sans, close enough to reserve space
 const MARKER_RADIUS = 4.5;
 const X_TICK_STEPS = [1, 2, 3, 6, 12, 24, 36, 60, 120, 240];
@@ -175,10 +176,15 @@ export function createLineChart(options) {
     const w = width();
     const scale = niceScale(domain.min, domain.max);
     const endValue = points.length ? points[points.length - 1].value : 0;
-    const rightPad = Math.max(
+    // Reserve room for the end-label, but never at the cost of the plot: a label
+    // that would squeeze the chart is dropped rather than clipped, and the table
+    // view keeps the value reachable.
+    const wantedRightPad = Math.max(
       MIN_RIGHT_PAD,
       Math.ceil(formatValue(endValue).length * CHAR_WIDTH) + 16,
     );
+    const labelFits = w - LEFT_PAD - wantedRightPad >= MIN_PLOT_WIDTH;
+    const rightPad = labelFits ? wantedRightPad : MIN_RIGHT_PAD;
     const plotW = Math.max(40, w - LEFT_PAD - rightPad);
     const height = TOP_PAD + PLOT_HEIGHT + X_AXIS_BAND;
 
@@ -231,9 +237,10 @@ export function createLineChart(options) {
 
     // --- series --------------------------------------------------------------
     const hasSeries = points.length > 1 && !isEmpty;
-    for (const node of [areaPath, linePath, endRing, endDot, endLabel]) {
+    for (const node of [areaPath, linePath, endRing, endDot]) {
       node.style.display = hasSeries ? '' : 'none';
     }
+    endLabel.style.display = hasSeries && labelFits ? '' : 'none';
     empty.hidden = hasSeries;
     svg.classList.toggle('is-empty', !hasSeries);
 
@@ -344,7 +351,12 @@ export function createLineChart(options) {
     const index = indexFromEvent(event);
     if (index !== null) emitHover(index);
   });
-  svg.addEventListener('pointerleave', () => emitHover(null));
+  svg.addEventListener('pointerleave', (event) => {
+    // A touch tap ends with a pointerleave; clearing there would blank the
+    // reading the tap just asked for. Tapping elsewhere clears it (see app.js).
+    if (event.pointerType === 'touch') return;
+    emitHover(null);
+  });
   svg.addEventListener('focus', () => {
     if (!state.isEmpty) emitHover(activeIndex === null ? state.points.length - 1 : activeIndex);
   });

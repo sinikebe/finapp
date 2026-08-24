@@ -78,14 +78,21 @@ test/                      node:test unit tests
 
 ## Offline and updates
 
-`sw.js` precaches the app shell on install. Navigations are network-first, so a
-deployed change is picked up on the next online visit; every other asset is
-served from the cache and refreshed in the background. When a new worker is
-waiting, the app offers a **Reload** button rather than swapping the page out
-from under you.
+`sw.js` treats its cache as one immutable generation: the page, the CSS and the
+JS are precached together on install and served together from that same
+generation. Nothing is refreshed behind the app's back, so you never get a fresh
+page wired to stale scripts — the failure mode of an unhashed static app that
+mixes network-first HTML with cached assets.
+
+A new version therefore arrives whole. A new worker installs its own cache
+alongside the running one, and the app offers a **Reload** button rather than
+swapping the page out mid-edit; accepting it activates the new worker, drops the
+old cache, and reloads. Declining it changes nothing until the next visit.
 
 **Bump `CACHE_VERSION` in `sw.js` whenever a precached file changes.** That is
-the one manual step in the whole project; there is no build to do it for you.
+the one manual step in the whole project — there is no build to do it for you,
+and browsers only look for a new worker when `sw.js` itself changes. CI fails
+the build if a precached file moves without it.
 
 ## Languages
 

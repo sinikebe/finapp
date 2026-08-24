@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  project, seriesOf, extentOf, toAmount, toMonths, roundMoney, MAX_MONTHS,
+  project, seriesOf, extentOf, toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
 
 test('a horizon of N months yields N + 1 points, starting at zero', () => {
@@ -87,4 +87,13 @@ test('extentOf spans every series and always includes zero', () => {
   assert.equal(extent.min, -1500);
   assert.equal(extent.max, 4500);
   assert.deepEqual(extentOf([[{ month: 0, value: 5 }]]), { min: 0, max: 5 });
+});
+
+test('absurd amounts are capped where doubles stop counting cents', () => {
+  assert.equal(toAmount(1e21), MAX_AMOUNT);
+  assert.equal(toAmount('9e99'), MAX_AMOUNT);
+  assert.equal(toAmount(MAX_AMOUNT + 1), MAX_AMOUNT);
+  const capped = project({ monthlyIncome: 1e21, monthlyRent: 0, months: 2 });
+  assert.deepEqual(capped.points.map((p) => p.income), [0, MAX_AMOUNT, MAX_AMOUNT * 2]);
+  assert.equal(capped.totals.income, 2e12);
 });

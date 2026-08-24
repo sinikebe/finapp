@@ -10,6 +10,13 @@
 export const MIN_MONTHS = 1;
 export const MAX_MONTHS = 600;
 
+/**
+ * Monthly amounts are capped at a trillion. Past roughly 2^53 cents, doubles
+ * stop representing whole cents, so the totals would drift and the axis labels
+ * would stop meaning anything; a cap keeps every number on screen honest.
+ */
+export const MAX_AMOUNT = 1e12;
+
 /** Money is kept to whole cents; float drift never reaches the screen. */
 export function roundMoney(value) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -19,7 +26,7 @@ export function roundMoney(value) {
 export function toAmount(value) {
   const n = typeof value === 'number' ? value : Number.parseFloat(value);
   if (!Number.isFinite(n) || n <= 0) return 0;
-  return roundMoney(n);
+  return roundMoney(Math.min(n, MAX_AMOUNT));
 }
 
 /** Coerce anything to a whole number of months inside the supported range. */
