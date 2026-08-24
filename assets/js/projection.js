@@ -116,8 +116,10 @@ export function flowIn(fields, direction, month) {
  * @returns {{
  *   fields: Array<object>, months: number,
  *   monthlyIncome: number, monthlyExpenses: number, monthlyNet: number,
- *   points: Array<{month: number, income: number, expenses: number, net: number}>,
- *   totals: {income: number, expenses: number, net: number}
+ *   points: Array<{month: number, income: number, expenses: number, net: number,
+ *                  invested: number, worth: number}>,
+ *   totals: {income: number, expenses: number, net: number,
+ *            invested: number, worth: number}
  * }}
  */
 export function project(input = {}) {
@@ -133,7 +135,7 @@ export function project(input = {}) {
   // Accumulated month by month rather than multiplied, so a field whose
   // contribution varies over time needs no change here — only `contributionOf`.
   const points = [{
-    month: 0, income: 0, expenses: 0, net: 0, invested: 0,
+    month: 0, income: 0, expenses: 0, net: 0, invested: 0, worth: 0,
   }];
   let income = 0;
   let expenses = 0;
@@ -152,8 +154,12 @@ export function project(input = {}) {
       invested = roundMoney(invested + balance);
     }
 
+    // What the reader actually has: the cash they kept plus what the
+    // investments are worth. Money put in has already left `net` as an
+    // outgoing, so adding the balance back is a sum, not double-counting.
+    const net = roundMoney(income - expenses);
     points.push({
-      month, income, expenses, net: roundMoney(income - expenses), invested,
+      month, income, expenses, net, invested, worth: roundMoney(net + invested),
     });
   }
 
@@ -173,7 +179,11 @@ export function project(input = {}) {
     averages,
     points,
     totals: {
-      income: last.income, expenses: last.expenses, net: last.net, invested: last.invested,
+      income: last.income,
+      expenses: last.expenses,
+      net: last.net,
+      invested: last.invested,
+      worth: last.worth,
     },
   };
 }

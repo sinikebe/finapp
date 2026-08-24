@@ -2,8 +2,9 @@
 
 A small progressive web app that estimates your financial future. List what
 comes in and what goes out each month, choose a horizon, and it plots three
-cumulative curves — income, expenses and net — over the months ahead. Lay out
-more than one plan and it puts them side by side.
+cumulative curves — income, expenses and net — over the months ahead, plus what
+you are worth in total once investments are in play. Lay out more than one plan
+and it puts them side by side.
 
 Everything runs on the device. No build step, no dependencies, no network, no
 account. The whole app is static files served from a folder.
@@ -111,10 +112,16 @@ return new lists, like the field ones.
 ### Side by side
 
 Once there is a second strategy, a chart below the flow cards draws them all on
-one scale, with a switch for what is being compared: net, in, out, and the
-investment balance when any strategy holds one. Beneath it a table gives each
-strategy's totals and its gap to the first, which is the number the comparison
-is usually for.
+one scale, with a switch for what is being compared: net, in, out, and — once
+any strategy holds an investment — the total and the investment balance.
+Beneath it a table gives each strategy's totals and its gap to the first, which
+is the number the comparison is usually for.
+
+**That gap is measured on the total, not the net**, and the chart opens on the
+same quantity until the reader picks another. A strategy that pours everything
+into an index fund keeps almost no cash, so judging it on net would announce it
+as behind directly above a chart agreeing — while it is, in fact, well ahead.
+With nothing invested the two are equal to the cent, so nothing moves.
 
 **In that view colour means strategy, not series.** The flow cards keep their
 own meaning of colour because they never mix strategies; the comparison chart
@@ -133,9 +140,19 @@ expenses(m)        = expenses(m−1) + Σ contribution(expense fields, m)
 net(m)             = income(m) − expenses(m)
 invested(m)        = Σ over investments of
                        balance(f, m−1) × (1 + f.annualRate/12) + contribution(f, m)
+worth(m)           = net(m) + invested(m)
 ```
 
-for `m = 0 … X`, where month 0 is today — nothing earned, nothing paid. The
+for `m = 0 … X`, where month 0 is today — nothing earned, nothing paid.
+
+**`worth` is the bottom line: the cash kept plus what the investments are
+worth.** Adding the balance back is a sum rather than double-counting, because
+money put into an investment has already left `net` as an outgoing — the two
+halves never hold the same coin at the same time. With nothing invested it
+equals `net` to the cent, which is why the app only shows it once there is an
+investment: a card and a tile that restate the ones beside them are questions
+nobody asked.
+ The
 series are accumulated month by month rather than multiplied, which is what lets
 a field's contribution vary over time: **`contributionOf(field, month)` is the
 one function that decides what a field moves in a given month**, and periods
@@ -159,12 +176,20 @@ chart passes one per strategy.
   be read against each other. Two y-scales on one plot would invent a
   correlation that isn't in the data; three cards on one scale don't. The
   investment-value card is the exception, and says so: a balance is not a
-  cumulative flow, and would flatten to nothing on the flows' axis.
+  cumulative flow, and would flatten to nothing on the flows' axis. The total
+  goes back on the shared scale on purpose: the point of that card is the gap
+  between it and the net beside it, which is exactly what the investments have
+  added, and its own scale would hide it.
 - **Series colours** come from a validated categorical palette — slots 1–3
   (blue, orange, aqua) for income, expenses and net, a fourth (purple) for the
-  investment balance, and those same four again in the comparison chart, where
-  they mean strategy. Every pair clears the colour-blind and normal-vision
-  separation floors in both light and dark mode.
+  investment balance, a fifth (magenta) for the total, and the first four again
+  in the comparison chart, where they mean strategy. Every pair clears the
+  colour-blind and normal-vision separation floors in both light and dark mode.
+  The fourth and fifth were found by searching OKLCH space against the
+  validator, because no documented step clears the all-pairs floors beside the
+  ones already in use. The fifth is the harder search: a colour can sit on the
+  CVD *floor* and still validate, and the shipped four all clear the higher
+  *target*, so the search held that bar rather than the one that merely passes.
 - **Nothing is gated behind hover.** Each line is labelled at its endpoint —
   labels nudge apart when two lines finish close together — a crosshair tooltip
   follows the pointer (and the arrow keys: `Shift` jumps a year, `Home`/`End`
@@ -273,12 +298,15 @@ across exactly those three files, and duplication, storage round-trips and the
 v1 migration carried the new attribute with no changes at all.
 
 **A new derived series** (savings, taxes, a running balance) is a key on each
-point in `project()` plus one entry in the `CHARTS` list in `app.js`. The chart
+point in `project()` plus one entry in the `CHARTS` list in `app.js` — and, if
+it belongs in the comparison, one more in `METRICS`. The chart
 component takes any `{month, value}` series and needs no changes — the
 investment-value card was added exactly that way, with two flags on its entry:
 `onlyWithInvestments` to draw it only when it has something to say, and
 `ownScale` because a balance is not a cumulative flow and flattens to nothing on
-the flows' shared axis.
+the flows' shared axis. The total came the same way and cost a line in
+`project()`, an entry in each list, and a colour — the colour being the only
+part that took real work.
 
 **A new kind of field** (a mortgage with an offset, a pension with employer
 matching) is an entry in `KINDS`, a branch in `contributionOf`, the controls it

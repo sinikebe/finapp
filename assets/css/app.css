@@ -34,6 +34,11 @@
      by searching OKLCH space against the validator — it passes every gate in
      both modes (worst all-pairs CVD ΔE 9.2, normal-vision 20.9). */
   --series-invested: #703879;
+  /* A fifth, the same way. The strict gate is what makes it hard: a colour may
+     merely reach the CVD *floor* and still validate, and the shipped four all
+     clear the higher *target*, so the search kept that bar. Only the magenta
+     band clears it beside these four while staying legible on both surfaces. */
+  --series-worth: #b9448e;
 
   /* Comparing strategies puts several lines on one plot, so colour carries
      identity there. These are the four the palette can seat with every pair
@@ -72,6 +77,7 @@
     --series-expenses: #d95926;
     --series-net: #199e70;
     --series-invested: #9f3dae;
+    --series-worth: #e557b1;
 
     --strategy-1: #3987e5;
     --strategy-2: #d95926;
@@ -103,6 +109,7 @@
   --series-expenses: #d95926;
   --series-net: #199e70;
   --series-invested: #9f3dae;
+  --series-worth: #e557b1;
 
   --strategy-1: #3987e5;
   --strategy-2: #d95926;

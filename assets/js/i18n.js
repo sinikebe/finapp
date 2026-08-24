@@ -96,8 +96,9 @@ const STRINGS = {
     'compare.metric.income': 'In',
     'compare.metric.expenses': 'Out',
     'compare.metric.invested': 'Investments',
+    'compare.metric.worth': 'Total',
     'compare.strategyColumn': 'Strategy',
-    'compare.deltaColumn': 'Net vs the first',
+    'compare.deltaColumn': (metric) => `${metric} vs the first`,
     'compare.baseline': 'the first',
     'compare.ahead': (amount) => `+${amount}`,
     'compare.behind': (amount) => `−${amount}`,
@@ -112,6 +113,7 @@ const STRINGS = {
     'summary.totalExpenses': 'Total expenses',
     'summary.monthlyNet': 'Kept per month, on average',
     'summary.invested': 'Investments are worth',
+    'summary.worth': (months) => `Total after ${months} ${plural(months, 'month', 'months')}`,
     'summary.surplus': (amount) => `You keep ${amount} a month on average`,
     'summary.shortfall': (amount) => `Expenses outrun income by ${amount} a month on average`,
 
@@ -125,7 +127,7 @@ const STRINGS = {
     'charts.notePrompt': 'Give a field an amount to project the months ahead.',
     'charts.noteFilled': (horizon, income, expenses, net) =>
       `Over ${horizon}: ${income} in, ${expenses} out, ${net} left over.`,
-    'charts.scaleNote': 'The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale.',
+    'charts.scaleNote': 'The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is what the investments have added.',
     'charts.empty': 'Give a field an amount above.',
 
     'chart.income.title': 'Cumulative income',
@@ -140,6 +142,9 @@ const STRINGS = {
     'chart.net.title': 'Cumulative net',
     'chart.net.description': 'What is left once expenses come out of income.',
     'chart.net.series': 'Net to date',
+    'chart.worth.title': 'Total worth',
+    'chart.worth.description': 'The cash kept plus what the investments are worth.',
+    'chart.worth.series': 'Total to date',
     'chart.showTable': 'Show table',
     'chart.hideTable': 'Hide table',
     'chart.tableCaption': (title) => `${title} — every month`,
@@ -176,7 +181,7 @@ const STRINGS = {
     'lang.aria': 'Langue : français. Passer à l’anglais',
 
     'inputs.heading': 'Ce qui entre et ce qui sort',
-    'inputs.hint': 'Nommez chaque montant, indiquez s’il entre ou s’il sort, à quelle fréquence il tombe, et combien. Un emprunt calcule ses mensualités ; un investissement croît au taux que vous indiquez.',
+    'inputs.hint': 'Nommez chaque montant, indiquez s’il entre ou s’il sort, à quelle fréquence il tombe, et combien. Un emprunt calcule ses mensualités ; un investissement croît au taux que vous indiquez.',
     'inputs.periodNote': 'Tout ce qui revient moins souvent que chaque mois tombe à la fin de chaque période — un montant annuel au mois 12, 24, et ainsi de suite.',
     'inputs.currencyNote': 'Les montants sont dans votre devise — l’application ne convertit rien et n’enregistre rien ailleurs que sur cet appareil.',
 
@@ -230,7 +235,7 @@ const STRINGS = {
 
     'compare.heading': 'Les stratégies côte à côte',
     'compare.note': (name, amount, months) =>
-      `${name} arrive en tête : ${amount} après ${months} mois.`,
+      `${name} arrive en tête : ${amount} après ${months} mois.`,
     'compare.chartTitle': (metric) => `${metric}, par stratégie`,
     'compare.chartDescription': 'Une ligne par stratégie, toutes sur la même échelle.',
     'compare.metricAria': 'Ce qu’il faut comparer',
@@ -238,8 +243,9 @@ const STRINGS = {
     'compare.metric.income': 'Entrées',
     'compare.metric.expenses': 'Sorties',
     'compare.metric.invested': 'Placements',
+    'compare.metric.worth': 'Total',
     'compare.strategyColumn': 'Stratégie',
-    'compare.deltaColumn': 'Écart avec la première',
+    'compare.deltaColumn': (metric) => `${metric} — écart avec la première`,
     'compare.baseline': 'la première',
     'compare.ahead': (amount) => `+${amount}`,
     'compare.behind': (amount) => `−${amount}`,
@@ -254,6 +260,7 @@ const STRINGS = {
     'summary.totalExpenses': 'Dépenses cumulées',
     'summary.monthlyNet': 'Reste par mois, en moyenne',
     'summary.invested': 'Valeur des investissements',
+    'summary.worth': (months) => `Total après ${months} mois`,
     'summary.surplus': (amount) => `Vous gardez ${amount} par mois en moyenne`,
     'summary.shortfall': (amount) => `Les dépenses dépassent les revenus de ${amount} par mois en moyenne`,
 
@@ -267,7 +274,7 @@ const STRINGS = {
     'charts.notePrompt': 'Saisissez un montant dans un champ pour projeter les mois à venir.',
     'charts.noteFilled': (horizon, income, expenses, net) =>
       `Sur ${horizon} : ${income} encaissés, ${expenses} dépensés, ${net} restants.`,
-    'charts.scaleNote': 'Les graphiques de flux partagent la même échelle verticale : ils se lisent les uns par rapport aux autres. Le mois 0, c’est aujourd’hui — rien de gagné, rien de payé. Les sommes investies comptent comme payées ; leur valeur est un solde, pas un flux, et cette carte a donc sa propre échelle.',
+    'charts.scaleNote': 'Les graphiques de flux partagent la même échelle verticale : ils se lisent les uns par rapport aux autres. Le mois 0, c’est aujourd’hui — rien de gagné, rien de payé. Les sommes investies comptent comme payées ; leur valeur est un solde, pas un flux, et cette carte a donc sa propre échelle. Le total revient sur l’échelle commune : l’écart entre lui et le solde net, c’est ce que les investissements ont apporté.',
     'charts.empty': 'Saisissez un montant dans un champ ci-dessus.',
 
     'chart.income.title': 'Revenus cumulés',
@@ -282,6 +289,9 @@ const STRINGS = {
     'chart.net.title': 'Solde net cumulé',
     'chart.net.description': 'Ce qu’il reste une fois les dépenses déduites des revenus.',
     'chart.net.series': 'Solde net cumulé',
+    'chart.worth.title': 'Patrimoine total',
+    'chart.worth.description': 'L’argent conservé plus la valeur des investissements.',
+    'chart.worth.series': 'Total à ce jour',
     'chart.showTable': 'Afficher le tableau',
     'chart.hideTable': 'Masquer le tableau',
     'chart.tableCaption': (title) => `${title} — mois par mois`,
