@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  project, inTodaysMoney, shiftReturns, monthlyGrowth,
+  project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax,
   seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
   flowIn, contributionOf, outstandingOf,
   loanPayment, loanInterest, monthlyRate,
@@ -17,7 +17,16 @@ test('a horizon of N months yields N + 1 points, starting at zero', () => {
   const result = project({ fields: [income(3000), expense(1200)], months: 24 });
   assert.equal(result.points.length, 25);
   assert.deepEqual(result.points[0], {
-    month: 0, income: 0, expenses: 0, net: 0, invested: 0, owned: 0, debt: 0, worth: 0,
+    month: 0,
+    income: 0,
+    expenses: 0,
+    net: 0,
+    invested: 0,
+    contributed: 0,
+    profit: 0,
+    owned: 0,
+    debt: 0,
+    worth: 0,
   }, 'every series starts at nothing');
 });
 
@@ -56,6 +65,8 @@ test('totals match the last point', () => {
     expenses: last.expenses,
     net: last.net,
     invested: last.invested,
+    contributed: last.contributed,
+    profit: last.profit,
     owned: last.owned,
     debt: last.debt,
     worth: last.worth,
@@ -87,7 +98,15 @@ test('an empty projection is all zeroes, not NaN', () => {
   assert.equal(result.averages.expenses, 0);
   assert.equal(result.months, 1);
   assert.deepEqual(result.totals, {
-    income: 0, expenses: 0, net: 0, invested: 0, owned: 0, debt: 0, worth: 0,
+    income: 0,
+    expenses: 0,
+    net: 0,
+    invested: 0,
+    contributed: 0,
+    profit: 0,
+    owned: 0,
+    debt: 0,
+    worth: 0,
   });
   assert.equal(hasAmounts(result), false);
 });
@@ -554,4 +573,66 @@ test('the pessimistic run is never above the hopeful one', () => {
     assert.ok(low.points[m].worth <= mid.points[m].worth, `low ≤ mid at ${m}`);
     assert.ok(mid.points[m].worth <= high.points[m].worth, `mid ≤ high at ${m}`);
   }
+});
+
+/* ------------------------------------------------ paid in, and what it made */
+
+test('what was paid in is tracked apart from what it became', () => {
+  const result = project({ fields: [invest('500', '7')], months: 120 });
+  assert.equal(result.totals.contributed, 60000, '500 a month for 120 months');
+  assert.ok(result.totals.invested > result.totals.contributed, 'and it grew');
+  assert.equal(result.points[1].contributed, 500, 'the first month is just the money');
+  assert.equal(result.points[0].contributed, 0);
+});
+
+test('only investments count as paid in', () => {
+  const result = project({
+    fields: [expense(900), loan('10000', '4', 24), asset('50000'), invest('200', '5')],
+    months: 24,
+  });
+  assert.equal(result.totals.contributed, 4800, 'the rent and the loan are not investing');
+});
+
+test('a lumpy investment is paid in only when it lands', () => {
+  const result = project({ fields: [invest('1200', '0', 12)], months: 24 });
+  assert.equal(result.points[11].contributed, 0);
+  assert.equal(result.points[12].contributed, 1200);
+  assert.equal(result.points[24].contributed, 2400);
+});
+
+test('profit is the gain, less its tax', () => {
+  const result = project({ fields: [invest('500', '7')], months: 120, taxRate: 30 });
+  const gain = roundMoney(result.totals.invested - result.totals.contributed);
+  assert.equal(result.totals.profit, roundMoney(gain * 0.7));
+  assert.ok(result.totals.profit < gain, 'the taxman took a cut');
+});
+
+test('no rate means no tax, so profit is the whole gain', () => {
+  const result = project({ fields: [invest('500', '7')], months: 120 });
+  assert.equal(result.totals.profit, roundMoney(result.totals.invested - result.totals.contributed));
+});
+
+test('a loss is not taxed, and is never handed back as a credit', () => {
+  const losing = shiftReturns([invest('1000', '2')], -8);
+  const result = project({ fields: losing, months: 120, taxRate: 30 });
+  const gain = roundMoney(result.totals.invested - result.totals.contributed);
+  assert.ok(gain < 0, 'this run really lost money');
+  assert.equal(result.totals.profit, gain, 'the loss stands, untouched');
+  assert.equal(afterTax(-1000, 30), -1000);
+  assert.equal(afterTax(0, 30), 0);
+});
+
+test('a tax rate is coerced, never trusted', () => {
+  assert.equal(afterTax(1000, 'nonsense'), 1000, 'unreadable means untaxed');
+  assert.equal(afterTax(1000, -50), 1000, 'no negative tax');
+  assert.equal(afterTax(1000, 200), 0, 'and never more than all of it');
+  assert.equal(afterTax(1000, 100), 0);
+});
+
+test('profit survives being restated in today\'s money', () => {
+  const nominal = project({ fields: [invest('500', '7')], months: 120, taxRate: 30 });
+  const real = inTodaysMoney(nominal, '2');
+  const gain = roundMoney(real.totals.invested - real.totals.contributed);
+  assert.equal(real.totals.profit, roundMoney(gain * 0.7), 'still the gain on screen, less its tax');
+  assert.ok(real.totals.profit < nominal.totals.profit, 'and worth less than it looked');
 });

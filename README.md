@@ -145,6 +145,8 @@ expenses(m)        = expenses(m−1) + Σ contribution(expense fields, m)
 net(m)             = income(m) − expenses(m)
 invested(m)        = Σ over investments of
                        balance(f, m−1) × (1 + f.annualRate/12) + contribution(f, m)
+contributed(m)     = Σ paid into investments so far
+profit(m)          = gain > 0 ? gain × (1 − tax) : gain,  gain = invested − contributed
 owned(m)           = Σ assets, each gaining at its own rate
                      + principal still outstanding on loans owed *to* you
 debt(m)            = principal still outstanding on loans you are repaying
@@ -183,6 +185,24 @@ of a direction are capped where doubles stop counting cents exactly.
 
 Amounts carry no currency symbol. The app never asks which currency you use, so
 it never claims to know.
+
+### What an investment actually made
+
+A balance on its own does not say whether an investment is working. Three
+figures do, and the summary carries all three: **paid in**, **what it is worth**,
+and the **net profit** — the gain, less tax on it, at a rate you set that
+defaults to 30%.
+
+The investment card draws what was paid in as a dashed neutral line beneath the
+value, so the gap between the two *is* the gain. It is deliberately not a
+palette colour: a reference is not a category, and the palette has no slot left
+to give (see the ceiling above).
+
+Two rules the model keeps: **a loss is never taxed**, and it is never handed
+back as a credit — an app that quietly returned 30% of a bad decade would be
+lying in the friendly direction, which is the worse one. And **tax does not
+touch `worth`**: the total is what you hold, and the tax falls due when you
+sell, which the app has no way to know that you will.
 
 ### Today's money
 
@@ -321,8 +341,8 @@ keys with the same parameters, so a half-translated release fails the build.
 ## Your data
 
 Three keys in `localStorage`, on your device only: `finapp.state.v3` (your
-strategies, horizon, and the two assumptions — inflation and the spread on
-returns — with their toggles), `finapp.theme.v1` and `finapp.language.v1`. Older
+strategies, horizon, and the assumptions — inflation, the spread on returns,
+and the tax rate — with their toggles), `finapp.theme.v1` and `finapp.language.v1`. Older
 stores are read on first load and then retired, so nobody loses what they had
 typed: `finapp.state.v2`, a flat list of fields, becomes the first strategy, and
 `finapp.inputs.v1`, a lone income and rent from before fields existed, becomes

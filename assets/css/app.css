@@ -623,7 +623,10 @@ main {
 .kpi-row {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  /* 136px rather than a rounder number: it is the widest track that still
+     seats two tiles on a 390px phone and all of them on a laptop, so the row
+     never leaves a single tile stranded on a line of its own. */
+  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
   margin: 0;
   padding-top: 4px;
   border-top: 1px solid var(--border);
@@ -832,6 +835,14 @@ main {
 .series-band { fill-opacity: 0.14; stroke: none; }
 
 .series-area { fill: var(--series); fill-opacity: 0.1; stroke: none; }
+
+/* Dashed, thinner, and no end dot: a reference reads as the thing being
+   compared against, not as a second category competing for attention. */
+.series-line.is-reference {
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  opacity: 0.85;
+}
 
 .series-line {
   fill: none;

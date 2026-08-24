@@ -332,6 +332,10 @@ export function createLineChart(options) {
       const drawn = hasSeries && points.length > 1;
 
       layer.line.style.stroke = s ? s.color : '';
+      // A dashed line is a reference — what was paid in, a target — rather than
+      // another category. It says "compare against me", so it is drawn without
+      // an end dot and never takes a slot in the categorical palette.
+      layer.line.classList.toggle('is-reference', Boolean(s && s.dashed));
       layer.band.style.fill = s ? s.color : '';
       layer.area.style.fill = s ? s.color : '';
       layer.endDot.style.fill = s ? s.color : '';
@@ -345,8 +349,9 @@ export function createLineChart(options) {
       layer.line.style.display = drawn ? '' : 'none';
       layer.band.style.display = drawn && band ? '' : 'none';
       layer.area.style.display = drawn && showArea ? '' : 'none';
-      layer.endRing.style.display = drawn ? '' : 'none';
-      layer.endDot.style.display = drawn ? '' : 'none';
+      const marked = drawn && !(s && s.dashed);
+      layer.endRing.style.display = marked ? '' : 'none';
+      layer.endDot.style.display = marked ? '' : 'none';
 
       if (!drawn) {
         layer.endLabel.style.display = 'none';

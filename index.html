@@ -83,9 +83,18 @@
           <dt data-i18n="summary.debt">You still owe</dt>
           <dd id="debt-value">—</dd>
         </div>
+        <div class="stat-tile" id="contributed-tile" hidden>
+          <dt data-i18n="summary.contributed">Paid into investments</dt>
+          <dd id="contributed-value">—</dd>
+        </div>
         <div class="stat-tile" id="invested-tile" hidden>
           <dt data-i18n="summary.invested">Investments are worth</dt>
           <dd id="invested-value">—</dd>
+        </div>
+        <!-- Names the rate it used, so the figure is never a number from nowhere. -->
+        <div class="stat-tile" id="profit-tile" hidden>
+          <dt id="profit-label">Net profit</dt>
+          <dd id="profit-value">—</dd>
         </div>
         <!-- Names its own horizon, so it is filled in by render() rather than
              carrying a data-i18n key of its own. -->
@@ -127,6 +136,13 @@
       </div>
       <div class="presets" role="group" data-i18n-aria="filter.rangeAria">
         <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
+      </div>
+      <div class="filter money-filter" id="tax-filter" hidden>
+        <label for="tax" data-i18n="filter.tax">Tax on gains</label>
+        <div class="range-line">
+          <input id="tax" type="number" min="0" max="100" step="1" inputmode="decimal">
+          <span class="rate-unit" aria-hidden="true">%</span>
+        </div>
       </div>
       <div class="filter money-filter" id="spread-filter" hidden>
         <label for="spread" data-i18n="filter.spread">Returns, give or take</label>

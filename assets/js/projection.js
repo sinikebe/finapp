@@ -175,20 +175,28 @@ export function flowIn(fields, direction, month) {
  *   fields: Array<object>, months: number,
  *   monthlyIncome: number, monthlyExpenses: number, monthlyNet: number,
  *   points: Array<{month: number, income: number, expenses: number, net: number,
- *                  invested: number, owned: number, debt: number, worth: number}>,
- *   totals: {income: number, expenses: number, net: number,
- *            invested: number, owned: number, debt: number, worth: number}
+ *                  invested: number, contributed: number, profit: number,
+ *                  owned: number, debt: number, worth: number}>,
+ *   totals: {income: number, expenses: number, net: number, invested: number,
+ *            contributed: number, profit: number,
+ *            owned: number, debt: number, worth: number}
  * }}
  */
 export function project(input = {}) {
   const fields = normalizeFields(input.fields);
   const months = toMonths(input.months);
+  // No rate unless one is asked for: a model that taxed by default would put a
+  // number on screen nobody chose. The app supplies the reader's rate.
+  const taxRate = input.taxRate ?? 0;
 
   // Money put into an investment leaves the account like any other outgoing, so
   // it is already in `expenses`. What it is *worth* is a different quantity: a
   // balance that grows, tracked per field because each carries its own rate.
   const investments = fields.filter((field) => field.kind === 'investment');
   const balances = new Map(investments.map((field) => [field.id, 0]));
+  // What has actually been paid in, kept apart from what it has become: the
+  // difference between the two is the whole point of holding an investment.
+  let contributed = 0;
 
   // The balance sheet. Unlike the flows, these do not start at nothing: you
   // already own what you own and already owe what you owe, so month 0 carries
@@ -214,6 +222,8 @@ export function project(input = {}) {
     expenses: 0,
     net: 0,
     invested: 0,
+    contributed: 0,
+    profit: 0,
     owned: ownedNow(),
     debt: debtNow(),
     worth: roundMoney(ownedNow() - debtNow()),
@@ -229,10 +239,12 @@ export function project(input = {}) {
       // A month's growth, then the month's contribution: money invested today
       // has not had time to earn yet. Rounded to the cent each month, the way
       // a statement does, rather than carrying fractions of a cent forever.
+      const paid = contributionOf(field, month);
       const grown = balances.get(field.id) * (1 + monthlyGrowth(field.annualRate));
-      const balance = roundMoney(grown + contributionOf(field, month));
+      const balance = roundMoney(grown + paid);
       balances.set(field.id, balance);
       invested = roundMoney(invested + balance);
+      contributed = roundMoney(contributed + paid);
     }
 
     for (const field of assets) {
@@ -265,6 +277,8 @@ export function project(input = {}) {
       expenses,
       net,
       invested,
+      contributed,
+      profit: afterTax(invested - contributed, taxRate),
       owned,
       debt,
       worth: roundMoney(net + invested + owned - debt),
@@ -284,6 +298,7 @@ export function project(input = {}) {
   return {
     fields,
     months,
+    taxRate,
     averages,
     points,
     totals: {
@@ -291,11 +306,26 @@ export function project(input = {}) {
       expenses: last.expenses,
       net: last.net,
       invested: last.invested,
+      contributed: last.contributed,
+      profit: last.profit,
       owned: last.owned,
       debt: last.debt,
       worth: last.worth,
     },
   };
+}
+
+/**
+ * What is left of a gain once the taxman has been. A loss is returned as it
+ * stands: it is not taxed, and it is emphatically not a credit — an app that
+ * quietly handed back 30% of a bad decade would be lying in the friendly
+ * direction, which is the worse one.
+ */
+export function afterTax(gain, taxRate) {
+  if (!(gain > 0)) return roundMoney(gain);
+  const percent = Number.parseFloat(taxRate);
+  const rate = Number.isFinite(percent) ? Math.min(Math.max(percent, 0), 100) / 100 : 0;
+  return roundMoney(gain * (1 - rate));
 }
 
 /**
@@ -325,6 +355,9 @@ export function project(input = {}) {
 const DERIVED = [
   ['net', (p) => p.income - p.expenses],
   ['worth', (p) => p.net + p.invested + p.owned - p.debt],
+  // Restated from the restated parts, and at the rate the projection was run
+  // with, so the profit on screen is always the gain on screen less its tax.
+  ['profit', (p, projection) => afterTax(p.invested - p.contributed, projection.taxRate)],
 ];
 
 export function inTodaysMoney(projection, annualRate) {
@@ -338,7 +371,7 @@ export function inTodaysMoney(projection, annualRate) {
       if (key !== 'month') restated[key] = deflate(value, point.month);
     }
     for (const [key, of] of DERIVED) {
-      if (key in restated) restated[key] = roundMoney(of(restated));
+      if (key in restated) restated[key] = roundMoney(of(restated, projection));
     }
     return restated;
   });
