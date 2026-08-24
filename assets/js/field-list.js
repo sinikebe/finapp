@@ -18,7 +18,8 @@ const ACTION_ICONS = {
   remove: ['M5.5 7.5h13', 'M10 7.5V6a1.5 1.5 0 0 1 1.5-1.5h1A1.5 1.5 0 0 1 14 6v1.5', 'M7 7.5V19a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 17 19V7.5'],
 };
 
-function icon(name, parent) {
+/** One of the row action icons, also used by the strategy bar. */
+export function actionIcon(name, parent) {
   const node = svgEl('svg', {
     class: 'action-icon', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false',
   }, parent);
@@ -154,10 +155,10 @@ export function createFieldList(options) {
     const actions = html('div', 'field-actions', main);
     const duplicate = html('button', 'icon-button', actions);
     duplicate.type = 'button';
-    icon('duplicate', duplicate);
+    actionIcon('duplicate', duplicate);
     const remove = html('button', 'icon-button', actions);
     remove.type = 'button';
-    icon('remove', remove);
+    actionIcon('remove', remove);
 
     // What a loan works out to, spelled out where the reader entered it.
     const derived = html('p', 'field-derived', body);

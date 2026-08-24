@@ -76,6 +76,36 @@ const STRINGS = {
     'field.copyOf': (name) => `${name} (copy)`,
     'fields.empty': 'No fields yet. Add one to start projecting.',
 
+    'strategy.defaultName': (position) => `Strategy ${position}`,
+    'strategy.tabsAria': 'Your strategies',
+    'strategy.nameAria': 'Name of the strategy you are editing',
+    'strategy.namePlaceholder': 'Name this strategy',
+    'strategy.add': 'Add a strategy',
+    'strategy.addFirst': 'Compare another strategy',
+    'strategy.switchTo': (name) => `Switch to ${name}`,
+    'strategy.removeNamed': (name) => `Remove ${name}`,
+    'strategy.copyOf': (name) => `${name} (copy)`,
+
+    'compare.heading': 'Strategies side by side',
+    'compare.note': (name, amount, months) =>
+      `${name} comes out ahead: ${amount} after ${months} ${months === 1 ? 'month' : 'months'}.`,
+    'compare.chartTitle': (metric) => `${metric}, by strategy`,
+    'compare.chartDescription': 'One line per strategy, all on one scale.',
+    'compare.metricAria': 'What to compare',
+    'compare.metric.net': 'Net',
+    'compare.metric.income': 'In',
+    'compare.metric.expenses': 'Out',
+    'compare.metric.invested': 'Investments',
+    'compare.strategyColumn': 'Strategy',
+    'compare.deltaColumn': 'Net vs the first',
+    'compare.baseline': 'the first',
+    'compare.ahead': (amount) => `+${amount}`,
+    'compare.behind': (amount) => `−${amount}`,
+    'compare.tableCaption': (months) => `Where each strategy stands after ${months} ${months === 1 ? 'month' : 'months'}`,
+    'compare.aria': (months, count) =>
+      `${count} strategies compared over ${months} ${months === 1 ? 'month' : 'months'}. `
+      + 'Use the table below this chart for every value.',
+
     'summary.heading': 'Projected totals',
     'summary.heroLabel': (months) => `Net after ${months} ${plural(months, 'month', 'months')}`,
     'summary.totalIncome': 'Total income',
@@ -187,6 +217,36 @@ const STRINGS = {
     'field.removeNamed': (name) => `Supprimer ${name}`,
     'field.copyOf': (name) => `${name} (copie)`,
     'fields.empty': 'Aucun champ pour l’instant. Ajoutez-en un pour lancer la projection.',
+
+    'strategy.defaultName': (position) => `Stratégie ${position}`,
+    'strategy.tabsAria': 'Vos stratégies',
+    'strategy.nameAria': 'Nom de la stratégie en cours de modification',
+    'strategy.namePlaceholder': 'Nommez cette stratégie',
+    'strategy.add': 'Ajouter une stratégie',
+    'strategy.addFirst': 'Comparer une autre stratégie',
+    'strategy.switchTo': (name) => `Passer à ${name}`,
+    'strategy.removeNamed': (name) => `Supprimer ${name}`,
+    'strategy.copyOf': (name) => `${name} (copie)`,
+
+    'compare.heading': 'Les stratégies côte à côte',
+    'compare.note': (name, amount, months) =>
+      `${name} arrive en tête : ${amount} après ${months} mois.`,
+    'compare.chartTitle': (metric) => `${metric}, par stratégie`,
+    'compare.chartDescription': 'Une ligne par stratégie, toutes sur la même échelle.',
+    'compare.metricAria': 'Ce qu’il faut comparer',
+    'compare.metric.net': 'Solde net',
+    'compare.metric.income': 'Entrées',
+    'compare.metric.expenses': 'Sorties',
+    'compare.metric.invested': 'Placements',
+    'compare.strategyColumn': 'Stratégie',
+    'compare.deltaColumn': 'Écart avec la première',
+    'compare.baseline': 'la première',
+    'compare.ahead': (amount) => `+${amount}`,
+    'compare.behind': (amount) => `−${amount}`,
+    'compare.tableCaption': (months) => `Où en est chaque stratégie après ${months} mois`,
+    'compare.aria': (months, count) =>
+      `${count} stratégies comparées sur ${months} mois. `
+      + 'Le tableau sous ce graphique donne toutes les valeurs.',
 
     'summary.heading': 'Totaux projetés',
     'summary.heroLabel': (months) => `Solde net après ${months} mois`,

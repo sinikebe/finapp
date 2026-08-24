@@ -1,10 +1,13 @@
 /**
- * chart.js — a small-multiple line chart, drawn as SVG with no dependencies.
+ * chart.js — a line chart, drawn as SVG with no dependencies.
  *
- * One series per chart, one shared y-scale across charts (passed in as `domain`),
- * so the three cards can be read against each other. Every value the tooltip
- * shows is also reachable without hovering: the endpoint is direct-labelled and
- * each card carries a table view.
+ * A chart holds one or more series. With one, it draws the area under the line
+ * and the card's title says what it is; with several — comparing strategies —
+ * it draws lines only, with a legend, because overlapping washes are mush.
+ *
+ * Nothing is gated behind hovering: endpoints are direct-labelled where they
+ * fit, the crosshair follows pointer and keyboard alike, and every card carries
+ * a table of the same numbers.
  */
 
 import { html, svgEl } from './dom.js';
@@ -17,17 +20,18 @@ const MIN_RIGHT_PAD = 44;
 const MIN_PLOT_WIDTH = 120;
 const CHAR_WIDTH = 7.4; // 12px semibold system sans, close enough to reserve space
 const MARKER_RADIUS = 4.5;
+const LABEL_GAP = 15; // two end-labels closer than this would overlap
 const X_TICK_STEPS = [1, 2, 3, 6, 12, 24, 36, 60, 120, 240];
+
+/** Width to reserve for an end-label, so sibling charts can agree on one. */
+export function endLabelPad(text) {
+  return Math.max(MIN_RIGHT_PAD, Math.ceil(text.length * CHAR_WIDTH) + 16);
+}
 
 /** Round a scale value away from float noise (0.30000000000000004 → 0.3). */
 function tidy(value, step) {
   const decimals = Math.max(0, Math.min(10, -Math.floor(Math.log10(Math.abs(step))) + 2));
   return Number(value.toFixed(decimals));
-}
-
-/** Width to reserve for an end-label, so sibling charts can agree on one. */
-export function endLabelPad(text) {
-  return Math.max(MIN_RIGHT_PAD, Math.ceil(text.length * CHAR_WIDTH) + 16);
 }
 
 /** A y-domain snapped outward to human tick values (0 / 20K / 40K …). */
@@ -60,21 +64,20 @@ export function monthTickStep(months) {
 /**
  * @param {{
  *   mount: HTMLElement, id: string, title: string, description: string,
- *   seriesLabel: string, colorVar: string,
  *   labels: {showTable: string, hideTable: string, tableCaption: string,
- *            monthColumn: string, ariaLabel: (months: number, endValue: string) => string},
+ *            monthColumn: string, ariaLabel: (months: number, endValue: string, count: number) => string,
+ *            reading: (month: string, value: string) => string},
  *   formatValue: (n: number) => string, formatTick: (n: number) => string,
  *   formatMonth: (n: number) => string, onHover?: (index: number|null) => void
  * }} options
  */
 export function createLineChart(options) {
   const {
-    mount, id, title, description, seriesLabel, colorVar, labels,
+    mount, id, title, description, labels,
     formatValue, formatTick, formatMonth, onHover,
   } = options;
 
   const figure = html('figure', 'chart-card', mount);
-  figure.style.setProperty('--series', `var(${colorVar})`);
 
   const caption = html('figcaption', 'chart-head', figure);
   const heading = html('h3', 'chart-title', caption);
@@ -82,21 +85,21 @@ export function createLineChart(options) {
   const sub = html('p', 'chart-desc', caption);
   sub.textContent = description;
 
+  // Identity never rides on colour alone: two or more series get a legend, and
+  // one needs none — the title already names what is drawn.
+  const legend = html('ul', 'chart-legend', figure);
+  legend.hidden = true;
+
   const plot = html('div', 'chart-plot', figure);
   const svg = svgEl('svg', {
     class: 'chart-svg', role: 'img', tabindex: '0',
     preserveAspectRatio: 'xMidYMid meet',
   }, plot);
-  plot.appendChild(svg);
 
   const tooltip = html('div', 'chart-tip', plot);
   tooltip.hidden = true;
   tooltip.setAttribute('aria-hidden', 'true');
-  const tipValue = html('strong', 'chart-tip-value', tooltip);
-  const tipMeta = html('span', 'chart-tip-meta', tooltip);
-  html('span', 'chart-tip-key', tipMeta); // the series line-key, purely visual
-  const tipLabel = html('span', 'chart-tip-label', tipMeta);
-  tipLabel.textContent = seriesLabel;
+  const tipRows = html('div', 'chart-tip-rows', tooltip);
   const tipMonth = html('span', 'chart-tip-month', tooltip);
 
   const empty = html('p', 'chart-empty', plot);
@@ -125,42 +128,95 @@ export function createLineChart(options) {
   const monthTh = html('th', null, headRow);
   monthTh.scope = 'col';
   monthTh.textContent = labels.monthColumn;
-  const valueTh = html('th', 'num', headRow);
-  valueTh.scope = 'col';
-  valueTh.textContent = seriesLabel;
   const tbody = html('tbody', null, table);
 
-  // Painted once, then mutated in place on every update.
+  // Painted once, then mutated in place on every update. Grouping by kind keeps
+  // the paint order right however many series arrive: grid, fills, lines, then
+  // everything that has to stay readable on top.
   const gridLayer = svgEl('g', { class: 'layer-grid' }, svg);
-  const areaPath = svgEl('path', { class: 'series-area' }, svg);
-  const linePath = svgEl('path', { class: 'series-line' }, svg);
+  const areaGroup = svgEl('g', { class: 'layer-areas' }, svg);
+  const lineGroup = svgEl('g', { class: 'layer-lines' }, svg);
   const zeroLine = svgEl('line', { class: 'axis-zero' }, svg);
   const xAxisLine = svgEl('line', { class: 'axis-line' }, svg);
   const xLabels = svgEl('g', { class: 'layer-xlabels' }, svg);
   const crosshair = svgEl('line', { class: 'crosshair' }, svg);
-  // Ring + dot: the ring is the 2px surface gap that keeps a marker legible
-  // where it crosses the line or the grid.
-  const focusRing = svgEl('circle', { class: 'focus-ring', r: MARKER_RADIUS + 2 }, svg);
-  const focusDot = svgEl('circle', { class: 'focus-dot', r: MARKER_RADIUS }, svg);
-  const endRing = svgEl('circle', { class: 'end-ring', r: MARKER_RADIUS + 2 }, svg);
-  const endDot = svgEl('circle', { class: 'end-dot', r: MARKER_RADIUS }, svg);
-  const endLabel = svgEl('text', { class: 'end-label', 'text-anchor': 'start', dy: '0.32em' }, svg);
+  const markerGroup = svgEl('g', { class: 'layer-markers' }, svg);
+  const labelGroup = svgEl('g', { class: 'layer-labels' }, svg);
+
+  /** One series' worth of nodes, across the groups it paints into. */
+  const layers = [];
+
+  function addLayer() {
+    const area = svgEl('path', { class: 'series-area' }, areaGroup);
+    const line = svgEl('path', { class: 'series-line' }, lineGroup);
+    const endRing = svgEl('circle', { class: 'end-ring', r: MARKER_RADIUS + 2 }, markerGroup);
+    const endDot = svgEl('circle', { class: 'end-dot', r: MARKER_RADIUS }, markerGroup);
+    const focusRing = svgEl('circle', { class: 'focus-ring', r: MARKER_RADIUS + 2 }, markerGroup);
+    const focusDot = svgEl('circle', { class: 'focus-dot', r: MARKER_RADIUS }, markerGroup);
+    const endLabel = svgEl('text', { class: 'end-label', 'text-anchor': 'start', dy: '0.32em' }, labelGroup);
+
+    const legendItem = html('li', 'legend-item', legend);
+    html('span', 'legend-key', legendItem);
+    const legendLabel = html('span', 'legend-label', legendItem);
+
+    const tipRow = html('div', 'chart-tip-row', tipRows);
+    html('span', 'chart-tip-key', tipRow);
+    const tipLabel = html('span', 'chart-tip-label', tipRow);
+    const tipValue = html('strong', 'chart-tip-value', tipRow);
+
+    const layer = {
+      area, line, endRing, endDot, focusRing, focusDot, endLabel,
+      legendItem, legendLabel, tipRow, tipLabel, tipValue,
+      th: null,
+    };
+    layers.push(layer);
+    return layer;
+  }
+
+  function ensureLayers(count) {
+    while (layers.length < count) addLayer();
+    while (layers.length > count) {
+      const layer = layers.pop();
+      for (const node of [layer.area, layer.line, layer.endRing, layer.endDot,
+        layer.focusRing, layer.focusDot, layer.endLabel, layer.legendItem, layer.tipRow]) {
+        node.remove();
+      }
+      if (layer.th) layer.th.remove();
+    }
+  }
+
+  /** Table columns follow the series, so a strategy added is a column added. */
+  function syncColumns(series) {
+    layers.forEach((layer, index) => {
+      if (!layer.th) {
+        layer.th = html('th', 'num', headRow);
+        layer.th.scope = 'col';
+      }
+      layer.th.textContent = series[index].label;
+    });
+  }
 
   let state = {
-    points: [], domain: { min: 0, max: 1 }, months: 1, isEmpty: true, labelPad: 0,
+    series: [], domain: { min: 0, max: 1 }, months: 1, isEmpty: true, labelPad: 0,
   };
   let geometry = null;
   let activeIndex = null;
   let tableRendered = false;
   let frame = 0;
 
+  function pointsOf(index) {
+    return state.series[index] ? state.series[index].points : [];
+  }
+
   function width() {
     return Math.max(240, Math.round(plot.clientWidth || mount.clientWidth || 320));
   }
 
   function setCrosshairVisible(visible) {
-    for (const node of [crosshair, focusRing, focusDot]) {
-      node.style.display = visible ? '' : 'none';
+    crosshair.style.display = visible ? '' : 'none';
+    for (const layer of layers) {
+      layer.focusRing.style.display = visible ? '' : 'none';
+      layer.focusDot.style.display = visible ? '' : 'none';
     }
     tooltip.hidden = !visible;
   }
@@ -169,15 +225,20 @@ export function createLineChart(options) {
   setCrosshairVisible(false);
 
   function render() {
-    const { points, domain, months, isEmpty } = state;
+    const { series, domain, months, isEmpty } = state;
     const w = width();
     const scale = niceScale(domain.min, domain.max);
-    const endValue = points.length ? points[points.length - 1].value : 0;
-    // Reserve room for the end-label, but never at the cost of the plot: a label
-    // that would squeeze the chart is dropped rather than clipped, and the table
-    // view keeps the value reachable. `labelPad` lets sibling charts reserve the
-    // same width, so small multiples stay drawn to one geometry.
-    const wantedRightPad = Math.max(state.labelPad || 0, endLabelPad(formatValue(endValue)));
+    const endValues = series.map((s) => (s.points.length ? s.points[s.points.length - 1].value : 0));
+    const widest = endValues.reduce(
+      (pad, value) => Math.max(pad, endLabelPad(formatValue(value))),
+      MIN_RIGHT_PAD,
+    );
+
+    // Reserve room for the end-labels, but never at the cost of the plot: a
+    // label that would squeeze the chart is dropped rather than clipped, and the
+    // table view keeps the value reachable. `labelPad` lets sibling charts
+    // reserve the same width, so small multiples stay drawn to one geometry.
+    const wantedRightPad = Math.max(state.labelPad || 0, widest);
     const labelFits = w - LEFT_PAD - wantedRightPad >= MIN_PLOT_WIDTH;
     const rightPad = labelFits ? wantedRightPad : MIN_RIGHT_PAD;
     const plotW = Math.max(40, w - LEFT_PAD - rightPad);
@@ -193,7 +254,8 @@ export function createLineChart(options) {
 
     geometry = { xOf, yOf, plotW, plotH: PLOT_HEIGHT, height, scale };
 
-    const hasSeries = points.length > 1 && !isEmpty;
+    const hasSeries = !isEmpty && series.some((s) => s.points.length > 1);
+    const baseY = TOP_PAD + PLOT_HEIGHT;
 
     // --- gridlines + y ticks -------------------------------------------------
     gridLayer.textContent = '';
@@ -207,7 +269,6 @@ export function createLineChart(options) {
     }
 
     // --- axes ----------------------------------------------------------------
-    const baseY = TOP_PAD + PLOT_HEIGHT;
     // An empty card is just its message: no axis, no grid, no ticks to read.
     for (const node of [gridLayer, xLabels, xAxisLine]) {
       node.style.display = hasSeries ? '' : 'none';
@@ -238,35 +299,75 @@ export function createLineChart(options) {
     }
 
     // --- series --------------------------------------------------------------
-    for (const node of [areaPath, linePath, endRing, endDot]) {
-      node.style.display = hasSeries ? '' : 'none';
-    }
-    endLabel.style.display = hasSeries && labelFits ? '' : 'none';
-    empty.hidden = hasSeries;
-    svg.classList.toggle('is-empty', !hasSeries);
+    // A single series gets its area; several would paint mud over each other.
+    const showArea = hasSeries && series.length === 1;
+    const placed = [];
 
-    if (hasSeries) {
-      const commands = points.map((p, i) => `${i ? 'L' : 'M'}${xOf(p.month).toFixed(2)},${yOf(p.value).toFixed(2)}`);
-      linePath.setAttribute('d', commands.join(''));
-      const zeroY = yOf(Math.min(Math.max(0, scale.min), scale.max));
-      areaPath.setAttribute(
-        'd',
-        `${commands.join('')}L${xOf(months).toFixed(2)},${zeroY.toFixed(2)}L${xOf(0).toFixed(2)},${zeroY.toFixed(2)}Z`,
-      );
+    layers.forEach((layer, index) => {
+      const s = series[index];
+      const points = s ? s.points : [];
+      const drawn = hasSeries && points.length > 1;
+
+      layer.line.style.stroke = s ? s.color : '';
+      layer.area.style.fill = s ? s.color : '';
+      layer.endDot.style.fill = s ? s.color : '';
+      layer.focusDot.style.fill = s ? s.color : '';
+      layer.legendItem.style.setProperty('--series', s ? s.color : 'transparent');
+      layer.tipRow.style.setProperty('--series', s ? s.color : 'transparent');
+      layer.legendLabel.textContent = s ? s.label : '';
+      layer.tipLabel.textContent = s ? s.label : '';
+
+      layer.line.style.display = drawn ? '' : 'none';
+      layer.area.style.display = drawn && showArea ? '' : 'none';
+      layer.endRing.style.display = drawn ? '' : 'none';
+      layer.endDot.style.display = drawn ? '' : 'none';
+
+      if (!drawn) {
+        layer.endLabel.style.display = 'none';
+        return;
+      }
+
+      const commands = points.map(
+        (p, i) => `${i ? 'L' : 'M'}${xOf(p.month).toFixed(2)},${yOf(p.value).toFixed(2)}`,
+      ).join('');
+      layer.line.setAttribute('d', commands);
+
+      if (showArea) {
+        const zeroY = yOf(Math.min(Math.max(0, scale.min), scale.max));
+        layer.area.setAttribute(
+          'd',
+          `${commands}L${xOf(months).toFixed(2)},${zeroY.toFixed(2)}L${xOf(0).toFixed(2)},${zeroY.toFixed(2)}Z`,
+        );
+      }
 
       const endX = xOf(months);
-      const endY = yOf(endValue);
-      for (const node of [endRing, endDot]) {
+      const endY = yOf(endValues[index]);
+      for (const node of [layer.endRing, layer.endDot]) {
         node.setAttribute('cx', endX);
         node.setAttribute('cy', endY);
       }
-      endLabel.setAttribute('x', endX + 10);
-      endLabel.setAttribute('y', Math.min(Math.max(endY, TOP_PAD + 6), baseY - 2));
-      endLabel.textContent = formatValue(endValue);
-    }
+
+      // Two labels on top of each other are worse than one label and a legend,
+      // so a label that would collide with one already placed is dropped; the
+      // legend and the table still carry its series.
+      const labelY = Math.min(Math.max(endY, TOP_PAD + 6), baseY - 2);
+      const collides = placed.some((y) => Math.abs(y - labelY) < LABEL_GAP);
+      const showLabel = labelFits && !collides;
+      layer.endLabel.style.display = showLabel ? '' : 'none';
+      if (showLabel) {
+        placed.push(labelY);
+        layer.endLabel.setAttribute('x', endX + 10);
+        layer.endLabel.setAttribute('y', labelY);
+        layer.endLabel.textContent = formatValue(endValues[index]);
+      }
+    });
+
+    legend.hidden = !hasSeries || series.length < 2;
+    empty.hidden = hasSeries;
+    svg.classList.toggle('is-empty', !hasSeries);
 
     svg.setAttribute('aria-label', hasSeries
-      ? labels.ariaLabel(months, formatValue(endValue))
+      ? labels.ariaLabel(months, formatValue(endValues[0]), series.length)
       : empty.textContent);
     toggle.hidden = !hasSeries;
     if (!hasSeries && toggle.getAttribute('aria-expanded') === 'true') {
@@ -279,20 +380,34 @@ export function createLineChart(options) {
   }
 
   function drawCrosshair(index) {
-    if (!geometry || state.isEmpty || !state.points.length) return;
-    const point = state.points[Math.min(index, state.points.length - 1)];
+    if (!geometry || state.isEmpty || !state.series.length) return;
+    const first = pointsOf(0);
+    if (!first.length) return;
+
+    const point = first[Math.min(index, first.length - 1)];
     if (!point) return;
     const x = geometry.xOf(point.month);
-    const y = geometry.yOf(point.value);
+
     crosshair.setAttribute('x1', x);
     crosshair.setAttribute('x2', x);
     crosshair.setAttribute('y1', TOP_PAD);
     crosshair.setAttribute('y2', TOP_PAD + PLOT_HEIGHT);
-    for (const node of [focusRing, focusDot]) {
-      node.setAttribute('cx', x);
-      node.setAttribute('cy', y);
-    }
-    tipValue.textContent = formatValue(point.value);
+
+    // One tooltip, every series: the pointer never has to land on a line.
+    let topY = TOP_PAD + PLOT_HEIGHT;
+    layers.forEach((layer, layerIndex) => {
+      const points = pointsOf(layerIndex);
+      const own = points[Math.min(index, points.length - 1)];
+      if (!own) return;
+      const y = geometry.yOf(own.value);
+      topY = Math.min(topY, y);
+      layer.focusRing.setAttribute('cx', x);
+      layer.focusRing.setAttribute('cy', y);
+      layer.focusDot.setAttribute('cx', x);
+      layer.focusDot.setAttribute('cy', y);
+      layer.tipValue.textContent = formatValue(own.value);
+    });
+
     tipMonth.textContent = formatMonth(point.month);
     setCrosshairVisible(true);
 
@@ -306,7 +421,7 @@ export function createLineChart(options) {
     const half = tooltip.offsetWidth / 2;
     const maxLeft = Math.max(half, plotBox.width - half);
     tooltip.style.left = `${Math.min(Math.max(rawLeft, half), maxLeft)}px`;
-    tooltip.style.top = `${(svgBox.top - plotBox.top) + y * ratio}px`;
+    tooltip.style.top = `${(svgBox.top - plotBox.top) + topY * ratio}px`;
   }
 
   function indexFromEvent(event) {
@@ -317,7 +432,7 @@ export function createLineChart(options) {
     const x = (event.clientX - box.left) * scaleX;
     const ratio = (x - LEFT_PAD) / geometry.plotW;
     const month = Math.round(Math.min(1, Math.max(0, ratio)) * state.months);
-    return Math.min(state.points.length - 1, Math.max(0, month));
+    return Math.min(Math.max(pointsOf(0).length - 1, 0), Math.max(0, month));
   }
 
   function emitHover(index) {
@@ -337,17 +452,22 @@ export function createLineChart(options) {
   function renderTable() {
     tbody.textContent = '';
     const fragment = document.createDocumentFragment();
-    for (const point of state.points) {
+    const months = pointsOf(0);
+    months.forEach((point, index) => {
       const row = document.createElement('tr');
       const th = document.createElement('th');
       th.scope = 'row';
       th.textContent = String(point.month);
-      const td = document.createElement('td');
-      td.className = 'num';
-      td.textContent = formatValue(point.value);
-      row.append(th, td);
+      row.appendChild(th);
+      for (const s of state.series) {
+        const cell = document.createElement('td');
+        cell.className = 'num';
+        const own = s.points[index];
+        cell.textContent = own ? formatValue(own.value) : '';
+        row.appendChild(cell);
+      }
       fragment.appendChild(row);
-    }
+    });
     tbody.appendChild(fragment);
     tableRendered = true;
   }
@@ -367,15 +487,16 @@ export function createLineChart(options) {
     emitHover(null);
   });
   svg.addEventListener('focus', () => {
-    if (!state.isEmpty) emitHover(activeIndex === null ? state.points.length - 1 : activeIndex);
+    if (!state.isEmpty) emitHover(activeIndex === null ? pointsOf(0).length - 1 : activeIndex);
   });
   svg.addEventListener('blur', () => {
     announcer.textContent = '';
     emitHover(null);
   });
   svg.addEventListener('keydown', (event) => {
-    if (state.isEmpty || !state.points.length) return;
-    const last = state.points.length - 1;
+    const points = pointsOf(0);
+    if (state.isEmpty || !points.length) return;
+    const last = points.length - 1;
     const current = activeIndex === null ? last : activeIndex;
     const jump = event.shiftKey ? 12 : 1;
     let next = null;
@@ -388,10 +509,16 @@ export function createLineChart(options) {
     event.preventDefault();
     emitHover(next);
 
-    const point = state.points[next];
-    if (point) {
-      announcer.textContent = labels.reading(formatMonth(point.month), formatValue(point.value));
-    }
+    const point = points[next];
+    if (!point) return;
+    // Every series at that month, so a comparison is heard the way it is seen.
+    const reading = state.series
+      .map((s) => `${s.label}: ${formatValue((s.points[next] || { value: 0 }).value)}`)
+      .join(', ');
+    announcer.textContent = labels.reading(
+      formatMonth(point.month),
+      state.series.length > 1 ? reading : formatValue(point.value),
+    );
   });
 
   toggle.addEventListener('click', () => {
@@ -412,26 +539,43 @@ export function createLineChart(options) {
   else window.addEventListener('resize', render);
 
   return {
-    /** @param {{points: Array<{month: number, value: number}>, domain: {min: number, max: number}, months: number, isEmpty?: boolean, emptyMessage?: string}} next */
+    /**
+     * @param {{
+     *   series: Array<{id: string, label: string, color: string, points: Array<{month: number, value: number}>}>,
+     *   domain: {min: number, max: number}, months: number,
+     *   labelPad?: number, isEmpty?: boolean, emptyMessage?: string
+     * }} next
+     */
     update(next) {
       state = {
-        points: next.points,
+        series: next.series,
         domain: next.domain,
         months: next.months,
         isEmpty: Boolean(next.isEmpty),
         labelPad: next.labelPad || 0,
       };
+      ensureLayers(state.series.length);
+      syncColumns(state.series);
       empty.textContent = next.emptyMessage || '';
       // A crosshair from the previous data would otherwise hang over the empty
       // card, pointing at a value that is no longer on screen.
       if (state.isEmpty) activeIndex = null;
-      if (activeIndex !== null) activeIndex = Math.min(activeIndex, state.points.length - 1);
+      if (activeIndex !== null) activeIndex = Math.min(activeIndex, Math.max(pointsOf(0).length - 1, 0));
       setCrosshairVisible(activeIndex !== null);
       render();
       if (tableRendered) renderTable();
       else tbody.textContent = '';
     },
     setActive,
+
+    /** Retitle a card whose subject changes — the comparison card follows
+     *  whichever quantity is being compared. */
+    setHeading(next) {
+      heading.textContent = next.title;
+      sub.textContent = next.description;
+      tableCaption.textContent = next.tableCaption;
+    },
+
     element: figure,
     /** Detach observers and remove the card — used when rebuilding in another language. */
     destroy() {

@@ -42,6 +42,7 @@
   <main id="main">
     <section class="panel" aria-labelledby="inputs-heading">
       <h2 id="inputs-heading" data-i18n="inputs.heading">What comes in and goes out</h2>
+      <div id="strategies"></div>
       <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, and set what it repeats every month.</p>
       <div id="fields"></div>
       <p class="hint" id="period-note" data-i18n="inputs.periodNote" hidden>Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.</p>
@@ -105,6 +106,22 @@
       </p>
       <div class="chart-grid" id="charts"></div>
       <p class="scale-note" data-i18n="charts.scaleNote">All three charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid.</p>
+    </section>
+
+    <section class="charts-section" id="compare" aria-labelledby="compare-heading" hidden>
+      <h2 id="compare-heading" data-i18n="compare.heading">Strategies side by side</h2>
+      <p class="section-note" id="compare-note" aria-live="polite"></p>
+      <div class="filter-row">
+        <div class="presets" role="group" id="compare-metrics" data-i18n-aria="compare.metricAria"></div>
+      </div>
+      <div class="chart-grid" id="compare-chart"></div>
+      <div class="table-wrap compare-table">
+        <table class="data-table">
+          <caption id="compare-table-caption"></caption>
+          <thead><tr id="compare-head"></tr></thead>
+          <tbody id="compare-body"></tbody>
+        </table>
+      </div>
     </section>
   </main>
 

@@ -19,11 +19,19 @@ import {
 import {
   formatAmount, formatCompact, formatMonth, formatHorizon, setFormatLocale,
 } from './format.js';
+import { html } from './dom.js';
 import { createLineChart, endLabelPad } from './chart.js';
 import { createFieldList } from './field-list.js';
+import { createStrategyBar } from './strategy-bar.js';
+import {
+  updateStrategy, duplicateStrategy, removeStrategy,
+  neighbourOf as strategyNeighbourOf, normalizeStrategies, activeIdOf, nameOf,
+  migrateFields,
+} from './strategies.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
 
-const STATE_KEY = 'finapp.state.v2';
+const STATE_KEY = 'finapp.state.v3';
+const LEGACY_FIELDS_KEY = 'finapp.state.v2';
 const LEGACY_INPUT_KEY = 'finapp.inputs.v1';
 const THEME_KEY = 'finapp.theme.v1';
 const LANG_KEY = 'finapp.language.v1';
@@ -35,6 +43,14 @@ const $ = (id) => document.getElementById(id);
 
 const ui = {
   fields: $('fields'),
+  strategies: $('strategies'),
+  compare: $('compare'),
+  compareNote: $('compare-note'),
+  compareMetrics: $('compare-metrics'),
+  compareChart: $('compare-chart'),
+  compareCaption: $('compare-table-caption'),
+  compareHead: $('compare-head'),
+  compareBody: $('compare-body'),
   months: $('months'),
   monthsReadout: $('months-readout'),
   presets: Array.from(document.querySelectorAll('.preset')),
@@ -103,39 +119,83 @@ function dropStore(key) {
 /* -------------------------------------------------------------------- state */
 
 /**
- * The stored shape is `{ fields, months }`. A store from before fields existed
- * held a single income and a single rent; it is carried over once and retired,
- * so nobody loses the numbers they had typed.
+ * The stored shape is `{ strategies, activeId, months }`. Two older shapes are
+ * carried over once and retired, so nobody loses what they had entered: a bare
+ * list of fields from before strategies, and before that a single income and a
+ * single rent.
  */
 function loadState() {
   const saved = readStore(STATE_KEY, null);
-  if (saved && typeof saved === 'object' && Array.isArray(saved.fields)) {
-    return { fields: normalizeFields(saved.fields), months: toMonths(saved.months ?? DEFAULT_MONTHS) };
+  if (saved && typeof saved === 'object' && Array.isArray(saved.strategies)) {
+    const strategies = normalizeStrategies(saved.strategies);
+    return {
+      strategies,
+      activeId: activeIdOf(strategies, saved.activeId),
+      months: toMonths(saved.months ?? DEFAULT_MONTHS),
+    };
   }
 
+  // A store from before strategies: a bare list of fields.
+  const withFields = readStore(LEGACY_FIELDS_KEY, null);
+  if (withFields && typeof withFields === 'object' && Array.isArray(withFields.fields)) {
+    return adopt(migrateFields(normalizeFields(withFields.fields)), withFields.months, LEGACY_FIELDS_KEY);
+  }
+
+  // And from before fields: a single income and a single rent.
   const legacy = readStore(LEGACY_INPUT_KEY, null);
   if (legacy && typeof legacy === 'object') {
-    const migrated = {
-      fields: migrateLegacyInputs(legacy),
-      months: toMonths(legacy.months ?? DEFAULT_MONTHS),
-    };
-    // Only retire the old store once the new one is genuinely written: a failed
-    // write plus an eager delete would lose the reader's numbers for good.
-    if (writeStore(STATE_KEY, migrated)) dropStore(LEGACY_INPUT_KEY);
-    return migrated;
+    return adopt(migrateFields(migrateLegacyInputs(legacy)), legacy.months, LEGACY_INPUT_KEY);
   }
 
-  return { fields: defaultFields(), months: DEFAULT_MONTHS };
+  const strategies = migrateFields(defaultFields());
+  return { strategies, activeId: strategies[0].id, months: DEFAULT_MONTHS };
+}
+
+/**
+ * Take an older store's contents into the current shape. The old key is only
+ * retired once the new one is genuinely written: a failed write plus an eager
+ * delete would lose the reader's numbers for good.
+ */
+function adopt(strategies, months, oldKey) {
+  const next = {
+    strategies,
+    activeId: strategies[0].id,
+    months: toMonths(months ?? DEFAULT_MONTHS),
+  };
+  if (writeStore(STATE_KEY, next)) dropStore(oldKey);
+  return next;
 }
 
 const state = loadState();
+
+/** The strategy being edited, and where it sits in the bar. */
+function activeIndex() {
+  const index = state.strategies.findIndex((strategy) => strategy.id === state.activeId);
+  return index === -1 ? 0 : index;
+}
+
+function activeStrategy() {
+  return state.strategies[activeIndex()];
+}
+
+/** The fields on screen: the active strategy's. */
+function fields() {
+  return activeStrategy().fields;
+}
+
+/** Field edits always land on the strategy on screen. */
+function setActiveFields(next) {
+  state.strategies = updateStrategy(state.strategies, state.activeId, { fields: next });
+}
 
 let saveTimer = 0;
 
 function save() {
   window.clearTimeout(saveTimer);
   saveTimer = 0;
-  writeStore(STATE_KEY, { fields: state.fields, months: state.months });
+  writeStore(STATE_KEY, {
+    strategies: state.strategies, activeId: state.activeId, months: state.months,
+  });
 }
 
 function persist() {
@@ -160,13 +220,14 @@ window.addEventListener('storage', (event) => {
   // Never pull the rug out from under someone typing here, and leave the tab
   // in the foreground alone — it is the one the reader is working in.
   const editingHere = document.activeElement instanceof Element
-    && document.activeElement.closest('.field-list');
+    && document.activeElement.closest('.field-list, .strategy-bar');
   if (editingHere) return;
   if (document.visibilityState === 'visible' && document.hasFocus()) return;
   try {
     const incoming = JSON.parse(event.newValue);
-    if (!incoming || !Array.isArray(incoming.fields)) return;
-    state.fields = normalizeFields(incoming.fields);
+    if (!incoming || !Array.isArray(incoming.strategies)) return;
+    state.strategies = normalizeStrategies(incoming.strategies);
+    state.activeId = activeIdOf(state.strategies, incoming.activeId);
     state.months = toMonths(incoming.months ?? DEFAULT_MONTHS);
     ui.months.value = String(state.months);
     render();
@@ -214,14 +275,12 @@ function buildCharts() {
         id: spec.id,
         title,
         description: t(`chart.${spec.key}.description`),
-        seriesLabel: t(`chart.${spec.key}.series`),
-        colorVar: spec.colorVar,
         labels: {
           showTable: t('chart.showTable'),
           hideTable: t('chart.hideTable'),
           tableCaption: t('chart.tableCaption', title),
           monthColumn: t('chart.monthColumn'),
-          ariaLabel: (months, endValue) => t('chart.aria', title, months, endValue),
+          ariaLabel: (months, endValue, count) => t('chart.aria', title, months, endValue, count),
           reading: (month, value) => t('chart.reading', month, value),
         },
         formatValue: formatAmount,
@@ -234,6 +293,191 @@ function buildCharts() {
     };
   });
 }
+
+/* --------------------------------------------------------------- comparing */
+
+/** Which quantity the comparison chart is showing. */
+const METRICS = ['net', 'income', 'expenses', 'invested'];
+let metric = 'net';
+let compareChart = null;
+
+function strategyColor(index) {
+  return `var(--strategy-${index + 1})`;
+}
+
+/** Built the first time there is something to compare, and rebuilt with the
+ *  language after that — a reader who never compares never pays for it. */
+function buildCompareChart() {
+  if (compareChart) compareChart.destroy();
+  const title = t('compare.chartTitle', t(`compare.metric.${metric}`));
+  compareChart = createLineChart({
+    mount: ui.compareChart,
+    id: 'chart-compare',
+    title,
+    description: t('compare.chartDescription'),
+    labels: {
+      showTable: t('chart.showTable'),
+      hideTable: t('chart.hideTable'),
+      tableCaption: t('chart.tableCaption', title),
+      monthColumn: t('chart.monthColumn'),
+      ariaLabel: (months, endValue, count) => t('compare.aria', months, count),
+      reading: (month, value) => t('chart.reading', month, value),
+    },
+    formatValue: formatAmount,
+    formatTick: formatCompact,
+    formatMonth: (month) => formatMonth(month, t),
+  });
+}
+
+const metricButtons = new Map();
+
+/**
+ * The metric buttons, which follow what the strategies actually contain.
+ *
+ * Reconciled in place rather than rebuilt, like every other control here. A
+ * button replaced between mousedown and mouseup never fires a click at all —
+ * and something as ordinary as leaving the strategy-name box triggers a render,
+ * so a rebuild here would silently eat the reader's next click.
+ */
+function renderMetrics(anyInvestments) {
+  const wanted = METRICS.filter((key) => key !== 'invested' || anyInvestments);
+  if (!wanted.includes(metric)) metric = 'net';
+
+  let cursor = ui.compareMetrics.firstChild;
+  for (const key of wanted) {
+    let button = metricButtons.get(key);
+    if (!button) {
+      button = html('button', 'preset');
+      button.type = 'button';
+      button.dataset.metric = key;
+      button.addEventListener('click', () => {
+        metric = key;
+        render();
+      });
+      metricButtons.set(key, button);
+    }
+    if (button !== cursor) ui.compareMetrics.insertBefore(button, cursor);
+    else cursor = cursor.nextSibling;
+
+    button.textContent = t(`compare.metric.${key}`);
+    button.setAttribute('aria-pressed', key === metric ? 'true' : 'false');
+  }
+
+  for (const [key, button] of metricButtons) {
+    if (wanted.includes(key)) continue;
+    button.remove();
+    metricButtons.delete(key);
+  }
+}
+
+/** A row per strategy: what each one comes to, and the gap to the first. */
+function renderCompareTable(projections, anyInvestments) {
+  const columns = [
+    { key: 'income', total: (p) => p.totals.income },
+    { key: 'expenses', total: (p) => p.totals.expenses },
+    { key: 'net', total: (p) => p.totals.net },
+    ...(anyInvestments ? [{ key: 'invested', total: (p) => p.totals.invested }] : []),
+  ];
+
+  ui.compareHead.textContent = '';
+  const corner = html('th', null, ui.compareHead);
+  corner.scope = 'col';
+  corner.textContent = t('compare.strategyColumn');
+  for (const column of columns) {
+    const cell = html('th', 'num', ui.compareHead);
+    cell.scope = 'col';
+    cell.textContent = t(`compare.metric.${column.key}`);
+  }
+  const deltaHead = html('th', 'num', ui.compareHead);
+  deltaHead.scope = 'col';
+  deltaHead.textContent = t('compare.deltaColumn');
+
+  const baseline = projections[0].totals.net;
+  ui.compareBody.textContent = '';
+  state.strategies.forEach((strategy, index) => {
+    const row = html('tr', null, ui.compareBody);
+    if (strategy.id === state.activeId) row.classList.add('is-active');
+    const name = html('th', null, row);
+    name.scope = 'row';
+    name.textContent = nameOf(strategy, index, t);
+    const key = html('span', 'row-key', name);
+    key.style.setProperty('--series', strategyColor(index));
+    name.prepend(key);
+
+    for (const column of columns) {
+      const cell = html('td', 'num', row);
+      cell.textContent = formatAmount(column.total(projections[index]));
+    }
+
+    const delta = html('td', 'num', row);
+    const difference = roundToCent(projections[index].totals.net - baseline);
+    if (index === 0) {
+      delta.textContent = t('compare.baseline');
+      delta.classList.add('is-baseline');
+    } else {
+      delta.textContent = t(difference >= 0 ? 'compare.ahead' : 'compare.behind', formatAmount(Math.abs(difference)));
+      delta.classList.toggle('is-ahead', difference > 0);
+      delta.classList.toggle('is-behind', difference < 0);
+    }
+  });
+
+  ui.compareCaption.textContent = t('compare.tableCaption', state.months);
+}
+
+/** Cents, so a difference of two rounded totals doesn't show float noise. */
+function roundToCent(value) {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function renderComparison(projections) {
+  const comparing = state.strategies.length > 1;
+  ui.compare.hidden = !comparing;
+  if (!comparing) return;
+
+  if (!compareChart) buildCompareChart();
+
+  const anyInvestments = projections.some((projection) => hasInvestments(projection));
+  renderMetrics(anyInvestments);
+
+  const metricName = t(`compare.metric.${metric}`);
+  compareChart.setHeading({
+    title: t('compare.chartTitle', metricName),
+    description: t('compare.chartDescription'),
+    tableCaption: t('chart.tableCaption', t('compare.chartTitle', metricName)),
+  });
+
+  const series = state.strategies.map((strategy, index) => ({
+    id: strategy.id,
+    label: nameOf(strategy, index, t),
+    color: strategyColor(index),
+    points: seriesOf(projections[index], metric),
+  }));
+
+  compareChart.update({
+    series,
+    domain: extentOf(series.map((entry) => entry.points)),
+    months: state.months,
+    isEmpty: !projections.some((projection) => hasAmounts(projection)),
+    emptyMessage: t('charts.empty'),
+  });
+
+  renderCompareTable(projections, anyInvestments);
+
+  window.clearTimeout(compareNoteTimer);
+  compareNoteTimer = window.setTimeout(() => {
+    const best = state.strategies
+      .map((strategy, index) => ({ strategy, index, net: projections[index].totals.net }))
+      .reduce((a, b) => (b.net > a.net ? b : a));
+    ui.compareNote.textContent = t(
+      'compare.note',
+      nameOf(best.strategy, best.index, t),
+      formatAmount(best.net),
+      state.months,
+    );
+  }, 500);
+}
+
+let compareNoteTimer = 0;
 
 /* --------------------------------------------------------------- field list */
 
@@ -281,9 +525,76 @@ function fieldLabels() {
  */
 function normalizeLabelPatch(patch, id) {
   if (!('label' in patch)) return patch;
-  const field = state.fields.find((entry) => entry.id === id);
+  const field = fields().find((entry) => entry.id === id);
   const dictionaryName = field && field.labelKey ? t(field.labelKey) : '';
   return String(patch.label).trim() === dictionaryName ? { ...patch, label: '' } : patch;
+}
+
+function strategyLabels() {
+  return {
+    tabsAria: t('strategy.tabsAria'),
+    nameAria: t('strategy.nameAria'),
+    namePlaceholder: t('strategy.namePlaceholder'),
+    add: t('strategy.add'),
+    addFirst: t('strategy.addFirst'),
+    switchTo: (name) => t('strategy.switchTo', name),
+    removeNamed: (name) => t('strategy.removeNamed', name),
+  };
+}
+
+/**
+ * Every edit the strategy bar can ask for. Adding one copies what is on screen
+ * — comparing almost always means "the same, but…", and starting from a blank
+ * list would mean typing everything twice.
+ */
+function runStrategyCommand(command) {
+  switch (command.type) {
+    case 'select':
+      state.activeId = activeIdOf(state.strategies, command.id);
+      break;
+
+    case 'rename':
+      state.strategies = updateStrategy(state.strategies, command.id, { name: command.name });
+      break;
+
+    case 'settle': {
+      // A name box shows the position when the strategy is unnamed, so typing
+      // that same word back means "still unnamed", not a name of one's own.
+      const index = state.strategies.findIndex((strategy) => strategy.id === command.id);
+      const positional = t('strategy.defaultName', index + 1);
+      const typed = String(command.name).trim();
+      state.strategies = updateStrategy(state.strategies, command.id, {
+        name: typed === positional ? '' : typed,
+      });
+      break;
+    }
+
+    case 'add': {
+      const before = new Set(state.strategies.map((strategy) => strategy.id));
+      state.strategies = duplicateStrategy(
+        state.strategies, state.activeId, (name) => t('strategy.copyOf', name), t,
+      );
+      const created = state.strategies.find((strategy) => !before.has(strategy.id));
+      if (created) state.activeId = created.id;
+      persist();
+      render();
+      if (created) bar.focusName(created.id);
+      return;
+    }
+
+    case 'remove': {
+      const neighbour = strategyNeighbourOf(state.strategies, state.activeId);
+      state.strategies = removeStrategy(state.strategies, state.activeId);
+      state.activeId = activeIdOf(state.strategies, neighbour);
+      break;
+    }
+
+    default:
+      return;
+  }
+
+  persist();
+  render();
 }
 
 /** Every edit the list can ask for. Each one ends in the same place: new
@@ -291,7 +602,7 @@ function normalizeLabelPatch(patch, id) {
 function runCommand(command) {
   switch (command.type) {
     case 'update':
-      state.fields = updateField(state.fields, command.id, normalizeLabelPatch(command.patch, command.id));
+      setActiveFields(updateField(fields(), command.id, normalizeLabelPatch(command.patch, command.id)));
       break;
 
     case 'settle': {
@@ -302,22 +613,23 @@ function runCommand(command) {
         const amount = toAmount(patch.amount);
         patch.amount = amount ? String(amount) : '';
       }
-      state.fields = updateField(state.fields, command.id, normalizeLabelPatch(patch, command.id));
+      setActiveFields(updateField(fields(), command.id, normalizeLabelPatch(patch, command.id)));
       break;
     }
 
     case 'add': {
-      state.fields = addField(state.fields);
+      setActiveFields(addField(fields()));
       persist();
       render();
-      list.focus(state.fields.length ? state.fields[state.fields.length - 1].id : null, { select: true });
+      const added = fields();
+      list.focus(added.length ? added[added.length - 1].id : null, { select: true });
       return;
     }
 
     case 'duplicate': {
-      const before = new Set(state.fields.map((field) => field.id));
-      state.fields = duplicateField(state.fields, command.id, (name) => t('field.copyOf', name), t);
-      const copy = state.fields.find((field) => !before.has(field.id));
+      const before = new Set(fields().map((field) => field.id));
+      setActiveFields(duplicateField(fields(), command.id, (name) => t('field.copyOf', name), t));
+      const copy = fields().find((field) => !before.has(field.id));
       persist();
       render();
       list.focus(copy ? copy.id : command.id, { select: true });
@@ -325,8 +637,8 @@ function runCommand(command) {
     }
 
     case 'remove': {
-      const neighbour = neighbourOf(state.fields, command.id);
-      state.fields = removeField(state.fields, command.id);
+      const neighbour = neighbourOf(fields(), command.id);
+      setActiveFields(removeField(fields(), command.id));
       persist();
       render();
       list.focus(neighbour);
@@ -382,7 +694,10 @@ function renderSummary(projection, hasInput) {
 }
 
 function render() {
-  const projection = project({ fields: state.fields, months: state.months });
+  const projections = state.strategies.map(
+    (strategy) => project({ fields: strategy.fields, months: state.months }),
+  );
+  const projection = projections[activeIndex()];
   const hasInput = hasAmounts(projection);
 
   // The fourth card comes and goes with the fields, so the cards are rebuilt
@@ -403,6 +718,7 @@ function render() {
     (points) => endLabelPad(formatAmount(points[points.length - 1].value)),
   ));
 
+  bar.update(state.strategies, state.activeId, strategyLabels(), t);
   list.update(projection.fields, fieldLabels(), t);
   // Where the periods land only needs saying once something lands somewhere
   // other than every month.
@@ -413,7 +729,12 @@ function render() {
 
   charts.forEach((chart, index) => {
     chart.instance.update({
-      points: series[index],
+      series: [{
+        id: chart.key,
+        label: t(`chart.${chart.key}.series`),
+        color: `var(${chart.colorVar})`,
+        points: series[index],
+      }],
       domain: specs[index].ownScale ? extentOf([series[index]]) : shared,
       months: projection.months,
       labelPad,
@@ -421,6 +742,8 @@ function render() {
       emptyMessage: t('charts.empty'),
     });
   });
+
+  renderComparison(projections);
 
   // Under a year the horizon restates the month count ("1 month · 1 mo"), so it
   // is only worth spelling out once there are years to spell out.
@@ -474,6 +797,13 @@ const savedLanguage = readStore(LANG_KEY, null);
 let language = LANGUAGES.includes(savedLanguage) ? savedLanguage : detectLanguage();
 let t = makeTranslator(language);
 
+const bar = createStrategyBar({
+  mount: ui.strategies,
+  labels: strategyLabels(),
+  t,
+  onCommand: runStrategyCommand,
+});
+
 const list = createFieldList({
   mount: ui.fields,
   labels: fieldLabels(),
@@ -509,6 +839,7 @@ function applyLanguage(next) {
 
   applyTheme(theme);
   buildCharts();
+  if (compareChart) buildCompareChart();
   render();
 }
 
