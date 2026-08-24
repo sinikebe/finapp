@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  project, seriesOf, extentOf, hasAmounts, flowIn, contributionOf,
+  project, seriesOf, extentOf, hasAmounts, hasInvestments, flowIn, contributionOf,
+  loanPayment, loanInterest, monthlyRate,
   toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
 import { createField, normalizeFields } from '../assets/js/fields.js';
@@ -13,7 +14,9 @@ const expense = (amount) => createField({ direction: 'expense', amount });
 test('a horizon of N months yields N + 1 points, starting at zero', () => {
   const result = project({ fields: [income(3000), expense(1200)], months: 24 });
   assert.equal(result.points.length, 25);
-  assert.deepEqual(result.points[0], { month: 0, income: 0, expenses: 0, net: 0 });
+  assert.deepEqual(result.points[0], {
+    month: 0, income: 0, expenses: 0, net: 0, invested: 0,
+  }, 'every series starts at nothing');
 });
 
 test('each series accumulates every field pointing that way', () => {
@@ -46,7 +49,9 @@ test('expenses above income produce a falling net', () => {
 test('totals match the last point', () => {
   const result = project({ fields: [income(4200), expense(1750)], months: 60 });
   const last = result.points[result.points.length - 1];
-  assert.deepEqual(result.totals, { income: last.income, expenses: last.expenses, net: last.net });
+  assert.deepEqual(result.totals, {
+    income: last.income, expenses: last.expenses, net: last.net, invested: last.invested,
+  });
   assert.equal(result.totals.income, 4200 * 60);
 });
 
@@ -73,7 +78,9 @@ test('an empty projection is all zeroes, not NaN', () => {
   assert.equal(result.averages.income, 0);
   assert.equal(result.averages.expenses, 0);
   assert.equal(result.months, 1);
-  assert.deepEqual(result.totals, { income: 0, expenses: 0, net: 0 });
+  assert.deepEqual(result.totals, {
+    income: 0, expenses: 0, net: 0, invested: 0,
+  });
   assert.equal(hasAmounts(result), false);
 });
 
@@ -220,4 +227,129 @@ test('the per-month cap holds whatever the period', () => {
   const worst = project({ fields: many, months: MAX_MONTHS });
   assert.ok(Number.isSafeInteger(worst.totals.income * 100), 'totals stay exact to the cent');
   assert.equal(worst.totals.income, MAX_AMOUNT * 50, 'capped per month, landing 50 times');
+});
+
+/* --------------------------------------------------------------- borrowing */
+
+const loan = (amount, annualRate, termMonths) => createField({
+  kind: 'loan', direction: 'expense', amount, annualRate, termMonths,
+});
+
+test('a loan repays what was borrowed, interest included', () => {
+  // The textbook case: 200,000 over 25 years at 4.5% is 1,111.66 a month.
+  assert.equal(loanPayment('200000', '4.5', 300), 1111.66);
+  assert.equal(loanPayment('18000', '5.9', 48), 421.91);
+});
+
+test('at 0% a loan is simply the amount split evenly', () => {
+  assert.equal(loanPayment('1200', '0', 12), 100);
+  assert.equal(loanPayment('1200', '', 12), 100);
+  assert.equal(loanPayment('1000', 'nonsense', 4), 250);
+});
+
+test('a loan pays every month of its term and nothing after', () => {
+  const field = loan('12000', '0', 24);
+  assert.equal(contributionOf(field, 1), 500);
+  assert.equal(contributionOf(field, 24), 500);
+  assert.equal(contributionOf(field, 25), 0);
+
+  const result = project({ fields: [field], months: 36 });
+  assert.equal(result.totals.expenses, 12000, 'the whole loan, and no more');
+  assert.equal(result.points[24].expenses, 12000);
+  assert.equal(result.points[36].expenses, 12000);
+});
+
+test('interest is what a loan costs beyond what was borrowed', () => {
+  assert.equal(loanInterest(loan('12000', '0', 24)), 0);
+  const borrowed = loan('18000', '5.9', 48);
+  assert.equal(loanInterest(borrowed), roundMoney(421.91 * 48 - 18000));
+});
+
+test('a loan ignores the period control: repayments are monthly', () => {
+  const field = createField({
+    kind: 'loan', direction: 'expense', amount: '1200', annualRate: '0', termMonths: 12, periodMonths: 12,
+  });
+  assert.equal(field.periodMonths, 1, 'the model settles it, whatever was stored');
+  assert.equal(contributionOf(field, 1), 100);
+});
+
+test('a loan can point either way: repaying one, or being repaid', () => {
+  const lent = createField({ kind: 'loan', direction: 'income', amount: '6000', annualRate: '0', termMonths: 12 });
+  const result = project({ fields: [lent], months: 12 });
+  assert.equal(result.totals.income, 6000);
+  assert.equal(result.totals.expenses, 0);
+});
+
+/* -------------------------------------------------------------- investing */
+
+const invest = (amount, annualRate, periodMonths = 1) => createField({
+  kind: 'investment', amount, annualRate, periodMonths,
+});
+
+test('money invested leaves the account like any other outgoing', () => {
+  const result = project({ fields: [invest('500', '7')], months: 12 });
+  assert.equal(result.totals.expenses, 6000, 'contributions are money out');
+  assert.equal(result.totals.income, 0);
+});
+
+test('an investment is worth its contributions plus their growth', () => {
+  const result = project({ fields: [invest('500', '7')], months: 120 });
+  // The closed form for a monthly contribution compounding monthly, allowing
+  // for this model rounding each month's balance to the cent.
+  const rate = 0.07 / 12;
+  const closedForm = 500 * (((1 + rate) ** 120 - 1) / rate);
+  assert.ok(Math.abs(result.totals.invested - closedForm) < 1, `${result.totals.invested} vs ${closedForm}`);
+  assert.ok(result.totals.invested > result.totals.expenses, 'growth is on top of what went in');
+});
+
+test('at 0% an investment is worth exactly what was put in', () => {
+  const result = project({ fields: [invest('100', '0')], months: 24 });
+  assert.equal(result.totals.invested, 2400);
+  assert.equal(result.totals.invested, result.totals.expenses);
+});
+
+test('an investment can be fed less often than monthly', () => {
+  const result = project({ fields: [invest('1200', '0', 12)], months: 36 });
+  assert.equal(result.totals.expenses, 3600, 'three contributions, at months 12, 24 and 36');
+  assert.equal(result.points[11].invested, 0);
+  assert.equal(result.points[12].invested, 1200);
+});
+
+test('a fresh contribution has not had time to earn yet', () => {
+  const result = project({ fields: [invest('100', '12')], months: 2 });
+  assert.equal(result.points[1].invested, 100, 'the first month is just the money');
+  // Month two: the first 100 earns 1% for a month, then 100 more goes in.
+  assert.equal(result.points[2].invested, 201);
+});
+
+test('each investment grows at its own rate', () => {
+  const result = project({ fields: [invest('100', '0'), invest('100', '12')], months: 12 });
+  const flat = project({ fields: [invest('100', '0')], months: 12 }).totals.invested;
+  const growing = project({ fields: [invest('100', '12')], months: 12 }).totals.invested;
+  assert.equal(result.totals.invested, roundMoney(flat + growing));
+});
+
+test('the app knows when a balance is worth its own chart', () => {
+  assert.equal(hasInvestments(project({ fields: [invest('500', '7')], months: 12 })), true);
+  assert.equal(hasInvestments(project({ fields: [invest('', '7')], months: 12 })), false, 'nothing invested yet');
+  assert.equal(hasInvestments(project({ fields: [income(500)], months: 12 })), false);
+});
+
+test('a rate is coerced, never trusted', () => {
+  assert.equal(monthlyRate('12'), 0.01);
+  assert.equal(monthlyRate(''), 0);
+  assert.equal(monthlyRate('-5'), 0);
+  assert.equal(monthlyRate('abc'), 0);
+  assert.equal(monthlyRate('99999'), 1000 / 100 / 12, 'absurd rates are capped, not carried');
+});
+
+test('loans and investments add up with everything else', () => {
+  const result = project({
+    fields: [income(4200), expense(1200), loan('18000', '5.9', 48), invest('500', '7')],
+    months: 120,
+  });
+  assert.equal(result.totals.income, 504000);
+  assert.equal(result.totals.expenses, roundMoney(1200 * 120 + 421.91 * 48 + 500 * 120));
+  assert.equal(result.totals.net, roundMoney(result.totals.income - result.totals.expenses));
+  assert.ok(result.totals.invested > 86000 && result.totals.invested < 87000);
 });

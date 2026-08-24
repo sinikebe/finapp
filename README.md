@@ -41,6 +41,9 @@ A field is defined once, in [`assets/js/fields.js`](assets/js/fields.js):
   direction,        // 'income' | 'expense' — the direction carries the sign
   amount,           // as typed; the projection coerces it to money
   periodMonths,     // 1 monthly · 3 quarterly · 6 half-yearly · 12 yearly
+  kind,             // 'plain' | 'loan' | 'investment'
+  annualRate,       // % a year: interest on a loan, return on an investment
+  termMonths,       // how long a loan runs
 }
 ```
 
@@ -50,6 +53,24 @@ are always positive and no field can smuggle in a negative. **A field keeps its
 translated default rather than leaving it nameless. And **a period is a count of
 months, not a name**, so the projection can do arithmetic with it and a new one
 — every two years, say — is a number in `PERIODS` plus a dictionary entry.
+
+### What a field can be
+
+- **Amount** — the default. It lands, unchanged, every period.
+- **Loan** — you enter what was borrowed, the yearly interest rate and the
+  number of monthly payments; the app works out the level repayment (the
+  standard amortisation formula) and charges it every month until the term
+  runs out. The row says what it worked out to, interest included. A loan
+  points either way: outgoing when you repay one, incoming when you are repaid.
+- **Investment** — you enter what goes in, how often, and the yearly return.
+  The contributions leave your cash like any other outgoing, and the balance
+  compounds monthly: growth first, then the month's contribution, because money
+  paid in today has not had time to earn yet. Each balance is tracked
+  separately, so two investments can carry different rates.
+
+Two invariants belong to the model rather than the form, so a hand-edited store
+can't break them: an investment is always money going out, and a loan always
+repays monthly whatever period is stored against it.
 
 ### How often an amount lands
 
@@ -70,10 +91,13 @@ The model lives in [`assets/js/projection.js`](assets/js/projection.js) and is
 deliberately the simplest thing that is honest:
 
 ```
-contribution(f, m) = m % f.periodMonths === 0 ? f.amount : 0
+contribution(f, m) = loan      → m ≤ f.termMonths ? payment(f) : 0
+                     otherwise → m % f.periodMonths === 0 ? f.amount : 0
 income(m)          = income(m−1)   + Σ contribution(income fields, m)
 expenses(m)        = expenses(m−1) + Σ contribution(expense fields, m)
 net(m)             = income(m) − expenses(m)
+invested(m)        = Σ over investments of
+                       balance(f, m−1) × (1 + f.annualRate/12) + contribution(f, m)
 ```
 
 for `m = 0 … X`, where month 0 is today — nothing earned, nothing paid. The
@@ -202,7 +226,15 @@ v1 migration carried the new attribute with no changes at all.
 
 **A new derived series** (savings, taxes, a running balance) is a key on each
 point in `project()` plus one entry in the `CHARTS` list in `app.js`. The chart
-component takes any `{month, value}` series and needs no changes.
+component takes any `{month, value}` series and needs no changes — the
+investment-value card was added exactly that way, with two flags on its entry:
+`onlyWithInvestments` to draw it only when it has something to say, and
+`ownScale` because a balance is not a cumulative flow and flattens to nothing on
+the flows' shared axis.
+
+**A new kind of field** (a mortgage with an offset, a pension with employer
+matching) is an entry in `KINDS`, a branch in `contributionOf`, the controls it
+needs in `createRow`, and which of them to show in `syncRow`.
 
 **A new language** is a block in `i18n.js`; the tests fail if it is missing a
 key that another language has.

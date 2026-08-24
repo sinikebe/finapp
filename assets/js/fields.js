@@ -25,6 +25,15 @@ export const PERIODS = [1, 3, 6, 12];
 export const DEFAULT_PERIOD = 1;
 
 /**
+ * What a field *is*. A plain field simply repeats; a loan repays a borrowed sum
+ * over a term; an investment puts money in and lets it grow. The kind decides
+ * which attributes matter — the projection reads them, the row shows them — so
+ * a new kind is an entry here, a rule in `contributionOf`, and its controls.
+ */
+export const KINDS = ['plain', 'loan', 'investment'];
+export const DEFAULT_TERM = 60;
+
+/**
  * Every attribute a field has: its default, and how to make sense of whatever
  * turns up in its place. **This is the only place to edit to give fields a new
  * attribute** — normalisation, storage, duplication and migration all read it
@@ -53,6 +62,26 @@ export const FIELD_SCHEMA = {
     // Kept as typed; the projection coerces it to money.
     default: '',
     read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : ''),
+  },
+  kind: {
+    default: 'plain',
+    read: (value) => (KINDS.includes(value) ? value : 'plain'),
+  },
+  annualRate: {
+    // A percentage per year, as typed: interest on a loan, return on an
+    // investment. Meaningless on a plain field, which simply ignores it.
+    default: '',
+    read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : ''),
+  },
+  termMonths: {
+    // How long a loan runs. Kept inside the projection's own horizon limit so a
+    // hand-edited store can't ask for a million payments.
+    default: DEFAULT_TERM,
+    read: (value) => {
+      const months = Math.trunc(Number(value));
+      if (!Number.isFinite(months) || months < 1) return DEFAULT_TERM;
+      return Math.min(months, 600);
+    },
   },
   periodMonths: {
     // Months between one landing and the next: 1 monthly, 12 yearly. A store
@@ -88,6 +117,14 @@ export function normalizeField(value) {
   for (const [key, spec] of Object.entries(FIELD_SCHEMA)) {
     field[key] = spec.read(source[key]);
   }
+
+  // Money put into an investment leaves the account like any other outgoing;
+  // an "incoming investment" would be a contradiction, so the kind settles it.
+  if (field.kind === 'investment') field.direction = 'expense';
+  // A loan repays on a monthly schedule, so its period is not the reader's to
+  // set: the term says how many payments, `contributionOf` says when.
+  if (field.kind === 'loan') field.periodMonths = DEFAULT_PERIOD;
+
   return field;
 }
 
