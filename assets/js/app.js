@@ -46,6 +46,7 @@ const ui = {
   totalExpenses: $('total-expenses'),
   monthlyNet: $('monthly-net'),
   chartsNote: $('charts-note'),
+  periodNote: $('period-note'),
   charts: $('charts'),
   summary: document.querySelector('.summary'),
   themeButton: $('theme'),
@@ -222,6 +223,8 @@ function fieldLabels() {
     namePlaceholder: t('field.namePlaceholder'),
     direction: t('field.direction'),
     amount: t('field.amount'),
+    period: t('field.period'),
+    periodName: (months) => t(`field.period.${months}`),
     income: t('field.income'),
     expense: t('field.expense'),
     untitled: t('field.untitled'),
@@ -314,17 +317,17 @@ function renderSummary(projection, hasInput) {
   ui.heroValue.textContent = hasInput ? formatAmount(projection.totals.net) : '—';
   ui.totalIncome.textContent = hasInput ? formatAmount(projection.totals.income) : '—';
   ui.totalExpenses.textContent = hasInput ? formatAmount(projection.totals.expenses) : '—';
-  ui.monthlyNet.textContent = hasInput ? formatAmount(projection.monthlyNet) : '—';
+  ui.monthlyNet.textContent = hasInput ? formatAmount(projection.averages.net) : '—';
 
   ui.summary.classList.toggle('is-empty', !hasInput);
 
-  const shortfall = projection.monthlyNet < 0;
-  ui.heroChip.hidden = !hasInput || projection.monthlyNet === 0;
+  const shortfall = projection.averages.net < 0;
+  ui.heroChip.hidden = !hasInput || projection.averages.net === 0;
   ui.heroChip.classList.toggle('is-critical', shortfall);
   ui.heroChip.classList.toggle('is-good', !shortfall);
   ui.heroChipText.textContent = shortfall
-    ? t('summary.shortfall', formatAmount(Math.abs(projection.monthlyNet)))
-    : t('summary.surplus', formatAmount(projection.monthlyNet));
+    ? t('summary.shortfall', formatAmount(Math.abs(projection.averages.net)))
+    : t('summary.surplus', formatAmount(projection.averages.net));
   ui.chipIconPath.setAttribute('d', shortfall ? STATUS_ICONS.shortfall : STATUS_ICONS.surplus);
 
   // One polite announcement once typing settles, rather than one per keystroke.
@@ -355,6 +358,9 @@ function render() {
   ));
 
   list.update(projection.fields, fieldLabels(), t);
+  // Where the periods land only needs saying once something lands somewhere
+  // other than every month.
+  ui.periodNote.hidden = !projection.fields.some((field) => field.periodMonths !== 1);
 
   charts.forEach((chart, index) => {
     chart.instance.update({

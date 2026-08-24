@@ -275,6 +275,10 @@ main {
 
 .field-direction { flex: 1 1 92px; }
 
+/* Wide enough for its longest option ("Every 6 months") without stretching:
+   the period is a qualifier on the amount, not a headline. */
+.field-period { flex: 1 1 128px; }
+
 .field-amount {
   flex: 1 1 96px;
   max-width: 260px;

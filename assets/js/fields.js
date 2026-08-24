@@ -5,16 +5,24 @@
  * app starts with, not special cases: any field can be renamed, switched
  * between income and expense, duplicated or removed, the starting two included.
  *
- * To give fields a new attribute later — a start month, a yearly cadence, a
- * growth rate — add it to FIELD_SHAPE with a sensible default and teach
- * `normalizeField` how to read it. Everything downstream (storage, migration,
- * duplication, the UI's reconciliation) carries it without further changes;
- * only the code that gives it meaning, the projection, needs to know about it.
+ * To give fields a new attribute later — a start month, an end month, a growth
+ * rate — add it to FIELD_SCHEMA with a sensible default and how to read it.
+ * Everything downstream (storage, migration, duplication, the UI's
+ * reconciliation) carries it without further changes; only the code that gives
+ * it meaning, `contributionOf` in the projection, needs to know what it is.
  */
 
 /** The two directions money can flow. A field's direction carries the sign, so
  *  amounts themselves stay positive and can't smuggle in a negative. */
 export const DIRECTIONS = ['income', 'expense'];
+
+/**
+ * How often an amount lands, in months. A period is a count rather than a name
+ * so the projection can do arithmetic with it and a new one — every two years,
+ * say — is a number here and a dictionary entry, nothing more.
+ */
+export const PERIODS = [1, 3, 6, 12];
+export const DEFAULT_PERIOD = 1;
 
 /**
  * Every attribute a field has: its default, and how to make sense of whatever
@@ -45,6 +53,12 @@ export const FIELD_SCHEMA = {
     // Kept as typed; the projection coerces it to money.
     default: '',
     read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : ''),
+  },
+  periodMonths: {
+    // Months between one landing and the next: 1 monthly, 12 yearly. A store
+    // written before periods existed has none, and reads as monthly.
+    default: DEFAULT_PERIOD,
+    read: (value) => (PERIODS.includes(Number(value)) ? Number(value) : DEFAULT_PERIOD),
   },
 };
 

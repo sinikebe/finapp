@@ -40,13 +40,29 @@ A field is defined once, in [`assets/js/fields.js`](assets/js/fields.js):
   label,            // your own name; wins over labelKey when set
   direction,        // 'income' | 'expense' — the direction carries the sign
   amount,           // as typed; the projection coerces it to money
+  periodMonths,     // 1 monthly · 3 quarterly · 6 half-yearly · 12 yearly
 }
 ```
 
-Two details that matter later. **The direction carries the sign**, so amounts
-are always positive and no field can smuggle in a negative. And **a field keeps
-its `labelKey` after you rename it**, so clearing the name box hands it back its
-translated default rather than leaving it nameless.
+Three details that matter later. **The direction carries the sign**, so amounts
+are always positive and no field can smuggle in a negative. **A field keeps its
+`labelKey` after you rename it**, so clearing the name box hands it back its
+translated default rather than leaving it nameless. And **a period is a count of
+months, not a name**, so the projection can do arithmetic with it and a new one
+— every two years, say — is a number in `PERIODS` plus a dictionary entry.
+
+### How often an amount lands
+
+A field lands at the end of each of its periods: a yearly amount at months 12,
+24, 36; a quarterly one at 3, 6, 9. The projection shows money moving when it
+actually moves, so a lumpy year reads as a staircase rather than a smooth line
+that never matches anyone's bank balance — and a total is the amount times the
+number of times it actually landed, never a part-payment.
+
+Because of that there is no single "per month" figure once a yearly bill is in
+the list, so the summary reports the **average over the horizon**. With only
+monthly fields that average is exactly the monthly figure, so nothing reads
+differently until you give something a longer period.
 
 ## What it computes
 
@@ -54,18 +70,18 @@ The model lives in [`assets/js/projection.js`](assets/js/projection.js) and is
 deliberately the simplest thing that is honest:
 
 ```
-income(m)   = (sum of every income field)  × m
-expenses(m) = (sum of every expense field) × m
-net(m)      = income(m) − expenses(m)
+contribution(f, m) = m % f.periodMonths === 0 ? f.amount : 0
+income(m)          = income(m−1)   + Σ contribution(income fields, m)
+expenses(m)        = expenses(m−1) + Σ contribution(expense fields, m)
+net(m)             = income(m) − expenses(m)
 ```
 
 for `m = 0 … X`, where month 0 is today — nothing earned, nothing paid. The
-series are accumulated month by month rather than multiplied, because that is
-what lets a field's contribution vary over time later without rewriting
-anything: `contributionOf(field, month)` is the one function that decides what a
-field moves in a given month, and today it simply returns the same amount every
-month. Amounts are rounded to whole cents at every step, so what you read is
-what adds up.
+series are accumulated month by month rather than multiplied, which is what lets
+a field's contribution vary over time: **`contributionOf(field, month)` is the
+one function that decides what a field moves in a given month**, and periods
+were added by teaching it a single rule. Amounts are rounded to whole cents at
+every step, so what you read is what adds up.
 Input is coerced rather than trusted: a negative or unparseable amount becomes
 `0`, the horizon is clamped to 1–600 months, and both a single field and the sum
 of a direction are capped where doubles stop counting cents exactly.
@@ -163,8 +179,11 @@ The point of the field model is that the common kind of growth — *more things 
 track* — costs nothing: that is what the "Add a field" button already does, and
 the projection sums whatever it is given.
 
-**Giving fields a new attribute** (a start month, a yearly cadence, a growth
-rate, a category) is the next-cheapest kind of change, and it has one seam:
+**Giving fields a new attribute** (a start month, an end month, a growth rate, a
+category) is the next-cheapest kind of change, and it has one seam. Periods went
+in this way — a schema entry, a rule in `contributionOf`, one control — so the
+steps below are a description of a change that has actually been made, not a
+hope:
 
 1. Add an entry to `FIELD_SCHEMA` in `fields.js` — a default and how to read
    whatever turns up in its place. That is the whole edit: normalisation,

@@ -10,7 +10,7 @@
  * translation pass already cover it.
  */
 
-import { labelOf, MAX_FIELDS } from './fields.js';
+import { labelOf, MAX_FIELDS, PERIODS } from './fields.js';
 import { html, svgEl } from './dom.js';
 
 const ACTION_ICONS = {
@@ -94,6 +94,16 @@ export function createFieldList(options) {
     amount.placeholder = '0';
     amountLabel.htmlFor = amount.id;
 
+    const periodLabel = html('label', 'sr-only', controls);
+    const period = html('select', 'field-period', controls);
+    period.id = `field-${field.id}-period`;
+    periodLabel.htmlFor = period.id;
+    const periodOptions = PERIODS.map((months) => {
+      const option = html('option', null, period);
+      option.value = String(months);
+      return option;
+    });
+
     const actions = html('div', 'field-actions', element);
     const duplicate = html('button', 'icon-button', actions);
     duplicate.type = 'button';
@@ -104,7 +114,7 @@ export function createFieldList(options) {
 
     const row = {
       element, name, nameLabel, direction, directionLabel, income, expense,
-      amount, amountLabel, duplicate, remove, shown: '',
+      amount, amountLabel, period, periodLabel, periodOptions, duplicate, remove, shown: '',
     };
 
     const id = field.id;
@@ -127,6 +137,7 @@ export function createFieldList(options) {
       onCommand({ type: 'update', id, patch: { amount: amount.value } });
     });
     amount.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { amount: amount.value } }));
+    period.addEventListener('change', () => onCommand({ type: 'update', id, patch: { periodMonths: period.value } }));
     duplicate.addEventListener('click', () => onCommand({ type: 'duplicate', id }));
     remove.addEventListener('click', () => onCommand({ type: 'remove', id }));
 
@@ -149,6 +160,12 @@ export function createFieldList(options) {
 
     row.amountLabel.textContent = labels.amount;
     syncValue(row.amount, field.amount);
+
+    row.periodLabel.textContent = labels.period;
+    row.periodOptions.forEach((option, index) => {
+      option.textContent = labels.periodName(PERIODS[index]);
+    });
+    syncValue(row.period, String(field.periodMonths));
 
     // Every row would otherwise announce the same three control names, leaving
     // a screen-reader user with no idea which field they are editing. The name

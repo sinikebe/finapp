@@ -7,7 +7,7 @@
  * cadence, a growth rate): the loop below is the only place that has to change.
  */
 
-import { normalizeFields } from './fields.js';
+import { normalizeFields, DEFAULT_PERIOD } from './fields.js';
 
 /** Hard limits, so a pasted value or a hand-edited store can't ask for a million points. */
 export const MIN_MONTHS = 1;
@@ -43,15 +43,20 @@ export function toMonths(value) {
 
 /**
  * What one field moves in a given month. **This is the seam.** Every attribute
- * a field grows — a start month, an end month, a yearly cadence, a growth rate
- * — decides its meaning here, and nothing else in the app has to change.
+ * a field grows — a start month, an end month, a growth rate — decides its
+ * meaning here, and nothing else in the app has to change.
+ *
+ * A field lands at the end of each of its periods: a yearly amount at months
+ * 12, 24, 36, a quarterly one at 3, 6, 9. So the projection shows the money
+ * moving when it actually moves, and a lumpy year reads as a staircase rather
+ * than a smooth line that never matches anyone's bank balance.
  *
  * @param {object} field
  * @param {number} month 1-based: month 1 is the first month of the projection
  */
 export function contributionOf(field, month) {
-  void month; // today every field repeats unchanged, every month
-  return toAmount(field.amount);
+  const period = field.periodMonths || DEFAULT_PERIOD;
+  return month % period === 0 ? toAmount(field.amount) : 0;
 }
 
 /** What one direction moves in a given month, across every field. */
@@ -94,26 +99,33 @@ export function project(input = {}) {
     points.push({ month, income, expenses, net: roundMoney(income - expenses) });
   }
 
-  // What the reader is moving right now: the first month's flow.
-  const monthlyIncome = flowIn(fields, 'income', 1);
-  const monthlyExpenses = flowIn(fields, 'expense', 1);
-  const monthlyNet = roundMoney(monthlyIncome - monthlyExpenses);
-
   const last = points[points.length - 1];
+  // Per month across the whole horizon, not the first month's flow: with a
+  // yearly bill in the list there is no single monthly figure, and an average
+  // is the one that still answers "what does this cost me a month?".
+  const averages = {
+    income: roundMoney(last.income / months),
+    expenses: roundMoney(last.expenses / months),
+    net: roundMoney((last.income - last.expenses) / months),
+  };
+
   return {
     fields,
     months,
-    monthlyIncome,
-    monthlyExpenses,
-    monthlyNet,
+    averages,
     points,
     totals: { income: last.income, expenses: last.expenses, net: last.net },
   };
 }
 
-/** True once any field carries an amount — before that, there is nothing to draw. */
+/**
+ * True once any field carries an amount — before that, there is nothing to
+ * draw. Read from the fields rather than from the totals: a yearly amount over
+ * a six-month horizon lands nowhere inside it, and the reader who just typed it
+ * should still see their charts rather than "add an amount".
+ */
 export function hasAmounts(projection) {
-  return projection.monthlyIncome > 0 || projection.monthlyExpenses > 0;
+  return projection.fields.some((field) => toAmount(field.amount) > 0);
 }
 
 /** Extract one cumulative series from a projection. */
