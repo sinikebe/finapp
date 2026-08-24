@@ -7,7 +7,7 @@
 
 import { createServer } from 'node:http';
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { realpath, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,12 +28,21 @@ const TYPES = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
+function inRoot(path) {
+  return path === ROOT || path.startsWith(ROOT + sep);
+}
+
+/** Lexical path check; returns null for anything that escapes the root. */
 function safePath(urlPath) {
-  const decoded = decodeURIComponent(urlPath.split('?')[0]);
+  let decoded;
+  try {
+    decoded = decodeURIComponent(urlPath.split('?')[0]);
+  } catch {
+    return null; // a malformed percent-escape is a bad request, not a crash
+  }
   const relative = normalize(decoded).replace(/^([/\\])+/, '');
   const target = resolve(join(ROOT, relative));
-  if (target !== ROOT && !target.startsWith(ROOT + sep)) return null;
-  return target;
+  return inRoot(target) ? target : null;
 }
 
 const server = createServer(async (request, response) => {
@@ -53,6 +62,11 @@ const server = createServer(async (request, response) => {
     if (info.isDirectory()) {
       target = join(target, 'index.html');
       info = await stat(target);
+    }
+    // The lexical check can't see through a symlink, so re-check the real path.
+    if (!inRoot(await realpath(target))) {
+      response.writeHead(403).end('Forbidden');
+      return;
     }
     response.writeHead(200, {
       'content-type': TYPES[extname(target)] || 'application/octet-stream',

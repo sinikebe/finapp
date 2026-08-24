@@ -11,11 +11,11 @@ export const MIN_MONTHS = 1;
 export const MAX_MONTHS = 600;
 
 /**
- * Monthly amounts are capped at a trillion. Past roughly 2^53 cents, doubles
- * stop representing whole cents, so the totals would drift and the axis labels
- * would stop meaning anything; a cap keeps every number on screen honest.
+ * The largest monthly amount that keeps every cumulative total exact: at the
+ * longest horizon, MAX_AMOUNT * MAX_MONTHS in cents (6e15) still sits inside
+ * Number.MAX_SAFE_INTEGER (9.007e15), so no total ever drifts off whole cents.
  */
-export const MAX_AMOUNT = 1e12;
+export const MAX_AMOUNT = 1e11;
 
 /** Money is kept to whole cents; float drift never reaches the screen. */
 export function roundMoney(value) {

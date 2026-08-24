@@ -91,9 +91,10 @@
       <div class="filter">
         <label for="months" data-i18n="filter.label">Projection length</label>
         <div class="range-line">
-          <input id="months" type="range" min="1" max="120" step="1" value="24"
-                 aria-describedby="months-readout">
-          <output id="months-readout" for="months">24 months</output>
+          <input id="months" type="range" min="1" max="120" step="1" value="24">
+          <!-- Visual only: the slider carries the same text in aria-valuetext,
+               so the reading is announced as the value, not as a live region. -->
+          <span id="months-readout" aria-hidden="true">24 months</span>
         </div>
       </div>
       <div class="presets" role="group" data-i18n-aria="filter.presetsAria" aria-label="Preset projection lengths">

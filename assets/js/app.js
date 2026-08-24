@@ -6,9 +6,9 @@
 
 import { project, seriesOf, extentOf, toAmount, toMonths } from './projection.js';
 import {
-  formatAmount, formatWhole, formatCompact, formatMonth, formatHorizon, setFormatLocale,
+  formatAmount, formatCompact, formatMonth, formatHorizon, setFormatLocale,
 } from './format.js';
-import { createLineChart } from './chart.js';
+import { createLineChart, endLabelPad } from './chart.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
 
 const INPUT_KEY = 'finapp.inputs.v1';
@@ -34,6 +34,7 @@ const ui = {
   totalExpenses: $('total-expenses'),
   monthlyNet: $('monthly-net'),
   chartsNote: $('charts-note'),
+  summary: document.querySelector('.summary'),
   charts: $('charts'),
   themeButton: $('theme'),
   themeLabel: $('theme-label'),
@@ -129,10 +130,14 @@ let noteTimer = 0;
 function renderSummary(projection, hasInput) {
   const horizon = formatHorizon(projection.months, t);
   ui.heroLabel.textContent = t('summary.heroLabel', projection.months);
-  ui.heroValue.textContent = hasInput ? formatWhole(projection.totals.net) : '—';
-  ui.totalIncome.textContent = hasInput ? formatWhole(projection.totals.income) : '—';
-  ui.totalExpenses.textContent = hasInput ? formatWhole(projection.totals.expenses) : '—';
+  // Exact amounts, not rounded ones: whole-unit rounding let the tiles and the
+  // hero disagree by a unit (24,010 − 0 shown against a net of 24,009).
+  ui.heroValue.textContent = hasInput ? formatAmount(projection.totals.net) : '—';
+  ui.totalIncome.textContent = hasInput ? formatAmount(projection.totals.income) : '—';
+  ui.totalExpenses.textContent = hasInput ? formatAmount(projection.totals.expenses) : '—';
   ui.monthlyNet.textContent = hasInput ? formatAmount(projection.monthlyNet) : '—';
+
+  ui.summary.classList.toggle('is-empty', !hasInput);
 
   const shortfall = projection.monthlyNet < 0;
   ui.heroChip.hidden = !hasInput || projection.monthlyNet === 0;
@@ -150,9 +155,9 @@ function renderSummary(projection, hasInput) {
       ? t(
         'charts.noteFilled',
         horizon,
-        formatWhole(projection.totals.income),
-        formatWhole(projection.totals.expenses),
-        formatWhole(projection.totals.net),
+        formatAmount(projection.totals.income),
+        formatAmount(projection.totals.expenses),
+        formatAmount(projection.totals.net),
       )
       : t('charts.notePrompt');
   }, 500);
@@ -167,18 +172,27 @@ function render() {
   const hasInput = projection.monthlyIncome > 0 || projection.monthlyRent > 0;
   const series = CHARTS.map((spec) => seriesOf(projection, spec.key));
   const domain = extentOf(series);
+  // One geometry for all three cards: the widest end-label decides the gutter,
+  // so the small multiples are drawn to the same pixel scale and can be
+  // compared by eye, not just by their axes.
+  const labelPad = Math.max(...series.map(
+    (points) => endLabelPad(formatAmount(points[points.length - 1].value)),
+  ));
 
   charts.forEach((chart, index) => {
     chart.instance.update({
       points: series[index],
       domain,
       months: projection.months,
+      labelPad,
       isEmpty: !hasInput,
       emptyMessage: t('charts.empty'),
     });
   });
 
-  ui.monthsReadout.textContent = t('filter.readout', projection.months, formatHorizon(projection.months, t));
+  const readout = t('filter.readout', projection.months, formatHorizon(projection.months, t));
+  ui.monthsReadout.textContent = readout;
+  ui.months.setAttribute('aria-valuetext', readout);
   for (const button of ui.presets) {
     const active = Number(button.dataset.months) === projection.months;
     button.setAttribute('aria-pressed', active ? 'true' : 'false');

@@ -95,5 +95,10 @@ test('absurd amounts are capped where doubles stop counting cents', () => {
   assert.equal(toAmount(MAX_AMOUNT + 1), MAX_AMOUNT);
   const capped = project({ monthlyIncome: 1e21, monthlyRent: 0, months: 2 });
   assert.deepEqual(capped.points.map((p) => p.income), [0, MAX_AMOUNT, MAX_AMOUNT * 2]);
-  assert.equal(capped.totals.income, 2e12);
+});
+
+test('the worst-case projection still counts in whole cents', () => {
+  const worst = project({ monthlyIncome: MAX_AMOUNT, monthlyRent: 0, months: MAX_MONTHS });
+  assert.ok(Number.isSafeInteger(worst.totals.income * 100));
+  assert.equal(worst.totals.income, MAX_AMOUNT * MAX_MONTHS);
 });

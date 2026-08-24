@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { niceScale, monthTickStep } from '../assets/js/chart.js';
+import { niceScale, monthTickStep, endLabelPad } from '../assets/js/chart.js';
 
 test('a scale snaps outward to round ticks that contain the data', () => {
   const scale = niceScale(0, 72012);
@@ -20,10 +20,10 @@ test('a scale always contains zero, above or below the data', () => {
   assert.ok(positive.max >= 900);
 });
 
-test('a flat series still gets a usable scale', () => {
+test('a flat series gets whole-number ticks, never fractions of a cent', () => {
   const scale = niceScale(0, 0);
+  assert.deepEqual(scale.ticks, [0, 1]);
   assert.ok(scale.max > scale.min);
-  assert.ok(scale.ticks.length >= 2);
 });
 
 test('ticks are evenly spaced and free of float noise', () => {
@@ -44,4 +44,9 @@ test('the month axis never shows more than six labels', () => {
   }
   assert.equal(monthTickStep(24), 6);
   assert.equal(monthTickStep(120), 24);
+});
+
+test('an end-label reserve is at least the minimum gutter and grows with the text', () => {
+  assert.equal(endLabelPad('12'), endLabelPad('1'));
+  assert.ok(endLabelPad('1,234,567,890') > endLabelPad('120'));
 });

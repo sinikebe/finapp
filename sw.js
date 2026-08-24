@@ -9,7 +9,7 @@
  * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const CACHE_PREFIX = 'finapp-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const SHELL = './index.html';
@@ -58,6 +58,13 @@ async function cacheIfSound(cache, request, response) {
   await cache.put(request, response.clone());
 }
 
+/** True for the app's own pages, and only those — a sibling app sharing this
+ * origin keeps its own navigations. */
+function isAppPage(url) {
+  const base = new URL('./', self.location.href).pathname;
+  return url.pathname === base || url.pathname === `${base}index.html`;
+}
+
 /**
  * Navigations are answered from this worker's own shell, so the page always
  * matches the scripts beside it. The network is only asked when the shell is
@@ -95,7 +102,14 @@ async function serveAsset(request) {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
-  if (new URL(request.url).origin !== self.location.origin) return;
 
-  event.respondWith(request.mode === 'navigate' ? serveShell(event) : serveAsset(request));
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (request.mode === 'navigate') {
+    if (isAppPage(url)) event.respondWith(serveShell(event));
+    return;
+  }
+
+  event.respondWith(serveAsset(request));
 });

@@ -41,11 +41,17 @@ function tidy(value, step) {
   return Number(value.toFixed(decimals));
 }
 
+/** Width to reserve for an end-label, so sibling charts can agree on one. */
+export function endLabelPad(text) {
+  return Math.max(MIN_RIGHT_PAD, Math.ceil(text.length * CHAR_WIDTH) + 16);
+}
+
 /** A y-domain snapped outward to human tick values (0 / 20K / 40K …). */
 export function niceScale(min, max, target = 4) {
-  let lo = Math.min(0, min);
-  let hi = Math.max(0, max);
-  if (hi - lo === 0) hi = lo + 1;
+  const lo = Math.min(0, min);
+  const hi = Math.max(0, max);
+  // Nothing to plot yet: a whole-number 0–1 axis, never 0.25-of-a-cent ticks.
+  if (hi - lo === 0) return { min: lo, max: lo + 1, step: 1, ticks: [lo, lo + 1] };
   const rawStep = (hi - lo) / target;
   const magnitude = 10 ** Math.floor(Math.log10(rawStep));
   const normalised = rawStep / magnitude;
@@ -112,6 +118,11 @@ export function createLineChart(options) {
   const empty = html('p', 'chart-empty', plot);
   empty.hidden = true;
 
+  // Keyboard readings are announced here. Pointer hovering deliberately stays
+  // silent — a live region firing on every mouse move is unusable.
+  const announcer = html('p', 'sr-only', figure);
+  announcer.setAttribute('aria-live', 'polite');
+
   const tableId = `${id}-table`;
   const toggle = html('button', 'table-toggle', figure);
   toggle.type = 'button';
@@ -151,7 +162,9 @@ export function createLineChart(options) {
   const endDot = el('circle', { class: 'end-dot', r: MARKER_RADIUS }, svg);
   const endLabel = el('text', { class: 'end-label', 'text-anchor': 'start', dy: '0.32em' }, svg);
 
-  let state = { points: [], domain: { min: 0, max: 1 }, months: 1, isEmpty: true };
+  let state = {
+    points: [], domain: { min: 0, max: 1 }, months: 1, isEmpty: true, labelPad: 0,
+  };
   let geometry = null;
   let activeIndex = null;
   let tableRendered = false;
@@ -178,11 +191,9 @@ export function createLineChart(options) {
     const endValue = points.length ? points[points.length - 1].value : 0;
     // Reserve room for the end-label, but never at the cost of the plot: a label
     // that would squeeze the chart is dropped rather than clipped, and the table
-    // view keeps the value reachable.
-    const wantedRightPad = Math.max(
-      MIN_RIGHT_PAD,
-      Math.ceil(formatValue(endValue).length * CHAR_WIDTH) + 16,
-    );
+    // view keeps the value reachable. `labelPad` lets sibling charts reserve the
+    // same width, so small multiples stay drawn to one geometry.
+    const wantedRightPad = Math.max(state.labelPad || 0, endLabelPad(formatValue(endValue)));
     const labelFits = w - LEFT_PAD - wantedRightPad >= MIN_PLOT_WIDTH;
     const rightPad = labelFits ? wantedRightPad : MIN_RIGHT_PAD;
     const plotW = Math.max(40, w - LEFT_PAD - rightPad);
@@ -198,6 +209,8 @@ export function createLineChart(options) {
 
     geometry = { xOf, yOf, plotW, plotH: PLOT_HEIGHT, height, scale };
 
+    const hasSeries = points.length > 1 && !isEmpty;
+
     // --- gridlines + y ticks -------------------------------------------------
     gridLayer.textContent = '';
     for (const tick of scale.ticks) {
@@ -211,12 +224,17 @@ export function createLineChart(options) {
 
     // --- axes ----------------------------------------------------------------
     const baseY = TOP_PAD + PLOT_HEIGHT;
+    // An empty card is just its message: no axis, no grid, no ticks to read.
+    for (const node of [gridLayer, xLabels, xAxisLine]) {
+      node.style.display = hasSeries ? '' : 'none';
+    }
+
     xAxisLine.setAttribute('x1', LEFT_PAD);
     xAxisLine.setAttribute('x2', LEFT_PAD + plotW);
     xAxisLine.setAttribute('y1', baseY);
     xAxisLine.setAttribute('y2', baseY);
 
-    const crossesZero = scale.min < 0 && scale.max > 0;
+    const crossesZero = hasSeries && scale.min < 0 && scale.max > 0;
     zeroLine.style.display = crossesZero ? '' : 'none';
     if (crossesZero) {
       const zeroY = yOf(0);
@@ -236,7 +254,6 @@ export function createLineChart(options) {
     }
 
     // --- series --------------------------------------------------------------
-    const hasSeries = points.length > 1 && !isEmpty;
     for (const node of [areaPath, linePath, endRing, endDot]) {
       node.style.display = hasSeries ? '' : 'none';
     }
@@ -264,7 +281,15 @@ export function createLineChart(options) {
       endLabel.textContent = formatValue(endValue);
     }
 
-    svg.setAttribute('aria-label', labels.ariaLabel(months, formatValue(endValue)));
+    svg.setAttribute('aria-label', hasSeries
+      ? labels.ariaLabel(months, formatValue(endValue))
+      : empty.textContent);
+    toggle.hidden = !hasSeries;
+    if (!hasSeries && toggle.getAttribute('aria-expanded') === 'true') {
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.textContent = labels.showTable;
+      tableWrap.hidden = true;
+    }
 
     if (activeIndex !== null) drawCrosshair(activeIndex);
   }
@@ -360,7 +385,10 @@ export function createLineChart(options) {
   svg.addEventListener('focus', () => {
     if (!state.isEmpty) emitHover(activeIndex === null ? state.points.length - 1 : activeIndex);
   });
-  svg.addEventListener('blur', () => emitHover(null));
+  svg.addEventListener('blur', () => {
+    announcer.textContent = '';
+    emitHover(null);
+  });
   svg.addEventListener('keydown', (event) => {
     if (state.isEmpty || !state.points.length) return;
     const last = state.points.length - 1;
@@ -375,6 +403,9 @@ export function createLineChart(options) {
     if (next === null) return;
     event.preventDefault();
     emitHover(next);
+
+    const point = state.points[next];
+    if (point) announcer.textContent = `${formatMonth(point.month)}: ${formatValue(point.value)}`;
   });
 
   toggle.addEventListener('click', () => {
@@ -402,9 +433,14 @@ export function createLineChart(options) {
         domain: next.domain,
         months: next.months,
         isEmpty: Boolean(next.isEmpty),
+        labelPad: next.labelPad || 0,
       };
       empty.textContent = next.emptyMessage || '';
+      // A crosshair from the previous data would otherwise hang over the empty
+      // card, pointing at a value that is no longer on screen.
+      if (state.isEmpty) activeIndex = null;
       if (activeIndex !== null) activeIndex = Math.min(activeIndex, state.points.length - 1);
+      setCrosshairVisible(activeIndex !== null);
       render();
       if (tableRendered) renderTable();
       else tbody.textContent = '';
