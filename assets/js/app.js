@@ -33,6 +33,8 @@ import {
   migrateFields,
 } from './strategies.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
+import { BUILD } from './version.js';
+import { RELEASES } from './changelog.js';
 
 const STATE_KEY = 'finapp.state.v3';
 const LEGACY_FIELDS_KEY = 'finapp.state.v2';
@@ -119,6 +121,14 @@ const ui = {
   description: $('doc-description'),
   manifestLink: $('manifest-link'),
   installButton: $('install'),
+  aboutDialog: $('about'),
+  aboutOpen: $('about-open'),
+  aboutClose: $('about-close'),
+  aboutVersion: $('about-version'),
+  aboutBranch: $('about-branch'),
+  aboutCommit: $('about-commit'),
+  aboutDate: $('about-date'),
+  aboutLog: $('about-log'),
   updateToast: $('update-toast'),
   updateReload: $('update-reload'),
 };
@@ -1319,6 +1329,52 @@ document.addEventListener('pointerdown', (event) => {
   for (const chart of charts) chart.instance.setActive(null);
 });
 
+/* -------------------------------------------------------------------- about */
+
+/**
+ * What this build is, and what every release before it changed.
+ *
+ * The version is the cache generation the service worker is actually serving,
+ * so it answers the question the panel exists for — *is what I am looking at
+ * the current one* — rather than restating a number from a file. The commit
+ * beside it is the one the build sits on top of; the panel says as much, and
+ * each release below carries the commit it was merged as, which is exact.
+ */
+function renderAbout() {
+  ui.aboutVersion.textContent = BUILD.version;
+  ui.aboutBranch.textContent = BUILD.branch;
+  ui.aboutCommit.textContent = BUILD.commit;
+  ui.aboutDate.textContent = BUILD.date;
+
+  ui.aboutLog.textContent = '';
+  const fragment = document.createDocumentFragment();
+  for (const release of RELEASES) {
+    const item = html('li', 'about-release', fragment);
+    const head = html('p', 'about-release-head', item);
+    html('span', 'about-version', head).textContent = release.version;
+    html('span', 'about-when', head).textContent = release.date;
+    // A commit is a handle for looking something up, so it stays as written
+    // rather than being localised into a shape git would not recognise. The
+    // newest release has none until the merge that publishes it creates one.
+    if (release.commit) html('code', 'about-commit-ref', head).textContent = release.commit;
+    else html('span', 'about-when', head).textContent = t('about.unreleased');
+    html('p', 'about-what', item).textContent = release[language] || release.en;
+    // The one the reader is running, marked where they are looking for it.
+    if (release.version === BUILD.version) item.setAttribute('aria-current', 'true');
+  }
+  ui.aboutLog.appendChild(fragment);
+}
+
+ui.aboutOpen.addEventListener('click', () => {
+  renderAbout();
+  ui.aboutDialog.showModal();
+});
+ui.aboutClose.addEventListener('click', () => ui.aboutDialog.close());
+// A click on the backdrop lands on the dialog itself, never on its contents.
+ui.aboutDialog.addEventListener('click', (event) => {
+  if (event.target === ui.aboutDialog) ui.aboutDialog.close();
+});
+
 /* ----------------------------------------------------------------- language */
 
 const savedLanguage = readStore(LANG_KEY, null);
@@ -1372,6 +1428,7 @@ function applyLanguage(next) {
   for (const button of ui.presets) {
     button.textContent = t('filter.preset', Number(button.dataset.months) / 12);
   }
+  renderAbout();
 
   ui.langLabel.textContent = t('lang.label');
   ui.langButton.setAttribute('aria-label', t('lang.aria'));

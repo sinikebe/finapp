@@ -555,6 +555,37 @@ tools/serve.mjs            development server (never deployed)
 test/                      node:test unit tests
 ```
 
+## What am I running
+
+**About** in the header opens a panel with the build and the changelog. It is a
+dialog rather than a second page, so it inherits the theme, the language and the
+shell the app already has instead of keeping a second copy of each in step.
+
+The **version** is read from the cache generation the service worker is actually
+serving, which is the question the panel exists to answer — *is what I am looking
+at the current one* — rather than a number restated from a file that could
+disagree with it. A test fails if the stamp and `CACHE_VERSION` ever do.
+
+**The commit is the honest part.** There is no build step: Pages serves the
+branch as it stands, so nothing runs at deploy time to stamp a hash in, and a
+commit cannot contain its own hash — under squash merges the branch commit does
+not even survive into `main`. So `npm run stamp` records what *is* knowable — the
+version, the branch, and the commit the working tree sits on top of — and the
+panel says **built from**, which is the true statement. Every released version in
+the changelog below carries the commit it was merged as, which is exact, because
+that is history.
+
+The newest entry has no commit until the merge that publishes it creates one;
+it is filled in with the next change, and the panel says *not yet released* in
+the meantime. The test allows that for the newest entry and no other.
+
+The changelog keeps both languages side by side in
+[`assets/js/changelog.js`](assets/js/changelog.js) rather than in the dictionary:
+it grows one entry per release and the two readings of an entry are written
+together, so splitting them would only let them drift. A test holds its French to
+the same typography rule the dictionary is held to — and caught three breaking
+spaces in it the first time it ran.
+
 ## Offline and updates
 
 `sw.js` treats its cache as one immutable generation: the page, the CSS and the

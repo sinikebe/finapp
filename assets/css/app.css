@@ -1157,3 +1157,86 @@ main {
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 1ms !important; animation-duration: 1ms !important; }
 }
+
+/* ------------------------------------------------------------------- about */
+
+.about {
+  width: min(560px, calc(100vw - 32px));
+  max-height: min(72vh, 720px);
+  padding: 20px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.about::backdrop { background: rgba(11, 11, 11, 0.45); }
+
+.about-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.about-head h2 { margin: 0; font-size: 17px; }
+.about h3 {
+  margin: 20px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* The four facts as pairs, so a narrow phone stacks them rather than
+   squeezing a branch name into a column it cannot hold. */
+.about-build {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+}
+.about-build div { min-width: 0; }
+.about-build dt { font-size: 12px; color: var(--text-muted); }
+.about-build dd {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  /* A branch name is one long token; let it break rather than overflow. */
+  overflow-wrap: anywhere;
+}
+
+/* The caveat belongs with the facts it qualifies, not crowded against them. */
+#about-note { margin: 10px 0 0; }
+
+.about-log { margin: 0; padding: 0; list-style: none; }
+
+.about-release {
+  padding: 10px 0;
+  border-top: 1px solid var(--grid-line);
+}
+.about-release:first-child { border-top: none; }
+/* The one being run, marked in ink rather than colour alone: the strip is a
+   second cue, not the only one. */
+.about-release[aria-current="true"] {
+  margin-left: -12px;
+  padding-left: 9px;
+  border-left: 3px solid var(--accent);
+}
+
+.about-release-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 2px;
+}
+.about-version { font-weight: 600; font-size: 13.5px; }
+.about-when { font-size: 12px; color: var(--text-muted); }
+.about-commit-ref {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.about-what { margin: 0; font-size: 13.5px; color: var(--text-secondary); }
