@@ -236,6 +236,48 @@ export function contributionOf(field, month) {
   return grownBy(field.amount, field.annualRate, yearsRunning(field, month));
 }
 
+/** What one field moves across a whole horizon — its share of the flow. */
+export function fieldTotalOf(field, months) {
+  let total = 0;
+  for (let month = 1; month <= months; month += 1) {
+    total = roundMoney(total + contributionOf(field, month));
+  }
+  return total;
+}
+
+/**
+ * Split a total across weights so the parts sum to the whole *exactly*.
+ *
+ * Proportions alone do not: ten independently rounded shares can miss their own
+ * total by a few cents, and a diagram whose parts disagree with the tile above
+ * it is the kind of thing this model refuses to print. So the parts are derived
+ * from the total rather than beside it — floor everything to the cent, then hand
+ * the leftover cents to the largest remainders, which is the standard
+ * largest-remainder apportionment.
+ *
+ * It also makes the split inherit whatever the projection already did to the
+ * total. Restating in today's money divides every figure at a given month by one
+ * factor, so it leaves proportions untouched — which means these weights stay
+ * right and the shares come out already restated.
+ */
+export function shareOut(total, weights) {
+  const cents = Math.round(roundMoney(total) * 100);
+  const sum = weights.reduce((running, weight) => running + weight, 0);
+  if (!weights.length || sum <= 0 || cents <= 0) return weights.map(() => 0);
+
+  const exact = weights.map((weight) => (weight / sum) * cents);
+  const parts = exact.map((value) => Math.floor(value));
+  let left = cents - parts.reduce((running, part) => running + part, 0);
+  const byRemainder = exact
+    .map((value, index) => ({ index, fraction: value - Math.floor(value) }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+
+  for (let k = 0; left > 0 && k < byRemainder.length; k += 1, left -= 1) {
+    parts[byRemainder[k].index] += 1;
+  }
+  return parts.map((part) => part / 100);
+}
+
 /** What one direction moves in a given month, across every field. */
 export function flowIn(fields, direction, month) {
   const total = fields.reduce(

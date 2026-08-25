@@ -5,7 +5,7 @@ import {
   project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax,
   seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
   flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf,
-  grownBy, yearsRunning,
+  grownBy, yearsRunning, fieldTotalOf, shareOut,
   loanPayment, loanInterest, monthlyRate,
   toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
@@ -814,4 +814,74 @@ test('a climb and a window work together', () => {
   assert.equal(contributionOf(wage, 15), 1100, 'one year in');
   assert.equal(contributionOf(wage, 27), 1210, 'two years in');
   assert.equal(contributionOf(wage, 31), 0, 'ended');
+});
+
+/* ------------------------------------------------ what each field moved */
+
+test('a field total is what it moved across the whole horizon', () => {
+  assert.equal(fieldTotalOf(income(3000), 12), 36000);
+  assert.equal(fieldTotalOf(yearly('600'), 36), 1800, 'three landings');
+  assert.equal(fieldTotalOf(asset('250000', '5'), 120), 0, 'an asset moves nothing');
+  assert.equal(fieldTotalOf(once('9000', 18), 12), 0, 'outside the horizon');
+  assert.equal(fieldTotalOf(once('9000', 18), 24), 9000);
+});
+
+test('field totals reconcile with the totals the summary shows', () => {
+  const fields = [
+    income(4000), income(250), between('1200', 4, 40),
+    once('25000', 18), loan('120000', '4', 60),
+    createField({ kind: 'investment', amount: '500', annualRate: '7' }),
+    asset('250000', '2'),
+  ];
+  const result = project({ fields, months: 120 });
+  const summed = (direction) => roundMoney(result.fields
+    .filter((field) => field.direction === direction)
+    .reduce((total, field) => total + fieldTotalOf(field, 120), 0));
+  assert.equal(summed('income'), result.totals.income);
+  assert.equal(summed('expense'), result.totals.expenses);
+});
+
+/* --------------------------------------------- apportioning a total exactly */
+
+test('the parts always add up to the whole, however awkward the split', () => {
+  const cases = [
+    [100, [1, 2, 3]],
+    [151154.34, [1, 1, 1, 1]],
+    [999999.99, [7, 7, 7, 7, 7, 7, 7]],
+    [0.03, [1, 1, 1]],
+    [810851.34, [3, 1, 4, 1, 5, 9, 2, 6, 5, 3]],
+    [1000, [1, 0, 0]],
+  ];
+  for (const [total, weights] of cases) {
+    const parts = shareOut(total, weights);
+    assert.equal(roundMoney(parts.reduce((a, b) => a + b, 0)), total, `${total} split ${weights}`);
+    assert.equal(parts.length, weights.length);
+    assert.ok(parts.every((part) => part >= 0), 'no negative share');
+  }
+});
+
+test('apportioning is proportional, not merely exact', () => {
+  const parts = shareOut(1000, [3, 1]);
+  assert.equal(parts[0], 750);
+  assert.equal(parts[1], 250);
+});
+
+test('a leftover cent goes to the largest remainder, not the first in line', () => {
+  // Three equal claims on 10.00 leave a cent over; it lands on the first only
+  // because the remainders tie, and the total is what must hold either way.
+  const parts = shareOut(10, [1, 1, 1]);
+  assert.equal(roundMoney(parts.reduce((a, b) => a + b, 0)), 10);
+  assert.deepEqual(parts, [3.34, 3.33, 3.33]);
+});
+
+test('apportioning nothing, or to nothing, is not a crash', () => {
+  assert.deepEqual(shareOut(0, [1, 2]), [0, 0]);
+  assert.deepEqual(shareOut(100, []), []);
+  assert.deepEqual(shareOut(100, [0, 0]), [0, 0], 'no weight, no share');
+  assert.deepEqual(shareOut(-5, [1, 1]), [0, 0], 'a negative total is not a flow');
+});
+
+test('shares of a hundred come to a hundred', () => {
+  const shares = shareOut(100, [162000, 57600, 72000, 19897.44, 192502.56]);
+  assert.equal(roundMoney(shares.reduce((a, b) => a + b, 0)), 100);
 });
