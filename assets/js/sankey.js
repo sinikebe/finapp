@@ -360,11 +360,21 @@ export function createSankey({ mount, id, title, description, labels, formatValu
     svg.setAttribute('aria-label', labels.aria(formatValue(total), sources.length, sinks.length));
   }
 
-  ribbonLayer.addEventListener('pointermove', (event) => {
+  // On the svg rather than the ribbon group: a <g> is not a hit target, so a
+  // listener there only ever hears its own paths, and the `else` could never
+  // run — a pointer moving off a ribbon into the gutter left a reading up with
+  // nothing under it.
+  const track = (event) => {
     const found = ribbons.find((ribbon) => ribbon.path === event.target);
     if (found && found.entry) showTip(found.entry, event);
     else hideTip();
-  });
+  };
+  svg.addEventListener('pointermove', track);
+  // A still tap fires no pointermove, so touch needs its own way in — the same
+  // pair the line chart listens for.
+  svg.addEventListener('pointerdown', track);
+  // A scroll that merely began on a ribbon ends here, not in pointerleave.
+  svg.addEventListener('pointercancel', hideTip);
 
   function renderTable() {
     // Rebuilt wholesale, so the reader's place in a long list has to be put
@@ -383,6 +393,16 @@ export function createSankey({ mount, id, title, description, labels, formatValu
       key.className = 'row-key';
       key.style.setProperty('--series', `var(${TONE_VAR[entry.tone]})`);
       th.appendChild(key);
+      // Direction is the one thing the drawing says in colour alone, and the
+      // table is where nothing is allowed to be lost — so it is said in words
+      // too, in the words the legend already uses. The leftover node names
+      // itself ("Kept", "Made up from savings"), so it needs no prefix.
+      if (entry.tone !== 'net') {
+        const tone = document.createElement('span');
+        tone.className = 'sr-only';
+        tone.textContent = labels.rowTone(labels.tone(entry.tone));
+        th.appendChild(tone);
+      }
       th.appendChild(document.createTextNode(entry.label));
       row.appendChild(th);
 
@@ -427,6 +447,12 @@ export function createSankey({ mount, id, title, description, labels, formatValu
 
   return {
     update(next) {
+      // A redraw that moves a ribbon invalidates any reading taken from it —
+      // but a redraw that changes nothing must not, or a tap that merely blurs
+      // an input would clear the reading that same tap just asked for. Same
+      // flows in the same order means every ribbon lands where it already is.
+      const flows = (list) => list.map((entry) => `${entry.id}:${entry.value}`).join('|');
+      const before = `${flows(state.sources)}/${flows(state.sinks)}`;
       state = {
         sources: next.sources || [],
         sinks: next.sinks || [],
@@ -453,10 +479,15 @@ export function createSankey({ mount, id, title, description, labels, formatValu
       nameTh.textContent = labels.nameColumn;
       flowTh.textContent = labels.flowColumn;
       shareTh.textContent = labels.shareColumn;
+      if (`${flows(state.sources)}/${flows(state.sinks)}` !== before) hideTip();
       if (tableRendered) renderTable();
       else tbody.textContent = '';
       draw();
     },
+
+    // Touch holds a reading through the tap's own pointerleave; app.js clears it
+    // when a tap lands anywhere else. Without both halves it would never clear.
+    hideTip,
 
     setHeading(next) {
       heading.textContent = next.title;
