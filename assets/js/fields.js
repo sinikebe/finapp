@@ -113,6 +113,15 @@ export const FIELD_SCHEMA = {
     default: 0,
     read: (value) => toMonthMark(value),
   },
+  sellMonth: {
+    // The month an investment is cashed in: the balance becomes money in your
+    // account and the holding ends. 0 means never, which is what every
+    // investment written before this reads as. A plan that buys a flat with
+    // the fund it has been building is otherwise inexpressible — the money
+    // would have to be spent and still be held at the same time.
+    default: 0,
+    read: (value) => toMonthMark(value),
+  },
   synced: {
     // Whether every strategy holds this same field, so that comparing two
     // plans varies only what you meant to vary. The strategies own what this
@@ -168,11 +177,15 @@ export function normalizeField(value) {
   // An asset is a thing you own, not a flow: it never lands, so a period would
   // mean nothing, and it counts towards what you are worth rather than against
   // it. Both are settled here so a hand-edited store can't say otherwise.
+  // Only an investment can be cashed in: nothing else is a holding.
+  if (field.kind !== 'investment') field.sellMonth = 0;
   if (field.kind === 'asset') {
     field.direction = 'income';
     field.periodMonths = DEFAULT_PERIOD;
-    // It never lands, so a window would describe nothing.
-    field.startMonth = 0;
+    // It never lands, so it has no period and no end — you do not stop owning
+    // a thing. But you do start: a flat bought in five years is not a flat you
+    // are worth today, and a plan that says otherwise flatters itself. So the
+    // start month is the reader's, and 0 still means "already yours".
     field.endMonth = 0;
   }
   // A one-off happens in one month, so that month is its whole window — and it

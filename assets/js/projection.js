@@ -286,6 +286,12 @@ export function contributionOf(field, month) {
   const end = Math.trunc(Number(field.endMonth) || 0);
   if (end && month > end) return 0;
 
+  // Nor after a holding has been cashed in: you cannot pay into what you no
+  // longer hold. The month of the sale still takes its contribution, so the
+  // balance that is sold is the one the statement would show.
+  const sold = Math.trunc(Number(field.sellMonth) || 0);
+  if (sold && month > sold) return 0;
+
   // Counted from the start, so a yearly amount beginning in month 3 lands in
   // months 3, 15, 27 rather than on a calendar nobody set. With no start of
   // its own the count runs from month 0, which is what every field written
@@ -367,10 +373,11 @@ export function flowIn(fields, direction, month) {
  *   fields: Array<object>, months: number,
  *   monthlyIncome: number, monthlyExpenses: number, monthlyNet: number,
  *   points: Array<{month: number, income: number, expenses: number, net: number,
- *                  invested: number, contributed: number, profit: number,
+ *                  invested: number, contributed: number, proceeds: number,
+ *                  profit: number,
  *                  owned: number, debt: number, worth: number}>,
  *   totals: {income: number, expenses: number, net: number, invested: number,
- *            contributed: number, profit: number,
+ *            contributed: number, proceeds: number, profit: number,
  *            owned: number, debt: number, worth: number}
  * }}
  */
@@ -396,7 +403,11 @@ export function project(input = {}) {
   // the other way is money owed *to* you, which is something you own.
   const assets = fields.filter((field) => field.kind === 'asset');
   const loans = fields.filter((field) => field.kind === 'loan');
-  const values = new Map(assets.map((field) => [field.id, toAmount(field.amount)]));
+  // Worth nothing until the month you acquire it — the same rule a loan
+  // follows for the month its money arrives.
+  const values = new Map(assets.map(
+    (field) => [field.id, startOf(field) === 0 ? toAmount(field.amount) : 0],
+  ));
   // A loan not yet drawn is not yet a debt: only one taken from the outset is
   // owed at month 0.
   const owing = new Map(loans.map(
@@ -419,6 +430,7 @@ export function project(input = {}) {
     net: 0,
     invested: 0,
     contributed: 0,
+    proceeds: 0,
     profit: 0,
     owned: ownedNow(),
     debt: debtNow(),
@@ -426,6 +438,8 @@ export function project(input = {}) {
   }];
   let income = 0;
   let expenses = 0;
+  /** What cashing investments in has brought in, cumulative. */
+  let proceeds = 0;
   for (let month = 1; month <= months; month += 1) {
     income = roundMoney(income + flowIn(fields, 'income', month));
     expenses = roundMoney(expenses + flowIn(fields, 'expense', month));
@@ -443,7 +457,34 @@ export function project(input = {}) {
       contributed = roundMoney(contributed + paid);
     }
 
+    // Cashing in is the one moment an investment moves money the other way:
+    // the balance stops being a holding and becomes money in the account. It
+    // joins income because that is what it is — money arriving — and the
+    // contributions that built it left as outgoings, so over the whole life
+    // what remains in `net` is exactly the gain. `worth` does not move on the
+    // day of a sale, which is the test that it is a conversion and not a
+    // windfall.
+    for (const field of investments) {
+      const sold = Math.trunc(Number(field.sellMonth) || 0);
+      if (sold !== month) continue;
+      const balance = balances.get(field.id) || 0;
+      if (!balance) continue;
+      income = roundMoney(income + balance);
+      balances.set(field.id, 0);
+      invested = roundMoney(invested - balance);
+      // Remembered because `contributed` still counts what was paid into it:
+      // without the proceeds beside them, selling a fund at a gain would read
+      // as having lost every penny ever paid in.
+      proceeds = roundMoney(proceeds + balance);
+    }
+
     for (const field of assets) {
+      const from = startOf(field);
+      // Not yours yet, so worth nothing to you.
+      if (month < from) { values.set(field.id, 0); continue; }
+      // The month it becomes yours it is worth what it cost; it appreciates
+      // from there, not before.
+      if (month === from) { values.set(field.id, toAmount(field.amount)); continue; }
       // An asset simply appreciates — or does not, at the default of no rate.
       values.set(field.id, roundMoney(values.get(field.id) * (1 + monthlyGrowth(field.annualRate))));
     }
@@ -483,7 +524,11 @@ export function project(input = {}) {
       net,
       invested,
       contributed,
-      profit: afterTax(invested - contributed, taxRate),
+      proceeds,
+      // What the investments have made: what they are worth now, plus whatever
+      // selling them brought in, less everything paid into them. A holding sold
+      // at a gain keeps that gain here — it did not stop having happened.
+      profit: afterTax(invested + proceeds - contributed, taxRate),
       owned,
       debt,
       worth: roundMoney(net + invested + owned - debt),
@@ -562,7 +607,7 @@ const DERIVED = [
   ['worth', (p) => p.net + p.invested + p.owned - p.debt],
   // Restated from the restated parts, and at the rate the projection was run
   // with, so the profit on screen is always the gain on screen less its tax.
-  ['profit', (p, projection) => afterTax(p.invested - p.contributed, projection.taxRate)],
+  ['profit', (p, projection) => afterTax(p.invested + p.proceeds - p.contributed, projection.taxRate)],
 ];
 
 export function inTodaysMoney(projection, annualRate) {

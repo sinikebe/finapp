@@ -24,11 +24,31 @@ test('a horizon of N months yields N + 1 points, starting at zero', () => {
     net: 0,
     invested: 0,
     contributed: 0,
+    proceeds: 0,
     profit: 0,
     owned: 0,
     debt: 0,
     worth: 0,
   }, 'every series starts at nothing');
+});
+
+test('a fund sold at a gain still counts as a gain', () => {
+  // `contributed` keeps counting what was paid in, so without the proceeds
+  // beside it, selling would read as having lost every penny ever paid.
+  const sold = createField({ kind: 'investment', amount: '100', annualRate: '6', sellMonth: 24 });
+  const end = project({ fields: [sold], months: 36, taxRate: '0' }).points[36];
+  assert.equal(end.invested, 0, 'nothing held any more');
+  assert.equal(end.contributed, 2400, 'but this is still what went in');
+  assert.ok(end.proceeds > 2400, 'and it sold for more than that');
+  assert.equal(end.profit, roundMoney(end.proceeds - end.contributed), 'so the gain is the gain');
+  assert.ok(end.profit > 0, 'never a loss for having sold at a profit');
+
+  // Held or sold, the same fund has made the same money by the same month.
+  const held = createField({ kind: 'investment', amount: '100', annualRate: '6', endMonth: 24 });
+  const heldEnd = project({ fields: [held], months: 24, taxRate: '0' }).points[24];
+  const soldEnd = project({ fields: [sold], months: 24, taxRate: '0' }).points[24];
+  assert.equal(soldEnd.profit, heldEnd.profit);
+  assert.equal(soldEnd.worth, heldEnd.worth);
 });
 
 test('each series accumulates every field pointing that way', () => {
@@ -887,10 +907,25 @@ test('an investment can be paid into for a while and then left alone', () => {
   assert.ok(result.points[120].invested > result.points[60].invested, 'but it kept growing');
 });
 
-test('an asset never carries a window, because it never lands', () => {
+test('an asset is acquired at a month, and never stops being owned', () => {
   const house = createField({ kind: 'asset', amount: '250000', startMonth: 12, endMonth: 40 });
-  assert.equal(house.startMonth, 0);
-  assert.equal(house.endMonth, 0);
+  assert.equal(house.startMonth, 12, 'the month you come to own it is yours to set');
+  assert.equal(house.endMonth, 0, 'but you do not stop owning a thing');
+});
+
+test('a thing bought later is worth nothing before it is bought', () => {
+  // Without this a plan to buy in five years counts the flat from today, which
+  // flatters exactly the plan that has not bought it yet.
+  const house = createField({ kind: 'asset', amount: '100000', annualRate: '1.5', startMonth: 60 });
+  const result = project({ fields: [house], months: 72 });
+  assert.equal(result.points[0].owned, 0);
+  assert.equal(result.points[59].owned, 0, 'still nothing the month before');
+  assert.equal(result.points[60].owned, 100000, 'worth what it cost the month it is yours');
+  assert.ok(result.points[72].owned > 100000, 'and appreciating from there, not before');
+  // Owned from the outset is what every asset written before this reads as.
+  const already = createField({ kind: 'asset', amount: '100000' });
+  assert.equal(already.startMonth, 0);
+  assert.equal(project({ fields: [already], months: 1 }).points[0].owned, 100000);
 });
 
 test('a window is coerced, never trusted', () => {

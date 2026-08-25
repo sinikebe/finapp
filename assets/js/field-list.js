@@ -190,6 +190,22 @@ export function createFieldList(options) {
     from.autocomplete = 'off';
     fromLabel.htmlFor = from.id;
 
+    // Only an investment can be cashed in, so this sits with the window rather
+    // than beside the amount: it is a date, and it is when the holding ends.
+    const sellLabel = html('label', 'sr-only', window);
+    const sellWrap = html('span', 'field-when field-when-sell', window);
+    const sellUnit = html('span', 'when-word', sellWrap);
+    const sellWordFull = html('span', 'unit-full', sellUnit);
+    const sellWordShort = html('span', 'unit-short', sellUnit);
+    const sell = html('input', 'field-sell', sellWrap);
+    sell.type = 'number';
+    sell.id = `field-${field.id}-sell`;
+    sell.inputMode = 'numeric';
+    sell.min = '1';
+    sell.step = '1';
+    sell.autocomplete = 'off';
+    sellLabel.htmlFor = sell.id;
+
     const toLabel = html('label', 'sr-only', window);
     const toWrap = html('span', 'field-when field-when-to', window);
     const toUnit = html('span', 'when-word', toWrap);
@@ -229,6 +245,7 @@ export function createFieldList(options) {
       window,
       from, fromLabel, fromWrap, fromWordFull, fromWordShort,
       to, toLabel, toWrap, toWordFull, toWordShort,
+      sell, sellLabel, sellWrap, sellWordFull, sellWordShort,
       fees, feesLabel, feesWrap, feesUnitFull, feesUnitShort,
       rate, rateLabel, rateWrap, rateUnitFull, rateUnitShort,
       term, termLabel, termWrap, termUnitFull, termUnitShort,
@@ -274,6 +291,8 @@ export function createFieldList(options) {
     // An empty box is "not set", which the model reads as 0 — from the
     // beginning, or with no end.
     from.addEventListener('input', () => onCommand({ type: 'update', id, patch: { startMonth: from.value } }));
+    sell.addEventListener('input', () => onCommand({ type: 'update', id, patch: { sellMonth: sell.value } }));
+    sell.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { sellMonth: sell.value } }));
     to.addEventListener('input', () => onCommand({ type: 'update', id, patch: { endMonth: to.value } }));
 
     sync.addEventListener('click', () => onCommand({ type: 'sync', id }));
@@ -320,16 +339,26 @@ export function createFieldList(options) {
     setVisible(row.feesWrap, row.feesLabel, isLoan);
     // A one-off has a month rather than a window; a loan's term is its end; an
     // asset never lands at all.
-    setVisible(row.fromWrap, row.fromLabel, !isAsset);
+    // An asset takes a start too, now that owning one can begin at a month.
+    setVisible(row.fromWrap, row.fromLabel, true);
     setVisible(row.toWrap, row.toLabel, !isAsset && !isLoan && !isOnce);
+    setVisible(row.sellWrap, row.sellLabel, isInvestment);
     // An empty group would still take its gap in the row.
-    row.window.hidden = isAsset;
+    // Every kind carries a window of some sort now; which boxes it shows is
+    // settled above, kind by kind.
+    row.window.hidden = false;
 
-    row.fromLabel.textContent = isOnce ? labels.onceMonth : labels.from;
+    row.fromLabel.textContent = isOnce ? labels.onceMonth : (isAsset ? labels.ownedFrom : labels.from);
     row.fromWordFull.textContent = isOnce ? labels.onceWord : labels.fromWord;
     row.fromWordShort.textContent = isOnce ? labels.onceWordShort : labels.fromWordShort;
     row.from.placeholder = '';
     syncValue(row.from, field.startMonth ? String(field.startMonth) : '');
+
+    row.sellLabel.textContent = labels.sell;
+    row.sellWordFull.textContent = labels.sellWord;
+    row.sellWordShort.textContent = labels.sellWordShort;
+    row.sell.placeholder = '';
+    syncValue(row.sell, field.sellMonth ? String(field.sellMonth) : '');
 
     row.toLabel.textContent = labels.to;
     row.toWordFull.textContent = labels.toWord;

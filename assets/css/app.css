@@ -509,6 +509,7 @@ main {
   padding-left: 46px;
 }
 .field-when-to input { padding-left: 36px; }
+.field-when-sell { flex: 0 1 168px; }
 .field-when .unit-full { display: none; }
 .field-when .when-word {
   position: absolute;
