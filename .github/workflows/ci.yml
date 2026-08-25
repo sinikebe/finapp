@@ -33,6 +33,13 @@ jobs:
             echo "No base commit to compare against — nothing to check."
             exit 0
           fi
+          # A force-push leaves `before` pointing at a commit that is no longer
+          # reachable, and `git diff` against it aborts. There is nothing to
+          # compare in that case; the run for the new head does the checking.
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "Base commit $base is gone (history was rewritten) — nothing to compare."
+            exit 0
+          fi
           changed=$(git diff --name-only "$base" HEAD -- index.html manifest.webmanifest assets)
           if [ -z "$changed" ]; then
             echo "No precached file changed."
