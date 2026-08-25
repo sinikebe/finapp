@@ -224,6 +224,13 @@ const PLAN = Object.freeze({
   /** The loan's repayment less the rent: what a renter has spare each month. */
   spare: '54.60',
   /**
+   * What housing stops costing once it is paid for — the whole repayment, less
+   * the property tax that replaces it. It goes back into the fund, in every
+   * plan, from the month that plan stops paying for its housing. Anything else
+   * would compare what people do with spare cash rather than when they bought.
+   */
+  after: '487.93',
+  /**
    * Months between getting the keys and the first property-tax bill. It is
    * levied on whoever owns in January and billed the autumn after, so it never
    * lands on the day of the purchase — which is just as well, since a buyer
@@ -274,6 +281,12 @@ export function defaultStrategies() {
       labelKey: 'field.default.propertyTax', direction: 'expense',
       amount: PLAN.tax, periodMonths: 12, startMonth: buy + PLAN.taxLag,
     }),
+    // The month after the last rent: the housing money is free again, so it
+    // goes where it was going before.
+    createField({
+      labelKey: 'field.default.fundAfter', kind: 'investment',
+      amount: PLAN.after, annualRate: PLAN.fundRate, startMonth: buy + 1,
+    }),
   ];
 
   return [
@@ -295,6 +308,13 @@ export function defaultStrategies() {
         createField({
           labelKey: 'field.default.propertyTax', direction: 'expense',
           amount: PLAN.tax, periodMonths: 12, startMonth: PLAN.taxLag,
+        }),
+        // The borrower's housing is paid for when the last repayment lands, so
+        // this does nothing inside the default horizon — and everything beyond
+        // it, which is exactly why it is here rather than left out.
+        createField({
+          labelKey: 'field.default.fundAfter', kind: 'investment',
+          amount: PLAN.after, annualRate: PLAN.fundRate, startMonth: PLAN.term + 1,
         }),
       ],
     }),
