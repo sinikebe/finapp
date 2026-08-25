@@ -68,9 +68,10 @@ months, not a name**, so the projection can do arithmetic with it and a new one
 - **Loan** — you enter **the amount you need**, any fees the lender adds to it,
   the yearly interest rate and the number of monthly payments; the app works
   out the level repayment (the standard amortisation formula) and charges it
-  every month until the term runs out. The row says what it worked out to,
-  interest included. A loan points either way: outgoing when you repay one,
-  incoming when you are repaid.
+  every month until the term runs out. **The interest is added to what you
+  entered, never taken out of it**: ask for 100,000 and you owe 100,000, repay
+  127,279.20 over ten years at 5%, and the row says both figures. A loan points
+  either way: outgoing when you repay one, incoming when you are repaid.
 - **Investment** — you enter what goes in, how often, and the yearly return.
   The contributions leave your cash like any other outgoing, and the balance
   compounds monthly: growth first, then the month's contribution, because money
@@ -100,6 +101,13 @@ and every repayment amortises the larger sum. `borrowedOf(field)` is the one
 place that decides it, and everything that repays, amortises or is owed reads
 from there rather than from the amount. The fees are not interest and the row
 does not call them that: a 0% loan with fees still costs exactly its fees.
+
+The row says all of it in one line, and says it in the right direction. It used
+to end "27,279.20 of that is interest", where *that* attached to the amount just
+typed and read as though the interest came out of the 100,000 rather than being
+added to it. It now names the total repaid outright — "27,279.20 of interest on
+top, 127,279.20 repaid in all" — because a figure that can be read two ways in a
+money app is a figure that will be.
 
 Fees default to none, so every loan written before they existed borrows exactly
 its amount — nothing already stored changes meaning. The two ways of saying the
