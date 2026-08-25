@@ -245,7 +245,23 @@ billed six months after the keys, because a buyer who has just spent everything
 cannot pay a bill the same month.
 
 None of this touches a plan you have already made: the defaults are only
-consulted when there is nothing stored.
+consulted when there is nothing stored — and **Start again**, in the About
+panel, puts them back when you want them.
+
+It asks first. It is the one action in the app that throws something away, so
+it takes two deliberate clicks and the second is labelled *Replace everything*
+rather than *OK*; focus lands on keeping what you have, so a stray Return does
+the safe thing, and the question is asked from scratch each time the panel
+opens, since a confirm left standing from last time is one a stray click
+answers. It writes the store at once rather than through the usual quarter-second
+debounce: this is the one edit where a tab closed a moment later must not leave
+the old plans in storage and the new ones on screen.
+
+Both the first load and the reset read from one `defaultState()`, so the button
+is guaranteed to land you exactly where a new reader lands rather than
+approximately. Your **language and theme are left alone** — they are
+preferences about reading the app, not part of the plan, and they live under
+their own keys.
 
 ## Strategies
 

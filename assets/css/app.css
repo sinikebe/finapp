@@ -1241,3 +1241,36 @@ main {
   color: var(--text-muted);
 }
 .about-what { margin: 0; font-size: 13.5px; color: var(--text-secondary); }
+
+.about-reset {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--grid-line);
+}
+.about-reset .hint { margin: 0; flex: 1 1 220px; }
+
+.about-confirm {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+}
+.about-confirm p { margin: 0 0 10px; font-size: 13.5px; }
+.about-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* The one button in the app that throws something away. Named in words on the
+   button itself, so the colour is a second cue and never the only one. */
+.ghost-button.is-grave {
+  border-color: var(--status-critical);
+  color: var(--status-critical);
+}
+.ghost-button.is-grave:hover {
+  background: var(--status-critical);
+  border-color: var(--status-critical);
+  color: var(--surface-1);
+}
