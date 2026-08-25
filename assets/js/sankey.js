@@ -447,9 +447,12 @@ export function createSankey({ mount, id, title, description, labels, formatValu
 
   return {
     update(next) {
-      // Every ribbon is about to be rescaled, so a reading taken before this
-      // names an amount and a width that are both about to stop being true.
-      hideTip();
+      // A redraw that moves a ribbon invalidates any reading taken from it —
+      // but a redraw that changes nothing must not, or a tap that merely blurs
+      // an input would clear the reading that same tap just asked for. Same
+      // flows in the same order means every ribbon lands where it already is.
+      const flows = (list) => list.map((entry) => `${entry.id}:${entry.value}`).join('|');
+      const before = `${flows(state.sources)}/${flows(state.sinks)}`;
       state = {
         sources: next.sources || [],
         sinks: next.sinks || [],
@@ -476,6 +479,7 @@ export function createSankey({ mount, id, title, description, labels, formatValu
       nameTh.textContent = labels.nameColumn;
       flowTh.textContent = labels.flowColumn;
       shareTh.textContent = labels.shareColumn;
+      if (`${flows(state.sources)}/${flows(state.sinks)}` !== before) hideTip();
       if (tableRendered) renderTable();
       else tbody.textContent = '';
       draw();
