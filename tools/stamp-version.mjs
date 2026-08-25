@@ -25,7 +25,24 @@ const sw = await readFile(new URL('sw.js', ROOT), 'utf8');
 const version = sw.match(/^const CACHE_VERSION = '([^']+)'/m)?.[1];
 if (!version) throw new Error('sw.js has no CACHE_VERSION to read');
 
-const branch = git('rev-parse', '--abbrev-ref', 'HEAD');
+/**
+ * The *published* branch this build's base sits on, not the working branch.
+ * Work happens on a throwaway branch that is squashed into `main` and deleted,
+ * so recording the local name would put a branch nobody can look up into the
+ * panel of every deployed build. When the base is not on a remote branch yet —
+ * a local commit, a fork — the working branch is the only true answer, so that
+ * is what it falls back to.
+ */
+function branchOf() {
+  const remote = git('branch', '--remotes', '--contains', 'HEAD')
+    .split('\n')
+    .map((line) => line.trim().replace(/^origin\//, ''))
+    .filter((name) => name && !name.includes('->'));
+  if (remote.includes('main')) return 'main';
+  return remote[0] || git('rev-parse', '--abbrev-ref', 'HEAD');
+}
+
+const branch = branchOf();
 const commit = git('rev-parse', '--short', 'HEAD');
 const date = git('log', '-1', '--format=%ad', '--date=short');
 
