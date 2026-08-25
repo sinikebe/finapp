@@ -601,8 +601,13 @@ function sankeyData(projection) {
     value: shares[index],
     tone,
   });
-  const sources = incoming.map((entry, index) => named(entry, index, inShares, 'income'));
-  const sinks = outgoing.map((entry, index) => named(entry, index, outShares, 'expense'));
+  // A share that rounds away to nothing is not a flow — the same rule the
+  // leftover node follows. Left in, it would take the sliver every drawn flow
+  // is guaranteed and sit in the table as "0 · 0%".
+  const sources = incoming.map((entry, index) => named(entry, index, inShares, 'income'))
+    .filter((entry) => entry.value > 0);
+  const sinks = outgoing.map((entry, index) => named(entry, index, outShares, 'expense'))
+    .filter((entry) => entry.value > 0);
 
   // What is left over is a destination like any other. When it is negative the
   // same node changes sides: the money had to come from somewhere, and saying
@@ -621,13 +626,29 @@ function sankeyData(projection) {
     id: 'shortfall', label: t('sankey.shortfall'), value: -net, tone: 'net',
   });
 
+  // Shares are worked out once, over every field, and then carried by whichever
+  // node shows it. A pooled node takes the sum of what it pooled, so the
+  // tooltip and the table can never give one field two percentages.
+  const sourceCount = sources.length + (net < 0 ? 1 : 0);
+  const shares = [
+    ...shareOut(100, rows.slice(0, sourceCount).map((entry) => entry.value)),
+    ...shareOut(100, rows.slice(sourceCount).map((entry) => entry.value)),
+  ];
+  rows.forEach((entry, index) => { entry.share = shares[index]; });
+  const shareOfId = new Map(rows.map((entry) => [entry.id, entry.share]));
+  const carryShare = (list, pooled) => list.forEach((entry) => {
+    entry.share = shareOfId.has(entry.id)
+      ? shareOfId.get(entry.id)
+      : roundToCent(pooled.reduce((sum, hidden) => sum + (hidden.share || 0), 0));
+  });
+  carryShare(drawnSources, sources.filter((e) => !drawnSources.some((d) => d.id === e.id)));
+  carryShare(drawnSinks, sinks.filter((e) => !drawnSinks.some((d) => d.id === e.id)));
+
   return {
     sources: drawnSources,
     sinks: drawnSinks,
     rows,
-    // Where the source side of `rows` ends, so each side's shares can be
-    // apportioned out of its own hundred.
-    sourceCount: sources.length + (net < 0 ? 1 : 0),
+    sourceCount,
     total: net >= 0 ? projection.totals.income : projection.totals.expenses,
   };
 }
@@ -689,7 +710,12 @@ function renderSankey(projection) {
   const data = sankeyData(projection);
   // Two nodes is not a diagram, it is a sentence — and the summary already says
   // it. The flow appears once something actually splits.
-  const worth = hasAmounts(projection) && data.sources.length + data.sinks.length >= 3;
+  // Both gates read the same quantity the drawing does: a restatement can round
+  // every flow away, and a section that appears only to say "give a field an
+  // amount" is worse than one that stays out of the way.
+  const worth = hasAmounts(projection)
+    && data.total > 0
+    && data.sources.length + data.sinks.length >= 3;
   ui.sankey.hidden = !worth;
   if (!worth) return;
 
