@@ -30,6 +30,7 @@
     </p>
     <div class="app-bar-actions">
       <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
+      <button id="about-open" class="ghost-button" type="button" data-i18n="about.open">About</button>
       <button id="lang" class="ghost-button" type="button" aria-label="Language: English. Switch to French">
         <span id="lang-label" aria-hidden="true">EN</span>
       </button>
@@ -197,6 +198,33 @@
   <footer class="app-footer">
     <p data-i18n="footer.note">Everything is calculated on your device and saved only in this browser. No account, no network.</p>
   </footer>
+
+  <!-- A dialog rather than a second page: it inherits the theme, the language
+       and the shell the app already has, instead of keeping a second copy of
+       each in step. -->
+  <dialog id="about" class="about" aria-labelledby="about-heading">
+    <div class="about-head">
+      <h2 id="about-heading" data-i18n="about.heading">About Finapp</h2>
+      <button id="about-close" class="icon-button" type="button" data-i18n-aria="about.close">
+        <!-- `.action-icon` is what gives every other icon in the app its
+             stroke; a bare path inherits fill and draws nothing. -->
+        <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M7 7l10 10M17 7L7 17" />
+        </svg>
+      </button>
+    </div>
+
+    <dl class="about-build">
+      <div><dt data-i18n="about.version">Version</dt><dd id="about-version">—</dd></div>
+      <div><dt data-i18n="about.branch">Branch</dt><dd id="about-branch">—</dd></div>
+      <div><dt data-i18n="about.commit">Built from</dt><dd id="about-commit">—</dd></div>
+      <div><dt data-i18n="about.date">Date</dt><dd id="about-date">—</dd></div>
+    </dl>
+    <p class="hint" id="about-note" data-i18n="about.note"></p>
+
+    <h3 data-i18n="about.changes">What changed</h3>
+    <ol class="about-log" id="about-log"></ol>
+  </dialog>
 
   <div class="toast" id="update-toast" role="status" hidden>
     <span data-i18n="update.ready">A new version is ready.</span>
