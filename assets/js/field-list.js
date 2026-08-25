@@ -116,6 +116,23 @@ export function createFieldList(options) {
     amount.placeholder = '0';
     amountLabel.htmlFor = amount.id;
 
+    // Beside the amount, because the two are read together: what you need, and
+    // what the lender adds to it.
+    const feesLabel = html('label', 'sr-only', controls);
+    const feesWrap = html('span', 'field-unit field-unit-fees', controls);
+    const fees = html('input', 'field-fees', feesWrap);
+    const feesUnit = html('span', 'unit', feesWrap);
+    const feesUnitFull = html('span', 'unit-full', feesUnit);
+    const feesUnitShort = html('span', 'unit-short', feesUnit);
+    fees.type = 'number';
+    fees.id = `field-${field.id}-fees`;
+    fees.inputMode = 'decimal';
+    fees.min = '0';
+    fees.step = 'any';
+    fees.autocomplete = 'off';
+    fees.placeholder = '0';
+    feesLabel.htmlFor = fees.id;
+
     const periodLabel = html('label', 'sr-only', controls);
     const period = html('select', 'field-period', controls);
     period.id = `field-${field.id}-period`;
@@ -212,6 +229,7 @@ export function createFieldList(options) {
       window,
       from, fromLabel, fromWrap, fromWordFull, fromWordShort,
       to, toLabel, toWrap, toWordFull, toWordShort,
+      fees, feesLabel, feesWrap, feesUnitFull, feesUnitShort,
       rate, rateLabel, rateWrap, rateUnitFull, rateUnitShort,
       term, termLabel, termWrap, termUnitFull, termUnitShort,
       derived, sync, duplicate, remove, shown: '',
@@ -239,6 +257,16 @@ export function createFieldList(options) {
     amount.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { amount: amount.value } }));
     kind.addEventListener('change', () => onCommand({ type: 'update', id, patch: { kind: kind.value } }));
     period.addEventListener('change', () => onCommand({ type: 'update', id, patch: { periodMonths: period.value } }));
+    fees.addEventListener('input', () => {
+      // Negative fees would be a lender paying you to borrow; the same rule the
+      // amount follows, for the same reason.
+      const typed = Number(fees.value);
+      if (fees.value !== '' && Number.isFinite(typed) && typed < 0) {
+        fees.value = String(Math.abs(typed));
+      }
+      onCommand({ type: 'update', id, patch: { fees: fees.value } });
+    });
+    fees.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { fees: fees.value } }));
     rate.addEventListener('input', () => onCommand({ type: 'update', id, patch: { annualRate: rate.value } }));
     rate.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { annualRate: rate.value } }));
     term.addEventListener('input', () => onCommand({ type: 'update', id, patch: { termMonths: term.value } }));
@@ -288,6 +316,8 @@ export function createFieldList(options) {
     // one-off has no years to do it over, so it is the one kind without one.
     setVisible(row.rateWrap, row.rateLabel, !isOnce);
     setVisible(row.termWrap, row.termLabel, isLoan);
+    // Only a loan has anything added to what it lends.
+    setVisible(row.feesWrap, row.feesLabel, isLoan);
     // A one-off has a month rather than a window; a loan's term is its end; an
     // asset never lands at all.
     setVisible(row.fromWrap, row.fromLabel, !isAsset);
@@ -310,6 +340,12 @@ export function createFieldList(options) {
     row.amountLabel.textContent = labels.amountFor(field.kind);
     row.amount.placeholder = '0';
     syncValue(row.amount, field.amount);
+
+    row.feesLabel.textContent = labels.fees;
+    row.feesUnitFull.textContent = labels.feesUnit;
+    row.feesUnitShort.textContent = labels.feesUnitShort;
+    row.fees.placeholder = '0';
+    syncValue(row.fees, field.fees);
 
     row.rateLabel.textContent = labels.rateFor(field.kind);
     row.rate.placeholder = '0';

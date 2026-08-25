@@ -65,11 +65,12 @@ months, not a name**, so the projection can do arithmetic with it and a new one
   it a rate, in which case it climbs by that much a year.
 - **One-off** — it happens in one month and is done: a car, a deposit, a
   bonus. Its month is the only timing it has.
-- **Loan** — you enter what was borrowed, the yearly interest rate and the
-  number of monthly payments; the app works out the level repayment (the
-  standard amortisation formula) and charges it every month until the term
-  runs out. The row says what it worked out to, interest included. A loan
-  points either way: outgoing when you repay one, incoming when you are repaid.
+- **Loan** — you enter **the amount you need**, any fees the lender adds to it,
+  the yearly interest rate and the number of monthly payments; the app works
+  out the level repayment (the standard amortisation formula) and charges it
+  every month until the term runs out. The row says what it worked out to,
+  interest included. A loan points either way: outgoing when you repay one,
+  incoming when you are repaid.
 - **Investment** — you enter what goes in, how often, and the yearly return.
   The contributions leave your cash like any other outgoing, and the balance
   compounds monthly: growth first, then the month's contribution, because money
@@ -84,6 +85,28 @@ Three invariants belong to the model rather than the form, so a hand-edited
 store can't break them: an investment is always money going out, a loan always
 repays monthly whatever period is stored against it, and something you own has
 neither a direction nor a period, because it never lands.
+
+#### What you need, not what the bank lends
+
+The amount on a loan is what you want **in hand**. Fees are entered beside it
+and added on top, because that is the direction the arithmetic actually runs in:
+a reader who needs 200,000 knows the 200,000, and it is the bank that decides
+what has to be borrowed to hand it over. Asking for the total instead makes them
+solve for it — enter 200,000, read the fees off the offer, add them, retype
+203,000 — and get it subtly wrong every time the fee changes.
+
+So the fees are lent along with the loan: you receive 200,000, you owe 203,000,
+and every repayment amortises the larger sum. `borrowedOf(field)` is the one
+place that decides it, and everything that repays, amortises or is owed reads
+from there rather than from the amount. The fees are not interest and the row
+does not call them that: a 0% loan with fees still costs exactly its fees.
+
+Fees default to none, so every loan written before they existed borrows exactly
+its amount — nothing already stored changes meaning. The two ways of saying the
+same loan agree in every figure, which is what makes this a change to what you
+type rather than to what it means: 200,000 needed with 3,000 of fees and a flat
+203,000 produce identical repayments, identical debt and identical worth. A test
+asserts that on the whole projection, point by point.
 
 ### An amount that climbs
 

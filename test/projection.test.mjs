@@ -6,7 +6,7 @@ import {
   seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
   flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf,
   grownBy, yearsRunning, fieldTotalOf, shareOut,
-  loanPayment, loanInterest, monthlyRate,
+  loanPayment, loanInterest, borrowedOf, monthlyRate,
   toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
 import { createField, normalizeFields } from '../assets/js/fields.js';
@@ -291,6 +291,67 @@ test('interest is what a loan costs beyond what was borrowed', () => {
   assert.equal(loanInterest(loan('12000', '0', 24)), 0);
   const borrowed = loan('18000', '5.9', 48);
   assert.equal(loanInterest(borrowed), roundMoney(421.91 * 48 - 18000));
+});
+
+test('a loan borrows what you need plus the fees on top', () => {
+  const withFees = createField({
+    kind: 'loan', direction: 'expense', amount: '200000', fees: '3000', annualRate: '4.5', termMonths: 300,
+  });
+  assert.equal(borrowedOf(withFees), 203000);
+  // The amount is what reaches you; the payment is worked out on what the bank
+  // actually lends, which is the whole point of entering it this way round.
+  assert.equal(contributionOf(withFees, 1), loanPayment('203000', '4.5', 300));
+  assert.notEqual(contributionOf(withFees, 1), loanPayment('200000', '4.5', 300));
+});
+
+test('no fees means the loan borrows exactly its amount, as it always did', () => {
+  const plain = loan('200000', '4.5', 300);
+  assert.equal(borrowedOf(plain), 200000);
+  assert.equal(contributionOf(plain, 1), 1111.66);
+  // Every loan stored before fees existed carries none, so nothing moved.
+  assert.equal(createField({ kind: 'loan' }).fees, '');
+  assert.equal(borrowedOf(loan('12000', '0', 24)), 12000);
+});
+
+test('entering the amount you need is the same as entering the old total', () => {
+  // The two ways of saying the same loan must agree in every figure, which is
+  // what makes this a change of what you type rather than of what it means.
+  const needed = createField({
+    kind: 'loan', direction: 'expense', amount: '18000', fees: '600', annualRate: '5.9', termMonths: 48,
+  });
+  const total = loan('18600', '5.9', 48);
+  assert.equal(borrowedOf(needed), borrowedOf(total));
+  assert.equal(loanInterest(needed), loanInterest(total));
+  assert.equal(outstandingOf(needed, 12), outstandingOf(total, 12));
+  const a = project({ fields: [needed], months: 60 });
+  const b = project({ fields: [total], months: 60 });
+  assert.deepEqual(a.points, b.points);
+});
+
+test('fees are owed, not interest', () => {
+  const field = createField({
+    kind: 'loan', direction: 'expense', amount: '10000', fees: '500', annualRate: '0', termMonths: 10,
+  });
+  // At 0% nothing is interest, however large the fees.
+  assert.equal(loanInterest(field), 0);
+  // The debt is what was lent, fees included, from the month it is drawn.
+  assert.equal(outstandingOf(field, 0), 10500);
+  const result = project({ fields: [field], months: 12 });
+  assert.equal(result.points[0].debt, 10500);
+  assert.equal(result.points[10].debt, 0);
+  // 10,500 repaid to receive 10,000: the fees are exactly what it cost.
+  assert.equal(result.totals.expenses, 10500);
+  assert.equal(result.points[10].worth, -10500);
+});
+
+test('fees alone still make a debt, and still count as an amount', () => {
+  const field = createField({
+    kind: 'loan', direction: 'expense', amount: '', fees: '400', annualRate: '0', termMonths: 4,
+  });
+  const result = project({ fields: [field], months: 6 });
+  assert.equal(hasDebt(result), true);
+  assert.equal(hasAmounts(result), true, 'or the tile would contradict the chart');
+  assert.equal(result.points[0].debt, 400);
 });
 
 test('a loan ignores the period control: repayments are monthly', () => {

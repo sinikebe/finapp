@@ -473,6 +473,7 @@ main {
 .field-unit { position: relative; display: flex; min-width: 0; }
 .field-unit-rate { flex: 0 1 148px; }
 .field-unit-term { flex: 0 1 140px; }
+.field-unit-fees { flex: 0 1 150px; }
 .field-unit input {
   flex: 1 1 auto;
   text-align: right;
@@ -491,6 +492,7 @@ main {
 }
 .field-unit-rate input { padding-right: 62px; }
 .field-unit-term input { padding-right: 56px; }
+.field-unit-fees input { padding-right: 54px; }
 
 /* When a field runs. The word leads — "from month 6" is a phrase, and a unit
    trailing the number would read as "6 from month". Same box, mirrored. */

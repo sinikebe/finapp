@@ -51,7 +51,7 @@ const STRINGS = {
     'field.kind.asset': 'Something you own',
     'field.amount.plain': 'Amount each time',
     'field.amount.once': 'Amount, once',
-    'field.amount.loan': 'Amount borrowed',
+    'field.amount.loan': 'Amount you need',
     'field.amount.investment': 'Amount invested each time',
     'field.amount.asset': 'What it is worth today',
     'field.rate.loan': 'Interest rate a year, as a percentage',
@@ -60,6 +60,9 @@ const STRINGS = {
     'field.rate.asset': 'How much it gains a year, as a percentage',
     'field.rateUnit': '% a year',
     'field.rateUnitShort': '%',
+    'field.fees': 'Fees the lender adds to the loan',
+    'field.feesUnit': 'in fees',
+    'field.feesUnitShort': 'fees',
     'field.termUnit': 'months',
     'field.termUnitShort': 'mo',
     'field.term': 'Number of monthly payments',
@@ -76,6 +79,10 @@ const STRINGS = {
       `Climbing ${rate}% a year · ${amount} a time by month ${months}`,
     'field.loanSummary': (payment, term, interest) =>
       `${payment} a month for ${term} ${term === 1 ? 'month' : 'months'} · ${interest} of that is interest`,
+    // Only when there are fees: the sum that is actually lent is no longer
+    // the one the reader typed, so it is the fact the line has to carry.
+    'field.loanSummaryFees': (payment, term, borrowed, received, interest) =>
+      `${payment} a month for ${term} ${term === 1 ? 'month' : 'months'} · ${borrowed} borrowed to receive ${received} · ${interest} of that is interest`,
     'field.period': 'How often it lands',
     'field.period.1': 'Every month',
     'field.period.3': 'Every quarter',
@@ -265,7 +272,7 @@ const STRINGS = {
     'field.kind.asset': 'Un bien que vous possédez',
     'field.amount.plain': 'Montant à chaque fois',
     'field.amount.once': 'Montant, une seule fois',
-    'field.amount.loan': 'Montant emprunté',
+    'field.amount.loan': 'Montant dont vous avez besoin',
     'field.amount.investment': 'Montant investi à chaque fois',
     'field.amount.asset': 'Sa valeur aujourd’hui',
     'field.rate.loan': 'Taux d’intérêt annuel, en pourcentage',
@@ -274,6 +281,9 @@ const STRINGS = {
     'field.rate.asset': 'Ce qu’il prend de valeur par an, en pourcentage',
     'field.rateUnit': '% par an',
     'field.rateUnitShort': '%',
+    'field.fees': 'Frais que le prêteur ajoute au prêt',
+    'field.feesUnit': 'de frais',
+    'field.feesUnitShort': 'frais',
     'field.termUnit': 'mois',
     'field.termUnitShort': 'mois',
     'field.term': 'Nombre de mensualités',
@@ -290,6 +300,8 @@ const STRINGS = {
       `+${rate} % par an · ${amount} à chaque fois au mois ${months}`,
     'field.loanSummary': (payment, term, interest) =>
       `${payment} par mois pendant ${term} mois · dont ${interest} d’intérêts`,
+    'field.loanSummaryFees': (payment, term, borrowed, received, interest) =>
+      `${payment} par mois pendant ${term} mois · ${borrowed} empruntés pour recevoir ${received} · dont ${interest} d’intérêts`,
     'field.period': 'À quelle fréquence',
     'field.period.1': 'Chaque mois',
     'field.period.3': 'Chaque trimestre',
