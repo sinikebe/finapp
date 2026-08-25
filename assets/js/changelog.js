@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v33', date: '2026-08-26',
+    version: 'v34', date: '2026-08-26',
+    en: 'Housing money goes back into the fund once the house is paid for, in every plan — over forty years the renters overtake the borrower.',
+    fr: 'L’argent du logement retourne au fonds une fois la maison payée, dans chaque plan\u00a0: sur quarante ans, les locataires dépassent l’emprunteur.',
+  },
+  {
+    version: 'v33', date: '2026-08-26', commit: '35e29fc',
     en: 'The app opens on one question asked three ways — how to buy a house — and a thing you own can be acquired, an investment cashed in.',
     fr: 'L’application s’ouvre sur une question posée de trois façons — comment acheter une maison — et un bien s’acquiert, un placement se vend.',
   },

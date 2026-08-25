@@ -51,12 +51,30 @@ test('nobody owns the house before they have bought it', () => {
 });
 
 test('the fund is spent by the plan that sells it, and kept by the one that does not', () => {
+  const sale = DEFAULT_PLAN.buyOnBoth;
+  assert.ok(at(2, sale - 1).invested > 0, 'held right up to the sale');
+  // Not spent and held at once: the month it is sold, nothing is held — and
+  // the fund that starts the month after is a different, later one.
+  assert.equal(at(2, sale).invested, 0, 'sold, it is gone');
+  assert.ok(at(2, sale).proceeds > 0, 'and it is what paid for the house');
+  assert.equal(at(1, DEFAULT_PLAN.term).proceeds, 0, 'the other plan never sold anything');
+});
+
+test('housing money goes back into the fund once the house is paid for', () => {
+  // Otherwise the plan that buys first would win on what it did with spare
+  // cash rather than on when it came to own the house.
   const horizon = DEFAULT_PLAN.term;
-  assert.ok(at(1, horizon).invested > 0, 'left alone, it is still there');
-  assert.equal(at(2, horizon).invested, 0, 'sold, it is gone — not spent and held at once');
-  // Selling converts; it never creates. Worth is untouched on the day.
-  const before = at(2, DEFAULT_PLAN.buyOnBoth - 1);
-  assert.ok(before.invested > 0, 'held right up to the sale');
+  for (const index of [1, 2]) {
+    const buy = index === 1 ? DEFAULT_PLAN.buyOnCash : DEFAULT_PLAN.buyOnBoth;
+    assert.equal(at(index, buy).invested === 0, index === 2, 'nothing new the month of the purchase');
+    assert.ok(at(index, buy + 1).invested > at(index, buy).invested, `plan ${index} starts again the month after`);
+    assert.ok(at(index, horizon).invested > 0, `plan ${index} is still building at the horizon`);
+  }
+  // The borrower's housing is paid for only when the last repayment lands, so
+  // nothing of theirs is invested inside the default horizon — and the rule
+  // still holds beyond it.
+  assert.equal(at(0, horizon).invested, 0);
+  assert.ok(at(0, horizon + 24).invested > 0, 'and it starts once the loan is done');
 });
 
 test('every plan clears its housing by the end, and none goes into the red', () => {
@@ -72,6 +90,19 @@ test('every plan clears its housing by the end, and none goes into the red', () 
       assert.ok(point.net >= 0, `plan ${index} keeps its cash positive at month ${month}`);
     }
   }
+});
+
+test('the answer depends on how far out you look, and the README says which way', () => {
+  // Both halves are claims the README makes out loud, so neither may quietly
+  // stop being true: borrowing wins over the horizon the app opens on, and
+  // loses over a long one, because 6% compounding outruns a 1.5% house.
+  const worthAt = (months) => [0, 1, 2].map((index) => at(index, months).worth);
+  const [loanShort, cashShort, fundShort] = worthAt(DEFAULT_PLAN.term);
+  assert.ok(loanShort > fundShort && fundShort > cashShort, 'at twenty years the borrower leads');
+
+  const [loanLong, cashLong, fundLong] = worthAt(480);
+  assert.ok(cashLong > loanLong && fundLong > loanLong, 'at forty years both renters are ahead');
+  assert.ok(cashLong > fundLong, 'and the fund left alone beats the fund sold');
 });
 
 test('the plans and their fields are named in both languages', () => {

@@ -217,9 +217,21 @@ repayment of 554.60. The renters pay 500 of rent and invest the other 54.60 at
 compared is *when you own the house*. Pay and everyday costs are one field the
 three of them share, because your salary does not change with how you buy.
 
-The lesson is not the one an empty form would teach. Borrowing wins by about
-47,000 over twenty years, not because loans are free — the interest is 33,104 —
-but because it owns an appreciating house eleven years earlier than saving does.
+And once a plan's housing is paid for, that 554.60 goes **back into the fund**,
+less the property tax that replaces it — in every plan, from the month that plan
+stops paying: the month after the last rent for the renters, the month after the
+last repayment for the borrower. Without it the comparison would quietly become
+one about what people do with spare cash rather than about when they bought.
+
+The lesson is not the one an empty form would teach, and it is not a single
+lesson either. Over twenty years borrowing wins by about 30,000 — not because
+loans are free, the interest is 33,104, but because it owns an appreciating
+house eleven years earlier. **Slide the horizon out and the answer reverses**:
+by forty years the renters are ahead by more than 100,000, because they have
+been compounding at 6% since year thirteen while the house appreciates at 1.5%
+and the borrower only starts investing in year twenty-one. Not selling the fund
+edges out selling it over that distance, for the same reason — the money kept
+compounding instead of buying a house sixteen months sooner.
 
 **The months the renters buy are computed, not chosen.** Nothing in this model
 is conditional: "as soon as savings reach 100,000" cannot be written down, so
