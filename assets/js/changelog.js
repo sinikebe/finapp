@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v31', date: '2026-08-25',
+    version: 'v32', date: '2026-08-25',
+    en: 'The About panel names the branch a build is published from, rather than the working branch it was written on.',
+    fr: 'Le panneau À propos indique la branche de publication d’une version, et non la branche de travail.',
+  },
+  {
+    version: 'v31', date: '2026-08-25', commit: 'f484508',
     en: 'An About panel: the version being served, the commit it was built from, and what every release changed.',
     fr: 'Un panneau À propos\u00a0: la version servie, le commit d’origine, et ce qu’a changé chaque version.',
   },
