@@ -33,7 +33,7 @@ test('English agrees with the count; French leaves "mois" alone', () => {
   assert.equal(fr('horizon.years', 5), '5 ans');
 });
 
-test('French sets a no-break space before a colon', () => {
+test('French sets a no-break space before a colon, and before a percent sign', () => {
   const fr = makeTranslator('fr');
   // Every string, not a list someone has to remember to extend: a phrase that
   // takes parameters is called with stand-ins so its punctuation is read too.
@@ -42,7 +42,9 @@ test('French sets a no-break space before a colon', () => {
       ? value(...Array.from({ length: value.length }, () => 2))
       : value;
     assert.equal(typeof text, 'string', `${key} should render to a string`);
-    assert.ok(!/[^\s  ] [:;?!»]/.test(text), `${key} uses a breaking space: ${text}`);
+    // `%` belongs in this list for the same reason the rest do: French binds
+    // it to its figure, and a breaking space lets the two land on separate lines.
+    assert.ok(!/[^\s  ] [:;?!»%]/.test(text), `${key} uses a breaking space: ${text}`);
   }
   assert.ok(fr('chart.reading', 'Mois 3', '900').includes(' :'));
 });

@@ -114,6 +114,9 @@ const STRINGS = {
     'sankey.tone.income': 'Comes in',
     'sankey.tone.expense': 'Goes out',
     'sankey.tone.net': 'Left over',
+    // Read out before a row's name, so which way the money went is never
+    // carried by the swatch colour alone.
+    'sankey.rowTone': (tone) => `${tone}: `,
     'sankey.nameColumn': 'Where',
     'sankey.flowColumn': 'Amount',
     'sankey.shareColumn': 'Share',
@@ -282,7 +285,7 @@ const STRINGS = {
     'field.onceWord': 'au mois',
     'field.onceWordShort': 'mois',
     'field.growthSummary': (rate, amount, months) =>
-      `+${rate} % par an · ${amount} à chaque fois au mois ${months}`,
+      `+${rate} % par an · ${amount} à chaque fois au mois ${months}`,
     'field.loanSummary': (payment, term, interest) =>
       `${payment} par mois pendant ${term} mois · dont ${interest} d’intérêts`,
     'field.period': 'À quelle fréquence',
@@ -323,6 +326,7 @@ const STRINGS = {
     'sankey.tone.income': 'Entre',
     'sankey.tone.expense': 'Sort',
     'sankey.tone.net': 'Reste',
+    'sankey.rowTone': (tone) => `${tone}\u00a0: `,
     'sankey.nameColumn': 'Où',
     'sankey.flowColumn': 'Montant',
     'sankey.shareColumn': 'Part',
@@ -383,7 +387,7 @@ const STRINGS = {
     'filter.moneyAria': 'Dans quelle monnaie les chiffres sont exprimés',
     'filter.todaysMoney': 'En monnaie d’aujourd’hui',
     'filter.inflation': 'Inflation par an',
-    'filter.moneyNote': (rate) => `Tous les chiffres sont en monnaie d’aujourd’hui — ce qu’ils permettraient d’acheter maintenant, si les prix montent de ${rate} % par an.`,
+    'filter.moneyNote': (rate) => `Tous les chiffres sont en monnaie d’aujourd’hui — ce qu’ils permettraient d’acheter maintenant, si les prix montent de ${rate} % par an.`,
     'filter.rangeAria': 'Afficher ou non une fourchette autour des rendements',
     'filter.showRange': 'Afficher une fourchette',
     'filter.spread': 'Rendements, à plus ou moins',

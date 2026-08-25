@@ -698,6 +698,7 @@ function buildSankey() {
       shareColumn: t('sankey.shareColumn'),
       pool: t('sankey.pool'),
       tone: (tone) => t(`sankey.tone.${tone}`),
+      rowTone: (tone) => t('sankey.rowTone', tone),
       tipValue: (amount, share) => t('sankey.tipValue', amount, formatAmount(share)),
       share: (value) => t('sankey.share', formatAmount(value)),
       aria: (total, sources, sinks) => t('sankey.aria', total, sources, sinks),
@@ -1261,9 +1262,14 @@ for (const button of ui.presets) {
 }
 
 // Touch keeps the last tapped reading on screen; a tap anywhere else clears it.
+// Both halves matter: the guard that holds a reading through the tap's own
+// pointerleave would otherwise hold it for good, on the flow diagram as much as
+// on the charts.
 document.addEventListener('pointerdown', (event) => {
   if (event.pointerType !== 'touch') return;
-  if (event.target instanceof Element && event.target.closest('.chart-svg')) return;
+  const target = event.target instanceof Element ? event.target : null;
+  if (sankey && !(target && target.closest('.sankey-svg'))) sankey.hideTip();
+  if (target && target.closest('.chart-svg')) return;
   for (const chart of charts) chart.instance.setActive(null);
 });
 
