@@ -867,6 +867,46 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
+/* ------------------------------------------------------------ the flow */
+
+.sankey-card { margin: 4px 0 2px; }
+.sankey-plot { min-height: 340px; }
+.sankey-svg { width: 100%; display: block; overflow: visible; }
+
+/* A ribbon is a wash, never a block. It is the largest painted area in the app
+   and carries no information its width does not already carry, so it stays well
+   under the ink of the marks it connects. */
+.sankey-ribbon {
+  fill-opacity: 0.16;
+  /* A hairline in the surface colour, invisible against it and visible exactly
+     where two ribbons meet at the pool — so neighbouring flows never fuse into
+     one shape. */
+  stroke: var(--surface-1);
+  stroke-width: 1;
+  transition: fill-opacity 120ms ease;
+}
+.sankey-ribbon:hover { fill-opacity: 0.34; }
+
+/* The node itself is small, so it may be solid: it is what gives each flow a
+   definite edge where the ribbons meet. */
+.sankey-node { stroke: none; }
+
+/* Text wears text tokens, never the series colour — the node beside it carries
+   the identity. */
+.sankey-label {
+  font-size: 12.5px;
+  fill: var(--text-primary);
+  dominant-baseline: auto;
+}
+.sankey-amount { fill: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  /* Names and amounts stop fitting the gutters long before the ribbons stop
+     being readable, so the phone gets the shape and the table gets the rest. */
+  .sankey-label { font-size: 11px; }
+  .sankey-amount { display: none; }
+}
+
 /* A band is context, not a mark: it must read as "somewhere in here" without
    ever competing with the line it belongs to. Its fill is set inline, like the
    area's, so both follow whichever series they belong to. */

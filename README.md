@@ -363,6 +363,80 @@ chroma 0.14) never was. So debt is a tile and a comparison column instead. The
 search is worth re-running before anyone adds a sixth: it is in the history of
 this file, and it returns nothing better.
 
+## Where the money goes
+
+Below the flow cards, a Sankey: every income field into a pool, and the pool out
+to every expense field plus whatever is kept, over the whole horizon.
+
+**The pool is load-bearing.** Money is fungible and nothing in the model says
+which salary paid which bill, so ribbons drawn income-to-expense would invent an
+allocation nobody entered. Everything arrives, mixes, and leaves.
+
+**Only a conserving cut of the model can be drawn**, and there is exactly one:
+`income = expenses + net`. Investment growth, asset appreciation and drawn loan
+principal all enter `worth` with no source, and a ribbon for them would be a
+claim the arithmetic cannot support — those belong to the cards above, which
+carry balances rather than flows. An asset needs no special case to stay out: it
+moves no cash, so it weighs nothing.
+
+**Widths are apportioned out of the totals, never summed beside them.** Ten
+independently rounded shares can miss their own total by a few cents, and a
+diagram that disagrees with the tile above it is worse than no diagram, so
+`shareOut()` hands the leftover cents to the largest remainders and the parts add
+up by construction. The same function shares out the percentage column, so that
+comes to a hundred rather than 99.98. It also means the diagram inherits whatever
+the projection already did: restating in today's money divides every figure at a
+month by one factor, which leaves proportions untouched, so the shape is
+invariant and only the labels move.
+
+**When you spend more than you earn the leftover node changes sides.** A Sankey
+cannot draw a negative flow, so aqua joins on the left as *made up from savings*
+instead of leaving on the right as *kept* — one colour, one idea, on whichever
+side the gap falls. When income and outgoings match exactly there is no node at
+all: a flow of nothing is not a flow.
+
+### Why three colours, and only three
+
+A Sankey is an **all-pairs** form — at a node face the layout decides which two
+ribbons end up touching, so every pair has to be distinguishable, not just the
+neighbours in a legend. Three is what that seats, and three is what the diagram
+needs: in, out, kept. A hue per field was never available (the palette has been
+full at five since the total arrived) and would not have been right anyway —
+field names are nominal, and colouring them would burn the only free channel on
+information the ribbon's width already carries.
+
+So the ribbons are washes of their direction's hue rather than blocks — they are
+the largest painted areas in the app — with a hairline in the surface colour so
+neighbouring flows never fuse. Names and amounts sit outside in text tokens, and
+are truncated by measurement rather than clipped.
+
+**A wash cannot carry identity, and no opacity fixes that.** Composited against
+the surface, the three washes sit ΔE 3.6 apart for a normal-vision reader at the
+16% they ship at — and running the validator up the scale, they reach only 13.1
+at 55%, which is already the saturated block the mark specs forbid at this size.
+The floors are 15 and 8. So the wash is deliberately *not* an identity channel:
+it is connective tissue, and identity is carried four times over by the solid
+node rectangles (which do pass, at ΔE 9.2 light and 9.4 dark), the name written
+beside every node, the legend, and the table. Anyone tempted to make the ribbons
+"clearer" by saturating them should re-run that measurement first: it does not
+work, and it costs the card its calm.
+
+### The two places it degrades, and what it does about them
+
+- **A sliver.** A rent of 40 beside a salary of 500,000 is a hundredth of a
+  pixel: honest and invisible. Every flow gets a floor of 2.5px, which makes
+  widths not exactly proportional — a bounded distortion, in exchange for no
+  flow ever vanishing, and the table has the exact figures.
+- **A crowd.** A hundred fields is allowed and a hundred strands is not a
+  diagram; past a few dozen the gaps alone outrun the height. Columns past nine
+  strands pool the smallest into one node, and **the table still lists every
+  field on its own row** — pooled in the picture, never lost.
+
+Both columns are drawn to one height budget, because the same money passes
+through the pool and its two faces have to match. Subtracting each column's own
+gaps instead leaves a node where more flows out than in, which is precisely the
+thing a flow diagram exists to rule out.
+
 ## Layout
 
 ```
@@ -377,6 +451,7 @@ assets/js/projection.js    fields + horizon → the cumulative series
 assets/js/field-list.js    the editable list of fields
 assets/js/strategy-bar.js  the tabs that name, switch and add strategies
 assets/js/chart.js         the SVG line chart, one or many series
+assets/js/sankey.js        the flow diagram: in, pooled, out
 assets/js/dom.js           the two DOM helpers the views share
 assets/js/format.js        locale-aware number formatting
 assets/js/i18n.js          English and French copy

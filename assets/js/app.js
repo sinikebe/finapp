@@ -12,16 +12,18 @@ import {
   project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
   hasAmounts, hasInvestments, hasDebt, hasOwned,
   loanPayment, loanInterest, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
+  fieldTotalOf, shareOut,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
-  normalizeFields, defaultFields, migrateLegacyInputs,
+  normalizeFields, defaultFields, migrateLegacyInputs, labelOf,
 } from './fields.js';
 import {
   formatAmount, formatCompact, formatMonth, formatHorizon, formatRate, setFormatLocale,
 } from './format.js';
 import { html } from './dom.js';
 import { createLineChart, endLabelPad } from './chart.js';
+import { createSankey } from './sankey.js';
 import { createFieldList } from './field-list.js';
 import { createStrategyBar } from './strategy-bar.js';
 import {
@@ -56,6 +58,8 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   fields: $('fields'),
   strategies: $('strategies'),
+  sankey: $('sankey'),
+  sankeyMount: $('sankey-mount'),
   compare: $('compare'),
   compareNote: $('compare-note'),
   compareMetrics: $('compare-metrics'),
@@ -565,6 +569,139 @@ function projectionFor(planFields) {
   return state.realMoney ? inTodaysMoney(projection, state.inflation) : projection;
 }
 
+/* --------------------------------------------------------------- the flow */
+
+let sankey = null;
+
+/**
+ * What the flow diagram draws: every field that moved cash, as a share of the
+ * direction it moved it in.
+ *
+ * The shares are apportioned *out of* the totals the summary already shows,
+ * never summed independently beside them — ten separately rounded shares can
+ * miss their own total by a few cents, and a diagram that disagrees with the
+ * tile above it is worse than no diagram. A field that moves no cash at all,
+ * which is every asset, weighs nothing and so is simply not there.
+ */
+function sankeyData(projection) {
+  const weigh = (direction) => projection.fields
+    .map((field) => ({ field, weight: fieldTotalOf(field, projection.months) }))
+    .filter((entry) => entry.field.direction === direction && entry.weight > 0);
+
+  const incoming = weigh('income');
+  const outgoing = weigh('expense');
+  const inShares = shareOut(projection.totals.income, incoming.map((e) => e.weight));
+  const outShares = shareOut(projection.totals.expenses, outgoing.map((e) => e.weight));
+
+  const named = (entry, index, shares, tone) => ({
+    id: entry.field.id,
+    // "this field" is written for an aria label on a button; as the name of a
+    // node beside a ribbon it reads as an instruction rather than a thing.
+    label: labelOf(entry.field, t) || t('sankey.unnamed'),
+    value: shares[index],
+    tone,
+  });
+  const sources = incoming.map((entry, index) => named(entry, index, inShares, 'income'));
+  const sinks = outgoing.map((entry, index) => named(entry, index, outShares, 'expense'));
+
+  // What is left over is a destination like any other. When it is negative the
+  // same node changes sides: the money had to come from somewhere, and saying
+  // so is the only way the picture can still balance. When it is exactly
+  // nothing there is no node at all — a flow of zero is not a flow, and the
+  // sliver every drawn flow is guaranteed would be drawing money that stayed.
+  const net = projection.totals.net;
+  const drawnSources = roll(sources, 'income');
+  const drawnSinks = roll(sinks, 'expense');
+  if (net > 0) drawnSinks.push({ id: 'kept', label: t('sankey.kept'), value: net, tone: 'net' });
+  if (net < 0) drawnSources.push({ id: 'shortfall', label: t('sankey.shortfall'), value: -net, tone: 'net' });
+
+  const rows = [...sources, ...sinks];
+  if (net > 0) rows.push({ id: 'kept', label: t('sankey.kept'), value: net, tone: 'net' });
+  if (net < 0) rows.splice(sources.length, 0, {
+    id: 'shortfall', label: t('sankey.shortfall'), value: -net, tone: 'net',
+  });
+
+  return {
+    sources: drawnSources,
+    sinks: drawnSinks,
+    rows,
+    // Where the source side of `rows` ends, so each side's shares can be
+    // apportioned out of its own hundred.
+    sourceCount: sources.length + (net < 0 ? 1 : 0),
+    total: net >= 0 ? projection.totals.income : projection.totals.expenses,
+  };
+}
+
+/** How many strands a column can carry before it reads as stripes. */
+const MAX_STRANDS = 9;
+
+/**
+ * Pool the smallest flows once a column has more than it can show.
+ *
+ * A hundred fields is allowed, and a hundred strands is not a diagram — past a
+ * few dozen the gaps alone outrun the height and the column stops being drawn
+ * at all. The largest keep their own ribbon, the rest become one, and the table
+ * still lists every field on its own row, so nothing is lost, only pooled.
+ */
+function roll(list, tone) {
+  if (list.length <= MAX_STRANDS) return [...list];
+  const biggest = new Set([...list]
+    .sort((a, b) => b.value - a.value)
+    .slice(0, MAX_STRANDS - 1)
+    .map((entry) => entry.id));
+  const kept = list.filter((entry) => biggest.has(entry.id));
+  const rest = list.filter((entry) => !biggest.has(entry.id));
+  return [...kept, {
+    id: `other-${tone}`,
+    label: t('sankey.other', rest.length),
+    value: roundToCent(rest.reduce((sum, entry) => sum + entry.value, 0)),
+    tone,
+  }];
+}
+
+/** Built the first time there is a flow worth drawing, and rebuilt with the
+ *  language after that. */
+function buildSankey() {
+  if (sankey) sankey.destroy();
+  sankey = createSankey({
+    mount: ui.sankeyMount,
+    id: 'sankey',
+    title: t('sankey.title'),
+    description: t('sankey.description'),
+    labels: {
+      showTable: t('chart.showTable'),
+      hideTable: t('chart.hideTable'),
+      tableCaption: t('sankey.tableCaption', state.months),
+      nameColumn: t('sankey.nameColumn'),
+      flowColumn: t('sankey.flowColumn'),
+      shareColumn: t('sankey.shareColumn'),
+      pool: t('sankey.pool'),
+      tone: (tone) => t(`sankey.tone.${tone}`),
+      tipValue: (amount, share) => t('sankey.tipValue', amount, formatAmount(share)),
+      share: (value) => t('sankey.share', formatAmount(value)),
+      aria: (total, sources, sinks) => t('sankey.aria', total, sources, sinks),
+    },
+    formatValue: formatAmount,
+  });
+}
+
+function renderSankey(projection) {
+  const data = sankeyData(projection);
+  // Two nodes is not a diagram, it is a sentence — and the summary already says
+  // it. The flow appears once something actually splits.
+  const worth = hasAmounts(projection) && data.sources.length + data.sinks.length >= 3;
+  ui.sankey.hidden = !worth;
+  if (!worth) return;
+
+  if (!sankey) buildSankey();
+  sankey.setHeading({
+    title: t('sankey.title'),
+    description: t('sankey.description'),
+    tableCaption: t('sankey.tableCaption', projection.months),
+  });
+  sankey.update({ ...data, isEmpty: false, emptyMessage: t('charts.empty') });
+}
+
 /** Cents, so a difference of two rounded totals doesn't show float noise. */
 function roundToCent(value) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
@@ -1022,6 +1159,7 @@ function render() {
     });
   });
 
+  renderSankey(projection);
   renderComparison(projections);
 
   // Under a year the horizon restates the month count ("1 month · 1 mo"), so it
@@ -1154,6 +1292,7 @@ function applyLanguage(next) {
   // `render` puts the data back a moment later.
   buildCharts(activeCharts(project({ fields: fields(), months: state.months })));
   if (compareChart) buildCompareChart();
+  if (sankey) buildSankey();
   render();
 }
 
