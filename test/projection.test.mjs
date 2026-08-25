@@ -5,6 +5,7 @@ import {
   project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax,
   seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
   flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf,
+  grownBy, yearsRunning,
   loanPayment, loanInterest, monthlyRate,
   toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
@@ -737,4 +738,80 @@ test('a window is coerced, never trusted', () => {
   const wild = createField({ direction: 'expense', amount: '10', startMonth: 'soon', endMonth: 99999 });
   assert.equal(wild.startMonth, 0);
   assert.equal(wild.endMonth, 600, 'clamped to the longest projection');
+});
+
+/* ------------------------------------------------- an amount that climbs */
+
+const climbing = (amount, annualRate, extra = {}) => createField({
+  direction: 'income', amount, annualRate, ...extra,
+});
+
+test('a raise arrives on the anniversary, not a little each month', () => {
+  const wage = climbing('4000', '3');
+  // Months 1 to 12 are the first year — twelve payments at what you typed.
+  assert.deepEqual(
+    [1, 6, 12, 13, 24, 25].map((m) => contributionOf(wage, m)),
+    [4000, 4000, 4000, 4120, 4120, 4243.6],
+    'twelve payments, then a step',
+  );
+});
+
+test('the climb counts from the field\'s own start', () => {
+  const wage = climbing('4000', '3', { startMonth: 6 });
+  assert.equal(yearsRunning(wage, 17), 0);
+  assert.equal(yearsRunning(wage, 18), 1);
+  assert.deepEqual([6, 17, 18].map((m) => contributionOf(wage, m)), [4000, 4000, 4120]);
+});
+
+test('a rate does nothing at all to a field that has none', () => {
+  const flat = createField({ direction: 'income', amount: '4000' });
+  assert.deepEqual([1, 12, 120].map((m) => contributionOf(flat, m)), [4000, 4000, 4000]);
+  assert.equal(project({ fields: [flat], months: 120 }).totals.income, 480000);
+});
+
+test('a climbing amount compounds, and beats a flat one', () => {
+  const flat = project({ fields: [createField({ direction: 'income', amount: '4000' })], months: 120 });
+  const rising = project({ fields: [climbing('4000', '3')], months: 120 });
+  assert.ok(rising.totals.income > flat.totals.income);
+  assert.equal(contributionOf(climbing('4000', '3'), 120), roundMoney(4000 * 1.03 ** 9));
+  assert.equal(contributionOf(climbing('4000', '3'), 133), roundMoney(4000 * 1.03 ** 11));
+});
+
+test('a less-than-monthly amount climbs too, on the same anniversaries', () => {
+  const bill = createField({ direction: 'expense', amount: '600', annualRate: '5', periodMonths: 12 });
+  // The first landing is at what you typed; each later one has climbed again.
+  assert.deepEqual([12, 24, 36].map((m) => contributionOf(bill, m)), [600, 630, 661.5]);
+});
+
+test('a rate on an investment is its return, never a bigger contribution', () => {
+  // The same slot means different things by kind, and confusing the two would
+  // pay in more every year because the market did well.
+  const fund = createField({ kind: 'investment', amount: '500', annualRate: '7' });
+  assert.deepEqual([1, 12, 24, 120].map((m) => contributionOf(fund, m)), [500, 500, 500, 500]);
+  assert.equal(project({ fields: [fund], months: 120 }).totals.contributed, 60000);
+});
+
+test('a rate on a loan is its interest, never a bigger payment', () => {
+  const debt = loan('120000', '6', 120);
+  const first = contributionOf(debt, 1);
+  assert.equal(contributionOf(debt, 60), first, 'the payment is level, that is what a loan is');
+  assert.equal(contributionOf(debt, 120), first);
+});
+
+test('growth is coerced, never trusted', () => {
+  assert.equal(grownBy('1000', 'nonsense', 5), 1000);
+  assert.equal(grownBy('1000', '3', 0), 1000, 'no whole year yet');
+  assert.equal(grownBy('1000', '3', -2), 1000, 'and never runs backwards');
+  assert.equal(grownBy('', '3', 5), 0, 'nothing climbs from nothing');
+  assert.equal(grownBy('1000', '0', 5), 1000);
+  assert.ok(grownBy('1000', '-10', 2) < 1000, 'a rate can point down');
+});
+
+test('a climb and a window work together', () => {
+  const wage = climbing('1000', '10', { startMonth: 3, endMonth: 30 });
+  assert.equal(contributionOf(wage, 2), 0, 'not started');
+  assert.equal(contributionOf(wage, 3), 1000);
+  assert.equal(contributionOf(wage, 15), 1100, 'one year in');
+  assert.equal(contributionOf(wage, 27), 1210, 'two years in');
+  assert.equal(contributionOf(wage, 31), 0, 'ended');
 });

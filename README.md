@@ -44,7 +44,7 @@ A field is defined once, in [`assets/js/fields.js`](assets/js/fields.js):
   amount,           // as typed; the projection coerces it to money
   periodMonths,     // 1 monthly · 3 quarterly · 6 half-yearly · 12 yearly
   kind,             // 'plain' | 'once' | 'loan' | 'investment' | 'asset'
-  annualRate,       // % a year: interest, return, or appreciation
+  annualRate,       // % a year: interest, return, appreciation, or a climb
   termMonths,       // how long a loan runs
   startMonth,       // first month it can land; 0 means from the beginning
   endMonth,         // last month it can land; 0 means no end
@@ -61,7 +61,8 @@ months, not a name**, so the projection can do arithmetic with it and a new one
 
 ### What a field can be
 
-- **Amount** — the default. It lands, unchanged, every period.
+- **Amount** — the default. It lands every period, unchanged unless you give
+  it a rate, in which case it climbs by that much a year.
 - **One-off** — it happens in one month and is done: a car, a deposit, a
   bonus. Its month is the only timing it has.
 - **Loan** — you enter what was borrowed, the yearly interest rate and the
@@ -83,6 +84,34 @@ Three invariants belong to the model rather than the form, so a hand-edited
 store can't break them: an investment is always money going out, a loan always
 repays monthly whatever period is stored against it, and something you own has
 neither a direction nor a period, because it never lands.
+
+### An amount that climbs
+
+A salary rises, a rent is indexed, a subscription creeps up. Give a plain amount
+a **rate a year** and it climbs by that much — and the rate slot it uses is the
+one every field has carried since loans arrived.
+
+**That slot means something different for each kind, which is the one trap
+here.** On a loan it is interest, on an investment the return, on something you
+own its appreciation, and on a plain amount what it does to itself. Letting the
+growth rule fall through to investments would have paid in more every year
+because the market did well; the tests caught exactly that, and `contributionOf`
+now says `if (field.kind !== 'plain')` in as many words. A one-off is the one
+kind with no rate at all — it has no years to climb over.
+
+**It steps on the anniversary, not a little each month.** A raise arrives once a
+year, and compounding it monthly would be tidier arithmetic describing nobody's
+pay. The count runs from the first month the amount could land, not from month
+0, because a salary starting today pays twelve times before its first
+anniversary — so the raise belongs in month 13. Put the other way round: **the
+first time an amount lands it lands at what you typed**, and a year later it has
+climbed once. That holds whatever its period, so a yearly bill behaves the same
+way its monthly neighbour does.
+
+The row spells out where it gets to, as far as the horizon on screen — a number
+that moves with the slider, which is the point of putting it there. And because
+*In today's money* is a separate switch, a 3% raise under 2% inflation can be
+read as the 1% it really is.
 
 ### When it runs
 

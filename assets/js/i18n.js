@@ -34,7 +34,7 @@ const STRINGS = {
     'lang.aria': 'Language: English. Switch to French',
 
     'inputs.heading': 'What comes in and goes out',
-    'inputs.hint': 'Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value.',
+    'inputs.hint': 'Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.',
     'inputs.periodNote': 'Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.',
     'inputs.currencyNote': 'Amounts are in your own currency — the app never converts or stores them anywhere but this device.',
 
@@ -56,7 +56,7 @@ const STRINGS = {
     'field.amount.asset': 'What it is worth today',
     'field.rate.loan': 'Interest rate a year, as a percentage',
     'field.rate.investment': 'Return a year, as a percentage',
-    'field.rate.plain': 'Rate a year, as a percentage',
+    'field.rate.plain': 'How much it climbs a year, as a percentage',
     'field.rate.asset': 'How much it gains a year, as a percentage',
     'field.rateUnit': '% a year',
     'field.rateUnitShort': '%',
@@ -72,6 +72,8 @@ const STRINGS = {
     'field.onceMonth': 'The month it happens',
     'field.onceWord': 'in month',
     'field.onceWordShort': 'month',
+    'field.growthSummary': (rate, amount, months) =>
+      `Climbing ${rate}% a year · ${amount} a time by month ${months}`,
     'field.loanSummary': (payment, term, interest) =>
       `${payment} a month for ${term} ${term === 1 ? 'month' : 'months'} · ${interest} of that is interest`,
     'field.period': 'How often it lands',
@@ -221,7 +223,7 @@ const STRINGS = {
     'lang.aria': 'Langue : français. Passer à l’anglais',
 
     'inputs.heading': 'Ce qui entre et ce qui sort',
-    'inputs.hint': 'Nommez chaque montant, indiquez s’il entre ou s’il sort, à quelle fréquence il tombe, et combien. Un emprunt calcule ses mensualités, un placement croît au taux que vous indiquez, et un bien que vous possédez garde simplement sa valeur.',
+    'inputs.hint': 'Nommez chaque montant, indiquez s’il entre ou s’il sort, à quelle fréquence il tombe, et combien. Un emprunt calcule ses mensualités, un placement croît au taux que vous indiquez, et un bien que vous possédez garde simplement sa valeur. Donnez un taux à un montant et il augmente d’autant chaque année.',
     'inputs.periodNote': 'Tout ce qui revient moins souvent que chaque mois tombe à la fin de chaque période — un montant annuel au mois 12, 24, et ainsi de suite.',
     'inputs.currencyNote': 'Les montants sont dans votre devise — l’application ne convertit rien et n’enregistre rien ailleurs que sur cet appareil.',
 
@@ -243,7 +245,7 @@ const STRINGS = {
     'field.amount.asset': 'Sa valeur aujourd’hui',
     'field.rate.loan': 'Taux d’intérêt annuel, en pourcentage',
     'field.rate.investment': 'Rendement annuel, en pourcentage',
-    'field.rate.plain': 'Taux annuel, en pourcentage',
+    'field.rate.plain': 'De combien il augmente par an, en pourcentage',
     'field.rate.asset': 'Ce qu’il prend de valeur par an, en pourcentage',
     'field.rateUnit': '% par an',
     'field.rateUnitShort': '%',
@@ -259,6 +261,8 @@ const STRINGS = {
     'field.onceMonth': 'Le mois où cela arrive',
     'field.onceWord': 'au mois',
     'field.onceWordShort': 'mois',
+    'field.growthSummary': (rate, amount, months) =>
+      `+${rate} % par an · ${amount} à chaque fois au mois ${months}`,
     'field.loanSummary': (payment, term, interest) =>
       `${payment} par mois pendant ${term} mois · dont ${interest} d’intérêts`,
     'field.period': 'À quelle fréquence',
