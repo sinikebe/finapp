@@ -416,7 +416,11 @@ export function project(input = {}) {
       // The month the money arrives: the debt appears, and nothing is repaid
       // yet — the first payment is the month after.
       if (month === drawn) { owing.set(field.id, borrowedOf(field)); continue; }
-      if (month - drawn > term) { owing.set(field.id, 0); continue; }
+      // `>=`, not `>`: once the term's payments are made the loan is cleared by
+      // construction, and saying so outright is what keeps the last month's
+      // rounding from lingering as a few cents of debt — the same rule, and the
+      // same reason, as `outstandingOf`. The two must agree on every month.
+      if (month - drawn >= term) { owing.set(field.id, 0); continue; }
       // A month's interest, then the payment against it: what is left is the
       // principal still outstanding. Floored at zero so the last payment's
       // rounding cannot leave a debt behind.
