@@ -5,7 +5,7 @@ import {
   project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax,
   seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
   flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf,
-  grownBy, yearsRunning, fieldTotalOf, shareOut,
+  grownBy, yearsRunning, fieldTotalOf, loanPartsOf, shareOut,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate,
   toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
@@ -401,6 +401,55 @@ test('the projection and the outstanding balance agree on every month', () => {
       );
     }
   }
+});
+
+test('what a loan repaid splits into principal, fees and interest', () => {
+  const field = createField({
+    kind: 'loan', direction: 'expense', amount: '200000', fees: '3000', annualRate: '4.5', termMonths: 300,
+  });
+  // Whatever the horizon, the parts are exactly what the diagram already draws.
+  for (const months of [1, 12, 120, 299, 300, 360]) {
+    const parts = loanPartsOf(field, months);
+    assert.equal(parts.total, fieldTotalOf(field, months), `total at ${months}`);
+    assert.equal(
+      roundMoney(parts.principal + parts.fees + parts.interest), parts.total,
+      `parts sum at ${months}`,
+    );
+    assert.ok(parts.principal >= 0 && parts.fees >= 0 && parts.interest >= 0, `signs at ${months}`);
+  }
+  // Run to the end and the split is the loan itself, to the cent.
+  const done = loanPartsOf(field, 300);
+  assert.equal(done.principal, 200000);
+  assert.equal(done.fees, 3000);
+  assert.equal(done.interest, loanInterest(field));
+});
+
+test('the split agrees with the debt tile on what is left to pay', () => {
+  const field = createField({
+    kind: 'loan', direction: 'expense', amount: '200000', fees: '3000', annualRate: '4.5', termMonths: 300,
+  });
+  for (const months of [12, 120, 300]) {
+    const parts = loanPartsOf(field, months);
+    const result = project({ fields: [field], months });
+    assert.equal(
+      roundMoney(parts.principal + parts.fees),
+      roundMoney(borrowedOf(field) - result.points[months].debt),
+      `what has come off the balance by month ${months}`,
+    );
+  }
+});
+
+test('a loan with nothing to split is one flow, not three', () => {
+  const free = loan('12000', '0', 24);
+  const parts = loanPartsOf(free, 24);
+  assert.equal(parts.interest, 0);
+  assert.equal(parts.fees, 0);
+  assert.equal(parts.principal, 12000);
+  // And anything that is not a loan is simply itself.
+  const plain = createField({ direction: 'expense', amount: '500' });
+  const whole = loanPartsOf(plain, 12);
+  assert.equal(whole.principal, fieldTotalOf(plain, 12));
+  assert.equal(whole.interest, 0);
 });
 
 test('a loan ignores the period control: repayments are monthly', () => {
