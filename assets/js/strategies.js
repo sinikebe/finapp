@@ -10,7 +10,7 @@
  * appears only once there is something to compare against.
  */
 
-import { normalizeFields, newId, MAX_FIELDS } from './fields.js';
+import { normalizeFields, createField, newId, MAX_FIELDS } from './fields.js';
 
 /**
  * Four is the ceiling because four is how many series colours the palette can
@@ -30,6 +30,10 @@ export function normalizeStrategy(value) {
     // Empty means unnamed: the bar shows its position instead, translated, so
     // an untouched strategy follows the language like an untouched field does.
     name: typeof source.name === 'string' ? source.name.trim().slice(0, MAX_NAME_LENGTH) : '',
+    // A name the app gave it, so the plans it opens with follow the language
+    // the way an untouched field's does. The reader's own name wins over it,
+    // exactly as a field's label wins over its labelKey.
+    nameKey: typeof source.nameKey === 'string' ? source.nameKey : '',
     fields: normalizeFields(source.fields),
   };
 }
@@ -53,7 +57,14 @@ export function createStrategy(patch = {}) {
 
 /** What to call a strategy: the reader's name, else its position. */
 export function nameOf(strategy, index, t) {
-  return strategy.name || t('strategy.defaultName', index + 1);
+  if (strategy.name) return strategy.name;
+  if (strategy.nameKey) {
+    // A translator hands back the key it does not know; a key stored by another
+    // version should read as unnamed, not as `strategy.default.loan`.
+    const translated = t(strategy.nameKey);
+    if (translated !== strategy.nameKey) return translated;
+  }
+  return t('strategy.defaultName', index + 1);
 }
 
 /** The id that should be active: the one asked for, if it still exists. */
@@ -181,3 +192,115 @@ export function neighbourOf(strategies, id) {
 export function migrateFields(fields) {
   return [createStrategy({ fields })];
 }
+
+/* ------------------------------------------------------------ the first run */
+
+/**
+ * One question — *how should I buy a 100,000 house?* — asked three ways, so a
+ * reader arrives at something worth reading rather than an empty form.
+ *
+ * Every figure below is a round, ordinary one for a French household, and all
+ * three plans spend **exactly the same** on housing each month: the loan's
+ * repayment. The renters pay less rent than that and invest the difference, so
+ * nothing is compared against a plan that quietly saves more.
+ *
+ * **The buy months are computed, not chosen.** "As soon as savings reach
+ * 100,000" is not something the model can express — nothing here is
+ * conditional — so the month each plan can afford the house was worked out
+ * from these very figures and written down. A test recomputes them and fails
+ * if a figure is changed without the months following, which is the only way
+ * a hard-coded answer stays honest.
+ */
+const PLAN = Object.freeze({
+  salary: '2200',
+  living: '1000',
+  rent: '500',
+  house: '100000',
+  loanRate: '3',
+  term: 240,
+  growth: '1.5',
+  tax: '800',
+  fundRate: '6',
+  /** The loan's repayment less the rent: what a renter has spare each month. */
+  spare: '54.60',
+  /**
+   * Months between getting the keys and the first property-tax bill. It is
+   * levied on whoever owns in January and billed the autumn after, so it never
+   * lands on the day of the purchase — which is just as well, since a buyer
+   * who has spent everything on the house cannot pay a bill that same month.
+   */
+  taxLag: 6,
+  /** Cash alone covers the house here. */
+  buyOnCash: 155,
+  /** Cash plus the fund, cashed in, covers it sixteen months sooner. */
+  buyOnBoth: 139,
+});
+
+export function defaultStrategies() {
+  // The same field in all three, sharing one id: your pay does not change
+  // because you chose a different way to buy, and neither does the shopping.
+  const salary = createField({
+    labelKey: 'field.default.salary', direction: 'income', amount: PLAN.salary, synced: true,
+  });
+  const living = createField({
+    labelKey: 'field.default.living', direction: 'expense', amount: PLAN.living, synced: true,
+  });
+  const shared = () => [{ ...salary }, { ...living }];
+
+  // A renter's plan, which differs only in the month it can afford the house
+  // and in whether the fund is sold to get there.
+  const renting = (buy, sellTheFund) => [
+    ...shared(),
+    createField({
+      labelKey: 'field.default.rent', direction: 'expense', amount: PLAN.rent, endMonth: buy,
+    }),
+    createField({
+      labelKey: 'field.default.fund',
+      kind: 'investment',
+      amount: PLAN.spare,
+      annualRate: PLAN.fundRate,
+      // Sold to help buy, or simply left alone once there is no rent to beat.
+      ...(sellTheFund ? { sellMonth: buy } : { endMonth: buy }),
+    }),
+    createField({
+      labelKey: 'field.default.purchase', kind: 'once', direction: 'expense',
+      amount: PLAN.house, startMonth: buy,
+    }),
+    createField({
+      labelKey: 'field.default.house', kind: 'asset',
+      amount: PLAN.house, annualRate: PLAN.growth, startMonth: buy,
+    }),
+    createField({
+      labelKey: 'field.default.propertyTax', direction: 'expense',
+      amount: PLAN.tax, periodMonths: 12, startMonth: buy + PLAN.taxLag,
+    }),
+  ];
+
+  return [
+    createStrategy({
+      nameKey: 'strategy.default.loan',
+      fields: [
+        ...shared(),
+        createField({
+          labelKey: 'field.default.mortgage', kind: 'loan', direction: 'expense',
+          amount: PLAN.house, annualRate: PLAN.loanRate, termMonths: PLAN.term, startMonth: 1,
+        }),
+        // Owned from month 0, because that is when the loan's money arrives —
+        // the keys and the debt change hands together. Start it a month later
+        // and the plan opens owing 100,000 for a house it does not yet own.
+        createField({
+          labelKey: 'field.default.house', kind: 'asset',
+          amount: PLAN.house, annualRate: PLAN.growth,
+        }),
+        createField({
+          labelKey: 'field.default.propertyTax', direction: 'expense',
+          amount: PLAN.tax, periodMonths: 12, startMonth: PLAN.taxLag,
+        }),
+      ],
+    }),
+    createStrategy({ nameKey: 'strategy.default.saveUp', fields: renting(PLAN.buyOnCash, false) }),
+    createStrategy({ nameKey: 'strategy.default.sellFund', fields: renting(PLAN.buyOnBoth, true) }),
+  ];
+}
+
+export { PLAN as DEFAULT_PLAN };

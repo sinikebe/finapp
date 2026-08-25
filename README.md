@@ -72,7 +72,13 @@ months, not a name**, so the projection can do arithmetic with it and a new one
   entered, never taken out of it**: ask for 100,000 and you owe 100,000, repay
   127,279.20 over ten years at 5%, and the row says both figures. A loan points
   either way: outgoing when you repay one, incoming when you are repaid.
-- **Investment** — you enter what goes in, how often, and the yearly return.
+- **Investment** — you enter what goes in, how often, and the yearly return, and
+  the month it is **sold**, if it is. Selling turns the balance into money in
+  your account and ends the holding; it never creates anything, so what you are
+  worth does not move on the day of the sale — that is the test. The gain stays
+  a gain in the profit tile afterwards: it did not stop having happened.
+  Otherwise a plan that sells its fund to buy a flat would have to spend the
+  money and still be holding it.
   The contributions leave your cash like any other outgoing, and the balance
   compounds monthly: growth first, then the month's contribution, because money
   paid in today has not had time to earn yet. Each balance is tracked
@@ -81,6 +87,9 @@ months, not a name**, so the projection can do arithmetic with it and a new one
 - **Something you own** — a flat, a car, anything with a value. It moves no
   cash in any month: it simply is worth what it is worth, and gains at whatever
   rate you give it. It exists so that a loan has something to be set against.
+  It takes the month you **come to own it** — empty means you already do — so a
+  plan that buys in twelve years is not worth a house today. It takes no end:
+  you do not stop owning a thing.
 
 Three invariants belong to the model rather than the form, so a hand-edited
 store can't break them: an investment is always money going out, a loan always
@@ -191,6 +200,40 @@ Because of that there is no single "per month" figure once a yearly bill is in
 the list, so the summary reports the **average over the horizon**. With only
 monthly fields that average is exactly the monthly figure, so nothing reads
 differently until you give something a longer period.
+
+## What it opens on
+
+An empty form answers nothing, so the app opens on one question asked three
+ways: **how should I buy a 100,000 house?**
+
+1. **Buy now, on a loan** — 100,000 over twenty years at 3%.
+2. **Save up, buy cash** — rent, save, and buy the month the savings cover it.
+3. **Save up, sell the fund** — the same, but the index fund is cashed in too,
+   which buys the house sixteen months sooner.
+
+All three spend **exactly the same on housing every month**: the loan's
+repayment of 554.60. The renters pay 500 of rent and invest the other 54.60 at
+6%, so no plan is quietly saving more than another — the only thing being
+compared is *when you own the house*. Pay and everyday costs are one field the
+three of them share, because your salary does not change with how you buy.
+
+The lesson is not the one an empty form would teach. Borrowing wins by about
+47,000 over twenty years, not because loans are free — the interest is 33,104 —
+but because it owns an appreciating house eleven years earlier than saving does.
+
+**The months the renters buy are computed, not chosen.** Nothing in this model
+is conditional: "as soon as savings reach 100,000" cannot be written down, so
+the month was worked out from these very figures and hard-coded. A test
+recomputes both months and fails if a figure moves without them following,
+which is the only way a written-down answer stays honest. Two details are
+there for the same reason: the borrower owns the house from month 0, because
+that is when the loan's money arrives — start it a month later and the plan
+opens owing 100,000 for a house it does not own — and the property tax is
+billed six months after the keys, because a buyer who has just spent everything
+cannot pay a bill the same month.
+
+None of this touches a plan you have already made: the defaults are only
+consulted when there is nothing stored.
 
 ## Strategies
 

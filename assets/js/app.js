@@ -16,7 +16,7 @@ import {
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
-  normalizeFields, defaultFields, migrateLegacyInputs, labelOf,
+  normalizeFields, migrateLegacyInputs, labelOf,
 } from './fields.js';
 import {
   formatAmount, formatCompact, formatMonth, formatHorizon, formatRate, setFormatLocale,
@@ -30,7 +30,7 @@ import {
   updateStrategy, duplicateStrategy, removeStrategy,
   spreadField, unlinkField, removeEverywhere,
   neighbourOf as strategyNeighbourOf, normalizeStrategies, activeIdOf, nameOf,
-  migrateFields,
+  migrateFields, defaultStrategies,
 } from './strategies.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
 import { BUILD } from './version.js';
@@ -43,7 +43,9 @@ const THEME_KEY = 'finapp.theme.v1';
 const LANG_KEY = 'finapp.language.v1';
 const THEME_ORDER = ['auto', 'light', 'dark'];
 const THEME_COLORS = { light: '#f9f9f7', dark: '#0d0d0d' };
-const DEFAULT_MONTHS = 24;
+/** Long enough for the plans the app opens with to have played out: the
+ *  loan's own term, by which point all three own the house outright. */
+const DEFAULT_MONTHS = 240;
 /** Enough that pressing the toggle visibly does something, low enough to be a
  *  reasonable thing to assume on the reader's behalf. They can change it. */
 const DEFAULT_INFLATION = '2';
@@ -215,7 +217,8 @@ function loadState() {
     return adopt(migrateFields(migrateLegacyInputs(legacy)), legacy.months, LEGACY_INPUT_KEY);
   }
 
-  const strategies = migrateFields(defaultFields());
+  // Nothing stored: open on the worked example rather than an empty form.
+  const strategies = normalizeStrategies(defaultStrategies());
   return {
     strategies,
     activeId: strategies[0].id,
@@ -837,6 +840,10 @@ function fieldLabels() {
     fromWord: t('field.fromWord'),
     fromWordShort: t('field.fromWordShort'),
     toWord: t('field.toWord'),
+    ownedFrom: t('field.ownedFrom'),
+    sell: t('field.sell'),
+    sellWord: t('field.sellWord'),
+    sellWordShort: t('field.sellWordShort'),
     toWordShort: t('field.toWordShort'),
     onceMonth: t('field.onceMonth'),
     onceWord: t('field.onceWord'),
