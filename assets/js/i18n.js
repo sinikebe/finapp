@@ -121,6 +121,12 @@ const STRINGS = {
     'sankey.pool': 'All of it',
     'sankey.kept': 'Kept',
     'sankey.unnamed': 'Unnamed',
+    // A loan's repayment, as the parts it is made of. Named rather than
+    // coloured: the diagram seats three tones and they mean in, out and left
+    // over, so a fourth would have to displace one of those.
+    'sankey.part.principal': (name) => `${name} · principal`,
+    'sankey.part.fees': (name) => `${name} · fees`,
+    'sankey.part.interest': (name) => `${name} · interest`,
     'sankey.other': (count) => `${count} smaller, pooled`,
     'sankey.shortfall': 'Made up from savings',
     'sankey.tone.income': 'Comes in',
@@ -340,6 +346,9 @@ const STRINGS = {
     'sankey.pool': 'Le tout',
     'sankey.kept': 'Conservé',
     'sankey.unnamed': 'Sans nom',
+    'sankey.part.principal': (name) => `${name} · capital`,
+    'sankey.part.fees': (name) => `${name} · frais`,
+    'sankey.part.interest': (name) => `${name} · intérêts`,
     'sankey.other': (count) => `${count} plus petits, regroupés`,
     'sankey.shortfall': 'Pris sur l’épargne',
     'sankey.tone.income': 'Entre',

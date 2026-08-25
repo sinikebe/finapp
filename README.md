@@ -458,6 +458,37 @@ instead of leaving on the right as *kept* — one colour, one idea, on whichever
 side the gap falls. When income and outgoings match exactly there is no node at
 all: a flow of nothing is not a flow.
 
+### A repayment is not one thing
+
+Drawn as a single ribbon a mortgage says only "this much left", which is the one
+question the diagram exists to go past. So a loan arrives as the parts its
+repayments are actually made of — **principal**, **fees** and **interest** —
+each a strand of its own, named rather than coloured, because the diagram seats
+three tones and they already mean in, out and left over.
+
+Both halves of the split are read from figures the app already stands behind
+rather than derived afresh: the total from `fieldTotalOf`, which is what the
+diagram draws, and what has come off the balance from `outstandingOf`, which is
+what the debt tile shows. The interest is then whatever is left over, so the
+parts sum to the whole by construction rather than by luck — and the fees, being
+lent inside the principal, are apportioned out of it, so those two add up
+exactly too. Accumulating each month's interest instead was the obvious way and
+the wrong one: rounding twelve times a year for twenty-five years put it
+seventeen cents adrift of the figure the field's own row quotes.
+
+A horizon shorter than the term splits what has *been paid*, not what will be:
+ten years into a twenty-five year mortgage the strands are the interest and
+principal of those ten years, and they still come to exactly what the diagram
+draws for it. A loan with neither interest nor fees is one strand and keeps its
+plain name; once it splits, every strand is named, so no strand can be mistaken
+for the whole.
+
+One consequence worth knowing rather than discovering: at 0% a payment rounded
+to the cent need not divide the principal evenly, so 200,000 over 300 months
+repays 200,001 and the extra unit is reported as interest. That is what
+`loanInterest` has always said and what the field's row shows; the diagram
+agrees with them rather than quietly disagreeing.
+
 ### Why three colours, and only three
 
 A Sankey is an **all-pairs** form — at a node face the layout decides which two

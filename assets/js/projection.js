@@ -130,6 +130,44 @@ export function loanInterest(field) {
 }
 
 /**
+ * What a loan's repayments *were made of*, over the months so far.
+ *
+ * A repayment is not one thing: part of it clears the balance and part of it is
+ * the price of having borrowed. Drawn as a single ribbon a mortgage says only
+ * "this much left", which is the one question the flow diagram exists to go
+ * past.
+ *
+ * Both halves are read from figures the app already stands behind rather than
+ * derived afresh: the total from `fieldTotalOf`, which is what the diagram
+ * draws, and what has come off the balance from `outstandingOf`, which is what
+ * the debt tile shows. The interest is then whatever is left, so the parts sum
+ * to the whole by construction rather than by luck. The fees are lent inside
+ * the principal, so they come out of it in proportion — apportioned, so those
+ * two add up exactly too.
+ *
+ * @returns {{principal: number, fees: number, interest: number, total: number}}
+ */
+export function loanPartsOf(field, months) {
+  const total = fieldTotalOf(field, months);
+  if (field.kind !== 'loan' || total <= 0) {
+    return { principal: total, fees: 0, interest: 0, total };
+  }
+
+  // What has come off the balance, read from the same walk the debt tile does,
+  // so the diagram, the row and the tile cannot tell three different stories.
+  // Accumulating each month's interest instead drifts: rounding twelve times a
+  // year for twenty-five years put it seventeen cents off `loanInterest`.
+  // Clamped both ways because a payment too small to cover its own interest
+  // makes the balance grow, and neither part may go negative or exceed what
+  // actually moved.
+  const cleared = roundMoney(borrowedOf(field) - outstandingOf(field, months));
+  const repaid = Math.min(Math.max(0, cleared), total);
+  const interest = roundMoney(total - repaid);
+  const [principal, fees] = shareOut(repaid, [toAmount(field.amount), toAmount(field.fees)]);
+  return { principal, fees, interest, total };
+}
+
+/**
  * What a yearly percentage has done to an amount after `years` whole years.
  *
  * Whole years, and a step rather than a slope: a raise arrives on an

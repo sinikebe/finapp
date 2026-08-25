@@ -12,7 +12,7 @@ import {
   project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
   hasAmounts, hasInvestments, hasDebt, hasOwned,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
-  fieldTotalOf, shareOut,
+  fieldTotalOf, loanPartsOf, shareOut,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
@@ -585,23 +585,45 @@ let sankey = null;
  * which is every asset, weighs nothing and so is simply not there.
  */
 function sankeyData(projection) {
+  // A loan's repayment is not one thing, and one ribbon says only "this much
+  // left" — which is the question the diagram exists to go past. So it arrives
+  // as the parts it is actually made of, which sum to the same total. A loan
+  // with neither interest nor fees is one part and keeps its plain name; once
+  // it splits, every part is named, so no strand can be mistaken for the whole.
+  const partsOf = (field) => {
+    const whole = fieldTotalOf(field, projection.months);
+    if (field.kind !== 'loan') return [{ field, weight: whole }];
+    const parts = loanPartsOf(field, projection.months);
+    const split = [
+      { field, weight: parts.principal, part: 'principal' },
+      { field, weight: parts.fees, part: 'fees' },
+      { field, weight: parts.interest, part: 'interest' },
+    ].filter((entry) => entry.weight > 0);
+    if (split.length <= 1) return [{ field, weight: whole }];
+    return split;
+  };
+
   const weigh = (direction) => projection.fields
-    .map((field) => ({ field, weight: fieldTotalOf(field, projection.months) }))
-    .filter((entry) => entry.field.direction === direction && entry.weight > 0);
+    .filter((field) => field.direction === direction)
+    .flatMap(partsOf)
+    .filter((entry) => entry.weight > 0);
 
   const incoming = weigh('income');
   const outgoing = weigh('expense');
   const inShares = shareOut(projection.totals.income, incoming.map((e) => e.weight));
   const outShares = shareOut(projection.totals.expenses, outgoing.map((e) => e.weight));
 
-  const named = (entry, index, shares, tone) => ({
-    id: entry.field.id,
+  const named = (entry, index, shares, tone) => {
     // "this field" is written for an aria label on a button; as the name of a
     // node beside a ribbon it reads as an instruction rather than a thing.
-    label: labelOf(entry.field, t) || t('sankey.unnamed'),
-    value: shares[index],
-    tone,
-  });
+    const name = labelOf(entry.field, t) || t('sankey.unnamed');
+    return {
+      id: entry.part ? `${entry.field.id}:${entry.part}` : entry.field.id,
+      label: entry.part ? t(`sankey.part.${entry.part}`, name) : name,
+      value: shares[index],
+      tone,
+    };
+  };
   // A share that rounds away to nothing is not a flow — the same rule the
   // leftover node follows. Left in, it would take the sliver every drawn flow
   // is guaranteed and sit in the table as "0 · 0%".
