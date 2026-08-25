@@ -295,6 +295,63 @@ main {
 
 .strategy-actions { display: flex; gap: 2px; }
 
+/* Fixed, not sticky: a sticky bar keeps its place in the flow, so revealing one
+   while the reader is halfway down the page shoves everything they are looking
+   at down by its height. This costs a strip of the viewport and moves nothing.
+   It appears only once the bar in the form has scrolled away, so the two are
+   never both on screen. */
+.strategy-jump {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  /* Installed on a phone this sits under the notch, so the inset is the top one. */
+  padding: calc(6px + env(safe-area-inset-top, 0px)) 12px 6px;
+  /* Opaque, not a translucent pane: the page scrolls underneath it, and any
+     transparency puts a moving line of body text behind the names. */
+  background: var(--plane);
+  border-bottom: 1px solid var(--border);
+}
+
+.strategy-jump-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 1120px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 1px;
+}
+.strategy-jump-tabs::-webkit-scrollbar { display: none; }
+
+.strategy-jump-tab {
+  flex: none;
+  max-width: 42vw;
+  min-height: 32px;
+  padding: 4px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.strategy-jump-tab:hover { border-color: var(--border-strong); color: var(--text-primary); }
+/* The one you are on is marked, never dropped — a row that loses the name you
+   are reading is a row that moves under your finger. */
+.strategy-jump-tab[aria-current="true"] {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: default;
+}
+
 .add-strategy {
   min-height: 36px;
   padding: 6px 14px;

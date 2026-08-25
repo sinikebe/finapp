@@ -25,7 +25,7 @@ import { html } from './dom.js';
 import { createLineChart, endLabelPad } from './chart.js';
 import { createSankey } from './sankey.js';
 import { createFieldList } from './field-list.js';
-import { createStrategyBar } from './strategy-bar.js';
+import { createStrategyBar, createStrategyJump } from './strategy-bar.js';
 import {
   updateStrategy, duplicateStrategy, removeStrategy,
   spreadField, unlinkField, removeEverywhere,
@@ -58,6 +58,7 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   fields: $('fields'),
   strategies: $('strategies'),
+  strategyJump: $('strategy-jump'),
   sankey: $('sankey'),
   sankeyMount: $('sankey-mount'),
   compare: $('compare'),
@@ -870,6 +871,8 @@ function strategyLabels() {
     addFirst: t('strategy.addFirst'),
     switchTo: (name) => t('strategy.switchTo', name),
     removeNamed: (name) => t('strategy.removeNamed', name),
+    jumpAria: t('strategy.jumpAria'),
+    onNamed: (name) => t('strategy.onNamed', name),
   };
 }
 
@@ -1114,7 +1117,9 @@ function render() {
   ui.moneyNote.hidden = notes.length === 0;
   ui.moneyNote.textContent = notes.join(' ');
 
-  bar.update(state.strategies, state.activeId, strategyLabels(), t);
+  const labels = strategyLabels();
+  bar.update(state.strategies, state.activeId, labels, t);
+  jump.update(state.strategies, state.activeId, labels, t);
   const comparing = state.strategies.length > 1;
   list.update(projection.fields, fieldLabels(), t, { comparing });
   // Explains itself only while it has not been used: once something is synced,
@@ -1281,6 +1286,17 @@ let t = makeTranslator(language);
 
 const bar = createStrategyBar({
   mount: ui.strategies,
+  labels: strategyLabels(),
+  t,
+  onCommand: runStrategyCommand,
+});
+
+// The same switch, within reach from anywhere on the page. It watches the bar
+// above and shows itself only once that one is gone, so the two are never both
+// on screen asking to be told apart.
+const jump = createStrategyJump({
+  mount: ui.strategyJump,
+  watch: bar.element,
   labels: strategyLabels(),
   t,
   onCommand: runStrategyCommand,

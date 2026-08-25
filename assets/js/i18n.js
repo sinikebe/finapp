@@ -99,6 +99,8 @@ const STRINGS = {
     'strategy.add': 'Add a strategy',
     'strategy.addFirst': 'Compare another strategy',
     'strategy.switchTo': (name) => `Switch to ${name}`,
+    'strategy.jumpAria': 'Switch strategy',
+    'strategy.onNamed': (name) => `${name}, the strategy you are on`,
     'strategy.removeNamed': (name) => `Remove ${name}`,
     'strategy.copyOf': (name) => `${name} (copy)`,
 
@@ -311,6 +313,8 @@ const STRINGS = {
     'strategy.add': 'Ajouter une stratégie',
     'strategy.addFirst': 'Comparer une autre stratégie',
     'strategy.switchTo': (name) => `Passer à ${name}`,
+    'strategy.jumpAria': 'Changer de stratégie',
+    'strategy.onNamed': (name) => `${name}, la stratégie en cours`,
     'strategy.removeNamed': (name) => `Supprimer ${name}`,
     'strategy.copyOf': (name) => `${name} (copie)`,
 

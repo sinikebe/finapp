@@ -172,6 +172,19 @@ told apart by name alone, which is not a chart.
 next to the operations — add, rename, duplicate, remove — which are pure and
 return new lists, like the field ones.
 
+The switch sits at the top of the form, which is several screens away by the
+time you are reading a chart — so a second one pins itself to the top of the
+window once the first has scrolled off. It carries names and nothing else:
+renaming, adding and removing stay in one place, because two boxes claiming to
+hold the same name is exactly the confusion the active tab *being* the name box
+was meant to avoid. It shows itself only when there is more than one strategy
+and only while the real bar is off screen, so the two are never both asking to
+be told apart. It is fixed rather than sticky, which sounds like a detail and is
+not: a sticky element keeps its place in the flow, so revealing one while the
+reader is halfway down the page shoves everything they are looking at down by
+its height. And because four long names overflow a phone, the row scrolls
+itself — never the page — to keep the name you are on in view.
+
 ### Fields two strategies share
 
 A comparison only tells you something if the two plans differ in **one** place.
