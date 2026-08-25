@@ -131,6 +131,11 @@ const ui = {
   aboutCommit: $('about-commit'),
   aboutDate: $('about-date'),
   aboutLog: $('about-log'),
+  aboutReset: $('about-reset'),
+  aboutResetRow: $('about-reset-row'),
+  aboutConfirm: $('about-confirm'),
+  aboutResetYes: $('about-reset-yes'),
+  aboutResetNo: $('about-reset-no'),
   updateToast: $('update-toast'),
   updateReload: $('update-reload'),
 };
@@ -218,6 +223,19 @@ function loadState() {
   }
 
   // Nothing stored: open on the worked example rather than an empty form.
+  return defaultState();
+}
+
+/**
+ * What a fresh app is. Shared by the first load and by starting again, so the
+ * two cannot drift into meaning different things — the button is only worth
+ * having if it lands you exactly where a new reader lands.
+ *
+ * Theme and language are deliberately not in here. They are preferences about
+ * reading the app, not part of the plan, and they live under their own keys:
+ * throwing away your figures should not also switch you back to English.
+ */
+function defaultState() {
   const strategies = normalizeStrategies(defaultStrategies());
   return {
     strategies,
@@ -1273,11 +1291,14 @@ function render() {
 // The slider's own max is the source of truth for the horizon: a stored value
 // beyond it (a hand-edited store) is pulled back into range here rather than
 // leaving the readout and the slider disagreeing.
-ui.months.value = String(state.months);
-state.months = toMonths(ui.months.value);
-ui.inflation.value = state.inflation;
-ui.spread.value = state.spread;
-ui.tax.value = state.tax;
+function fillControls() {
+  ui.months.value = String(state.months);
+  state.months = toMonths(ui.months.value);
+  ui.inflation.value = state.inflation;
+  ui.spread.value = state.spread;
+  ui.tax.value = state.tax;
+}
+fillControls();
 
 ui.tax.addEventListener('input', () => {
   state.tax = ui.tax.value;
@@ -1372,9 +1393,44 @@ function renderAbout() {
   ui.aboutLog.appendChild(fragment);
 }
 
+/**
+ * Back to what a new reader sees. Every key is written from `defaultState()`,
+ * the same one a first load uses, rather than a list kept in step by hand.
+ *
+ * Saved at once rather than through the debounce: this is the one edit where
+ * a tab closed a quarter of a second later must not leave the old plans in
+ * the store and the new ones on screen.
+ */
+function resetToDefaults() {
+  Object.assign(state, defaultState());
+  fillControls();
+  save();
+  render();
+}
+
+// Asked before it is done, and asked again from scratch each time the panel
+// opens: a confirm left standing from last time is one a stray click answers.
+function armReset(asking) {
+  ui.aboutConfirm.hidden = !asking;
+  // The whole row, not just the button: the line explaining what the button
+  // does reads as orphaned once the button it describes is gone.
+  ui.aboutResetRow.hidden = asking;
+  // Focus lands on keeping what you have, so a stray Return does the safe thing.
+  if (asking) ui.aboutResetNo.focus();
+}
+
 ui.aboutOpen.addEventListener('click', () => {
   renderAbout();
+  armReset(false);
   ui.aboutDialog.showModal();
+});
+ui.aboutReset.addEventListener('click', () => armReset(true));
+ui.aboutResetNo.addEventListener('click', () => armReset(false));
+ui.aboutResetYes.addEventListener('click', () => {
+  resetToDefaults();
+  // Closed so the answer is the app itself, changed, rather than a panel
+  // saying it changed.
+  ui.aboutDialog.close();
 });
 ui.aboutClose.addEventListener('click', () => ui.aboutDialog.close());
 // A click on the backdrop lands on the dialog itself, never on its contents.

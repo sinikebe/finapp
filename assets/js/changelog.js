@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v34', date: '2026-08-26',
+    version: 'v35', date: '2026-08-26',
+    en: 'Start again: a button in the About panel that puts back the three plans the app opens with, once you have confirmed it.',
+    fr: 'Recommencer\u00a0: un bouton du panneau À propos qui rétablit les trois plans d’origine, après confirmation.',
+  },
+  {
+    version: 'v34', date: '2026-08-26', commit: '6016219',
     en: 'Housing money goes back into the fund once the house is paid for, in every plan — over forty years the renters overtake the borrower.',
     fr: 'L’argent du logement retourne au fonds une fois la maison payée, dans chaque plan\u00a0: sur quarante ans, les locataires dépassent l’emprunteur.',
   },

@@ -222,6 +222,20 @@
     </dl>
     <p class="hint" id="about-note" data-i18n="about.note"></p>
 
+    <div class="about-reset" id="about-reset-row">
+      <button id="about-reset" class="ghost-button" type="button" data-i18n="about.reset">Start again</button>
+      <p class="hint" id="about-reset-note" data-i18n="about.resetNote"></p>
+    </div>
+    <!-- Asked in place rather than in a second dialog: a confirm on top of a
+         dialog is a stack nobody asked for, and the question is short. -->
+    <div class="about-confirm" id="about-confirm" hidden>
+      <p id="about-confirm-ask" data-i18n="about.resetAsk"></p>
+      <div class="about-confirm-actions">
+        <button id="about-reset-yes" class="ghost-button is-grave" type="button" data-i18n="about.resetYes">Replace everything</button>
+        <button id="about-reset-no" class="ghost-button" type="button" data-i18n="about.resetNo">Keep what I have</button>
+      </div>
+    </div>
+
     <h3 data-i18n="about.changes">What changed</h3>
     <ol class="about-log" id="about-log"></ol>
   </dialog>
