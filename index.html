@@ -115,7 +115,7 @@
       <div class="filter">
         <label for="months" data-i18n="filter.label">Projection length</label>
         <div class="range-line">
-          <input id="months" type="range" min="1" max="120" step="1" value="24">
+          <input id="months" type="range" min="1" max="600" step="1" value="24">
           <!-- Visual only: the slider carries the same text in aria-valuetext,
                so the reading is announced as the value, not as a live region. -->
           <span id="months-readout" aria-hidden="true">24 months</span>
@@ -126,6 +126,8 @@
         <button type="button" class="preset" data-months="24">2 yr</button>
         <button type="button" class="preset" data-months="60">5 yr</button>
         <button type="button" class="preset" data-months="120">10 yr</button>
+        <button type="button" class="preset" data-months="300">25 yr</button>
+        <button type="button" class="preset" data-months="600">50 yr</button>
       </div>
     </div>
 

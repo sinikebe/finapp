@@ -87,6 +87,17 @@ store can't break them: an investment is always money going out, a loan always
 repays monthly whatever period is stored against it, and something you own has
 neither a direction nor a period, because it never lands.
 
+#### A loan is clear the month it is paid off
+
+Being able to outlast a long loan turned up a disagreement that had always been
+there and had never been reachable: `project()` walked the amortisation one
+month further than `outstandingOf` did, so at exactly the last month of the term
+a twenty-five-year mortgage still showed 2.69 owed — the last month's rounding,
+left behind. The balance is cleared by construction once the term's payments are
+made, and both now say so outright on the same month. A test walks every month
+of three different loans and asserts the two agree on all of them, because two
+ways of computing the same balance is exactly the kind of thing that drifts.
+
 #### What you need, not what the bank lends
 
 The amount on a loan is what you want **in hand**. Fees are entered beside it
@@ -310,7 +321,9 @@ one function that decides what a field moves in a given month**, and periods
 were added by teaching it a single rule. Amounts are rounded to whole cents at
 every step, so what you read is what adds up.
 Input is coerced rather than trusted: a negative or unparseable amount becomes
-`0`, the horizon is clamped to 1–600 months, and both a single field and the sum
+`0`, the horizon is clamped to 1–600 months — fifty years, which the slider now
+reaches; it stopped at ten before, so a twenty-five-year mortgage could never be
+followed to the month it was paid off — and both a single field and the sum
 of a direction are capped at a hundred billion a month. That cap keeps every
 total representable, which is not quite the same as keeping it exact: money is
 held in units rather than in whole cents, and past about 35 trillion the gap

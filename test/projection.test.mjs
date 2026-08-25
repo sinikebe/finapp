@@ -377,6 +377,32 @@ test('what a loan repays in all is every payment, fees included', () => {
   assert.equal(roundMoney(borrowedOf(withFees) + loanInterest(withFees)), loanTotal(withFees));
 });
 
+test('a loan is clear the month its last payment lands', () => {
+  // Only reachable once the horizon can outlast a long loan. The balance is
+  // cleared by construction when the term is up, so the last month's rounding
+  // must not linger as a few cents still owed.
+  const field = loan('200000', '4.5', 300);
+  const result = project({ fields: [field], months: 302 });
+  assert.equal(result.points[299].debt, 1110.19, 'still owing with one payment to go');
+  assert.equal(result.points[300].debt, 0, 'and clear the month it is paid off');
+  assert.equal(result.totals.expenses, loanTotal(field), 'every payment still lands');
+});
+
+test('the projection and the outstanding balance agree on every month', () => {
+  // Two ways of walking the same amortisation; they disagreed at exactly the
+  // last month of the term, which only a horizon long enough to reach it shows.
+  for (const field of [loan('200000', '4.5', 300), loan('12000', '6', 24), loan('50000', '0', 60)]) {
+    const term = Number(field.termMonths);
+    const result = project({ fields: [field], months: term + 2 });
+    for (let month = 0; month <= term + 2; month += 1) {
+      assert.equal(
+        result.points[month].debt, outstandingOf(field, month),
+        `month ${month} of a ${term}-month loan`,
+      );
+    }
+  }
+});
+
 test('a loan ignores the period control: repayments are monthly', () => {
   const field = createField({
     kind: 'loan', direction: 'expense', amount: '1200', annualRate: '0', termMonths: 12, periodMonths: 12,
