@@ -18,7 +18,6 @@
  */
 
 import { html, svgEl } from './dom.js';
-import { shareOut } from './projection.js';
 
 const HEIGHT = 340;
 const PAD = 10;
@@ -45,9 +44,13 @@ const LABEL_PAD = 9;
  * Subtracting each column's own gaps instead leaves a node where more flows out
  * than in.
  */
-function stack(values, top, budget, total) {
+function stack(values, top, budget, total, allowance) {
   if (!values.length || total <= 0) return [];
-  const floors = Math.min(budget, MIN_FLOW * values.length);
+  // The floor allowance is the SAME number for both columns, not each column's
+  // own count times the floor. Otherwise the two sides get different
+  // pixels-per-unit and the same amount is drawn wider on the sparser side —
+  // in a diagram whose entire claim is that width is the value.
+  const floors = Math.min(budget, allowance);
   const scaled = Math.max(0, budget - floors);
   const each = floors / values.length;
 
@@ -100,7 +103,7 @@ export function createSankey({ mount, id, title, description, labels, formatValu
     item.style.setProperty('--series', `var(${TONE_VAR[tone]})`);
     html('span', 'legend-key', item);
     const text = html('span', null, item);
-    return { tone, text };
+    return { tone, text, element: item };
   });
 
   const plot = html('div', 'chart-plot sankey-plot', figure);
@@ -184,10 +187,10 @@ export function createSankey({ mount, id, title, description, labels, formatValu
 
   function showTip(entry, event) {
     tipLabel.textContent = entry.label;
-    const side = state.sources.includes(entry) ? state.sources : state.sinks;
-    const shares = shareOut(100, side.map((node) => node.value));
-    const share = shares[side.indexOf(entry)] || 0;
-    tipValue.textContent = labels.tipValue(formatValue(entry.value), share);
+    // The share travels with the entry rather than being recomputed here: a
+    // pooled column would otherwise give the tooltip a different denominator
+    // from the table, and the same field two different percentages.
+    tipValue.textContent = labels.tipValue(formatValue(entry.value), entry.share || 0);
     tooltip.hidden = false;
     const box = plot.getBoundingClientRect();
     const x = event.clientX - box.left;
@@ -199,7 +202,12 @@ export function createSankey({ mount, id, title, description, labels, formatValu
     tooltip.hidden = true;
   }
 
-  svg.addEventListener('pointerleave', hideTip);
+  svg.addEventListener('pointerleave', (event) => {
+    // A touch tap ends with a pointerleave; clearing there would blank the
+    // reading the tap just asked for — the same rule the line chart follows.
+    if (event.pointerType === 'touch') return;
+    hideTip();
+  });
 
   function draw() {
     const w = width();
@@ -234,8 +242,9 @@ export function createSankey({ mount, id, title, description, labels, formatValu
     const budget = Math.max(0, span - Math.max(leftGaps, rightGaps));
     const centred = (gaps) => PAD + (span - (budget + gaps)) / 2;
 
-    const leftBoxes = stack(sources.map((n) => n.value), centred(leftGaps), budget, total);
-    const rightBoxes = stack(sinks.map((n) => n.value), centred(rightGaps), budget, total);
+    const allowance = MIN_FLOW * Math.max(sources.length, sinks.length);
+    const leftBoxes = stack(sources.map((n) => n.value), centred(leftGaps), budget, total, allowance);
+    const rightBoxes = stack(sinks.map((n) => n.value), centred(rightGaps), budget, total, allowance);
 
     // The pool's faces are continuous — it is one node, so nothing is stacked
     // with gaps there; each face is partitioned in its own column's order.
@@ -291,11 +300,24 @@ export function createSankey({ mount, id, title, description, labels, formatValu
         return; // not laid out yet; the next draw will size it
       }
       if (!measured || measured <= room) return;
-      let trimmed = label;
-      while (trimmed.length > 1 && node.text.getComputedTextLength() > room) {
-        trimmed = trimmed.slice(0, -1);
-        node.name.textContent = `${trimmed.trimEnd()}\u2026`;
+
+      // Bisection rather than a character at a time: every measurement forces a
+      // synchronous layout, and this runs on the redraw behind every keystroke.
+      // Sixty characters cost six reflows here instead of sixty.
+      let low = 0;
+      let high = label.length;
+      let best = '';
+      while (low <= high) {
+        const mid = (low + high) >> 1;
+        node.name.textContent = `${label.slice(0, mid).trimEnd()}\u2026`;
+        if (node.text.getComputedTextLength() <= room) {
+          best = node.name.textContent;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
       }
+      node.name.textContent = best || '\u2026';
     };
 
     let n = 0;
@@ -345,20 +367,15 @@ export function createSankey({ mount, id, title, description, labels, formatValu
   });
 
   function renderTable() {
+    // Rebuilt wholesale, so the reader's place in a long list has to be put
+    // back: without this a keystroke in the form scrolls the table to the top.
+    const scrolled = tableWrap.scrollTop;
     tbody.textContent = '';
     const fragment = document.createDocumentFragment();
     // Every field, including the small ones the drawing pooled: the table is
     // where nothing is allowed to be lost.
     const listed = state.rows.length ? state.rows : [...state.sources, ...state.sinks];
-    const split = state.rows.length ? state.sourceCount : state.sources.length;
-    // Apportioned rather than divided, for the same reason the amounts are: a
-    // column of percentages a reader can add up has to come to a hundred. Each
-    // side is a whole in itself, so each is shared out of 100 separately.
-    const shares = [
-      ...shareOut(100, listed.slice(0, split).map((entry) => entry.value)),
-      ...shareOut(100, listed.slice(split).map((entry) => entry.value)),
-    ];
-    listed.forEach((entry, index) => {
+    listed.forEach((entry) => {
       const row = document.createElement('tr');
       const th = document.createElement('th');
       th.scope = 'row';
@@ -376,11 +393,12 @@ export function createSankey({ mount, id, title, description, labels, formatValu
 
       const share = document.createElement('td');
       share.className = 'num';
-      share.textContent = state.total ? labels.share(shares[index]) : '';
+      share.textContent = state.total ? labels.share(entry.share || 0) : '';
       row.appendChild(share);
       fragment.appendChild(row);
     });
     tbody.appendChild(fragment);
+    tableWrap.scrollTop = scrolled;
     tableRendered = true;
   }
 
@@ -405,6 +423,7 @@ export function createSankey({ mount, id, title, description, labels, formatValu
     })
     : null;
   if (observer) observer.observe(plot);
+  else window.addEventListener('resize', draw);
 
   return {
     update(next) {
@@ -417,8 +436,19 @@ export function createSankey({ mount, id, title, description, labels, formatValu
         isEmpty: Boolean(next.isEmpty),
         emptyMessage: next.emptyMessage || '',
       };
+      // The legend names what is drawn and nothing else. The leftover node is
+      // conditional — absent when income and outgoings match exactly — and it
+      // changes sides and meaning when they do not, so a fixed third caption
+      // would name a colour that is not on the card, or call money arriving
+      // from savings "left over".
+      const drawn = [...state.sources, ...state.sinks];
+      const leftover = drawn.find((entry) => entry.tone === 'net');
       legendItems.forEach((item) => {
-        item.text.textContent = labels.tone(item.tone);
+        const present = drawn.some((entry) => entry.tone === item.tone);
+        item.element.hidden = !present;
+        item.text.textContent = item.tone === 'net' && leftover
+          ? leftover.label
+          : labels.tone(item.tone);
       });
       nameTh.textContent = labels.nameColumn;
       flowTh.textContent = labels.flowColumn;
@@ -437,6 +467,7 @@ export function createSankey({ mount, id, title, description, labels, formatValu
 
     destroy() {
       if (observer) observer.disconnect();
+      else window.removeEventListener('resize', draw);
       window.cancelAnimationFrame(frame);
       figure.remove();
     },

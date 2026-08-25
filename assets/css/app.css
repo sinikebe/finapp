@@ -891,6 +891,12 @@ main {
    definite edge where the ribbons meet. */
 .sankey-node { stroke: none; }
 
+/* Nodes and names paint above the ribbons, so without this the pointer crossing
+   one stops reaching the ribbon underneath — and the tooltip freezes showing
+   whatever it last said. They are labels, not targets. */
+.sankey-nodes,
+.sankey-labels { pointer-events: none; }
+
 /* Text wears text tokens, never the series colour — the node beside it carries
    the identity. */
 .sankey-label {

@@ -267,7 +267,13 @@ were added by teaching it a single rule. Amounts are rounded to whole cents at
 every step, so what you read is what adds up.
 Input is coerced rather than trusted: a negative or unparseable amount becomes
 `0`, the horizon is clamped to 1–600 months, and both a single field and the sum
-of a direction are capped where doubles stop counting cents exactly.
+of a direction are capped at a hundred billion a month. That cap keeps every
+total representable, which is not quite the same as keeping it exact: money is
+held in units rather than in whole cents, and past about 35 trillion the gap
+between two neighbouring doubles is wider than half a cent, so rounding has
+nowhere exact to land. Below that every total is faithful; only a run at the
+very ceiling — six hundred months of the largest amount the form takes —
+drifts, and then by about two units in sixty trillion.
 
 Amounts carry no currency symbol. The app never asks which currency you use, so
 it never claims to know.

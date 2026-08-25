@@ -14,11 +14,15 @@ export const MIN_MONTHS = 1;
 export const MAX_MONTHS = 600;
 
 /**
- * The largest monthly flow, per direction, that keeps every cumulative total
- * exact: at the longest horizon, MAX_AMOUNT * MAX_MONTHS in cents (6e15) still
- * sits inside Number.MAX_SAFE_INTEGER (9.007e15), so no total ever drifts off
- * whole cents. It caps single fields and their sum alike — twenty fields can't
- * add up to something the arithmetic can no longer represent.
+ * The largest monthly flow, per direction. It caps single fields and their sum
+ * alike — twenty fields can't add up to something the arithmetic can no longer
+ * represent. Money is held in units, not integer cents, so the cap bounds what
+ * is representable rather than what is exact: below 2**45 (~3.5e13) a double's
+ * step is finer than half a cent, so every total there is faithful, and above
+ * it rounding has nowhere exact to land. A worst-case run — MAX_MONTHS of
+ * MAX_AMOUNT, 6e13 — accumulates about two units of drift. Nothing a person
+ * types comes near that; the cap is there to bound the arithmetic, not to
+ * promise exactness at its own ceiling.
  */
 export const MAX_AMOUNT = 1e11;
 
