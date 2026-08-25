@@ -101,6 +101,34 @@ export function loanInterest(field) {
   return roundMoney(loanPayment(field.amount, field.annualRate, term) * term - toAmount(field.amount));
 }
 
+/**
+ * What a yearly percentage has done to an amount after `years` whole years.
+ *
+ * Whole years, and a step rather than a slope: a raise arrives on an
+ * anniversary, not a little every month. Compounding it monthly would be
+ * arithmetically tidier and would describe nobody's pay.
+ */
+export function grownBy(amount, annualRate, years) {
+  const base = toAmount(amount);
+  const percent = Number.parseFloat(annualRate);
+  if (!base || !Number.isFinite(percent) || percent === 0 || years <= 0) return base;
+  const rate = Math.max(-100, Math.min(percent, 1000)) / 100;
+  return roundMoney(Math.min(base * (1 + rate) ** Math.trunc(years), MAX_AMOUNT));
+}
+
+/**
+ * How many whole years a field has been running by a given month.
+ *
+ * Counted from the first month it could land rather than from month 0, because
+ * a salary starting today pays twelve times before its first anniversary — so
+ * the raise belongs in month 13, not month 12. Put the other way round: the
+ * first time an amount lands it lands at what you typed, and a year later it
+ * has climbed once.
+ */
+export function yearsRunning(field, month) {
+  return Math.floor((month - Math.max(1, startOf(field))) / 12);
+}
+
 /** The first month a field can land. 0 means "from the beginning". */
 export function startOf(field) {
   const start = Math.trunc(Number(field.startMonth) || 0);
@@ -197,7 +225,15 @@ export function contributionOf(field, month) {
   // its own the count runs from month 0, which is what every field written
   // before windows existed already does.
   const period = field.periodMonths || DEFAULT_PERIOD;
-  return (month - start) % period === 0 ? toAmount(field.amount) : 0;
+  if ((month - start) % period !== 0) return 0;
+
+  // A plain amount can climb: a salary that rises a few percent a year, a rent
+  // indexed to prices. The rate slot every field already carries finally means
+  // something here — but only here. On an investment the same slot is the
+  // *return*, and letting that grow the contribution as well would pay in more
+  // every year because the market did well, which is not what anybody meant.
+  if (field.kind !== 'plain') return toAmount(field.amount);
+  return grownBy(field.amount, field.annualRate, yearsRunning(field, month));
 }
 
 /** What one direction moves in a given month, across every field. */

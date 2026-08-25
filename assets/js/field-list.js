@@ -128,6 +128,34 @@ export function createFieldList(options) {
 
     // When a field runs. The word comes *before* the box here — "from month 6"
     // reads as a sentence where a trailing unit would not.
+    const rateLabel = html('label', 'sr-only', controls);
+    const rateWrap = html('span', 'field-unit field-unit-rate', controls);
+    const rate = html('input', 'field-rate', rateWrap);
+    const rateUnit = html('span', 'unit', rateWrap);
+    const rateUnitFull = html('span', 'unit-full', rateUnit);
+    const rateUnitShort = html('span', 'unit-short', rateUnit);
+    rate.type = 'number';
+    rate.id = `field-${field.id}-rate`;
+    rate.inputMode = 'decimal';
+    rate.min = '0';
+    rate.step = 'any';
+    rate.autocomplete = 'off';
+    rateLabel.htmlFor = rate.id;
+
+    const termLabel = html('label', 'sr-only', controls);
+    const termWrap = html('span', 'field-unit field-unit-term', controls);
+    const term = html('input', 'field-term', termWrap);
+    const termUnit = html('span', 'unit', termWrap);
+    const termUnitFull = html('span', 'unit-full', termUnit);
+    const termUnitShort = html('span', 'unit-short', termUnit);
+    term.type = 'number';
+    term.id = `field-${field.id}-term`;
+    term.inputMode = 'numeric';
+    term.min = '1';
+    term.step = '1';
+    term.autocomplete = 'off';
+    termLabel.htmlFor = term.id;
+
     // The two boxes are one item in the wrapping row, so they move to the next
     // line together — a lone "to" box under a full line reads as a mistake.
     const window = html('span', 'field-window', controls);
@@ -159,33 +187,6 @@ export function createFieldList(options) {
     to.autocomplete = 'off';
     toLabel.htmlFor = to.id;
 
-    const rateLabel = html('label', 'sr-only', controls);
-    const rateWrap = html('span', 'field-unit field-unit-rate', controls);
-    const rate = html('input', 'field-rate', rateWrap);
-    const rateUnit = html('span', 'unit', rateWrap);
-    const rateUnitFull = html('span', 'unit-full', rateUnit);
-    const rateUnitShort = html('span', 'unit-short', rateUnit);
-    rate.type = 'number';
-    rate.id = `field-${field.id}-rate`;
-    rate.inputMode = 'decimal';
-    rate.min = '0';
-    rate.step = 'any';
-    rate.autocomplete = 'off';
-    rateLabel.htmlFor = rate.id;
-
-    const termLabel = html('label', 'sr-only', controls);
-    const termWrap = html('span', 'field-unit field-unit-term', controls);
-    const term = html('input', 'field-term', termWrap);
-    const termUnit = html('span', 'unit', termWrap);
-    const termUnitFull = html('span', 'unit-full', termUnit);
-    const termUnitShort = html('span', 'unit-short', termUnit);
-    term.type = 'number';
-    term.id = `field-${field.id}-term`;
-    term.inputMode = 'numeric';
-    term.min = '1';
-    term.step = '1';
-    term.autocomplete = 'off';
-    termLabel.htmlFor = term.id;
 
     const actions = html('div', 'field-actions', main);
     // Only worth showing once there is another strategy for a field to be the
@@ -283,7 +284,9 @@ export function createFieldList(options) {
     const isOnce = field.kind === 'once';
     setVisible(row.direction, row.directionLabel, !isInvestment && !isAsset);
     setVisible(row.period, row.periodLabel, !isLoan && !isAsset && !isOnce);
-    setVisible(row.rateWrap, row.rateLabel, isLoan || isInvestment || isAsset);
+    // A plain amount takes a rate too: what it does to itself each year. A
+    // one-off has no years to do it over, so it is the one kind without one.
+    setVisible(row.rateWrap, row.rateLabel, !isOnce);
     setVisible(row.termWrap, row.termLabel, isLoan);
     // A one-off has a month rather than a window; a loan's term is its end; an
     // asset never lands at all.
@@ -319,7 +322,11 @@ export function createFieldList(options) {
     row.termUnitShort.textContent = labels.termUnitShort;
     syncValue(row.term, String(field.termMonths));
 
-    const summary = isLoan ? labels.loanSummary(field) : '';
+    // What a loan works out to, or what a climbing amount climbs to: both are
+    // arithmetic the reader would otherwise have to do in their head.
+    let summary = '';
+    if (isLoan) summary = labels.loanSummary(field);
+    else if (field.kind === 'plain') summary = labels.growthSummary(field);
     row.derived.textContent = summary;
     row.derived.hidden = !summary;
 

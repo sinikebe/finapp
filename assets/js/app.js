@@ -11,7 +11,7 @@
 import {
   project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
   hasAmounts, hasInvestments, hasDebt, hasOwned,
-  loanPayment, loanInterest, monthlyRate, toAmount, toMonths,
+  loanPayment, loanInterest, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
@@ -648,6 +648,20 @@ function fieldLabels() {
     rateUnitShort: t('field.rateUnitShort'),
     termUnit: t('field.termUnit'),
     termUnitShort: t('field.termUnitShort'),
+    // Only worth spelling out once it actually climbs, and only as far as the
+    // horizon on screen — the number moves with the slider, which is the point.
+    growthSummary: (field) => {
+      const rate = Number.parseFloat(field.annualRate);
+      if (!Number.isFinite(rate) || rate === 0 || !toAmount(field.amount)) return '';
+      const years = yearsRunning(field, state.months);
+      if (years < 1) return '';
+      return t(
+        'field.growthSummary',
+        formatRate(rate),
+        formatAmount(grownBy(field.amount, field.annualRate, years)),
+        state.months,
+      );
+    },
     loanSummary: (field) => t(
       'field.loanSummary',
       formatAmount(loanPayment(field.amount, field.annualRate, field.termMonths)),
