@@ -112,6 +112,16 @@ export function loanPayment(principal, annualRate, termMonths) {
   return roundMoney((amount * rate) / (1 - (1 + rate) ** -term));
 }
 
+/**
+ * Every payment a loan asks for, added up. The figure that settles what a loan
+ * costs: the amount was what you needed, and this is what leaves your account
+ * to get it.
+ */
+export function loanTotal(field) {
+  const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
+  return roundMoney(loanPayment(borrowedOf(field), field.annualRate, term) * term);
+}
+
 /** What a loan costs beyond what was borrowed — the fees are not interest. */
 export function loanInterest(field) {
   const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));

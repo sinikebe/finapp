@@ -6,7 +6,7 @@ import {
   seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
   flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf,
   grownBy, yearsRunning, fieldTotalOf, shareOut,
-  loanPayment, loanInterest, borrowedOf, monthlyRate,
+  loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate,
   toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
 import { createField, normalizeFields } from '../assets/js/fields.js';
@@ -352,6 +352,29 @@ test('fees alone still make a debt, and still count as an amount', () => {
   assert.equal(hasDebt(result), true);
   assert.equal(hasAmounts(result), true, 'or the tile would contradict the chart');
   assert.equal(result.points[0].debt, 400);
+});
+
+test('interest is added to what you asked for, never taken out of it', () => {
+  // The whole point of entering what you need: 100,000 borrowed is 100,000
+  // owed, and the interest is what it costs on top of that — not a share of it.
+  const field = loan('100000', '5', 120);
+  assert.equal(borrowedOf(field), 100000);
+  assert.equal(loanTotal(field), 127279.2);
+  assert.equal(loanInterest(field), 27279.2);
+  assert.equal(roundMoney(borrowedOf(field) + loanInterest(field)), loanTotal(field));
+  assert.ok(loanTotal(field) > borrowedOf(field), 'a loan repays more than it lends');
+
+  const result = project({ fields: [field], months: 120 });
+  assert.equal(result.points[0].debt, 100000, 'you owe what you asked for, not more');
+  assert.equal(result.totals.expenses, 127279.2, 'and pay out the interest on top');
+});
+
+test('what a loan repays in all is every payment, fees included', () => {
+  const withFees = createField({
+    kind: 'loan', direction: 'expense', amount: '200000', fees: '3000', annualRate: '4.5', termMonths: 300,
+  });
+  assert.equal(loanTotal(withFees), roundMoney(loanPayment('203000', '4.5', 300) * 300));
+  assert.equal(roundMoney(borrowedOf(withFees) + loanInterest(withFees)), loanTotal(withFees));
 });
 
 test('a loan ignores the period control: repayments are monthly', () => {

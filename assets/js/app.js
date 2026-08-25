@@ -11,7 +11,7 @@
 import {
   project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
   hasAmounts, hasInvestments, hasDebt, hasOwned,
-  loanPayment, loanInterest, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
+  loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
   fieldTotalOf, shareOut,
 } from './projection.js';
 import {
@@ -838,8 +838,9 @@ function fieldLabels() {
       const borrowed = borrowedOf(field);
       const payment = formatAmount(loanPayment(borrowed, field.annualRate, field.termMonths));
       const interest = formatAmount(loanInterest(field));
+      const total = formatAmount(loanTotal(field));
       if (toAmount(field.fees) <= 0) {
-        return t('field.loanSummary', payment, field.termMonths, interest);
+        return t('field.loanSummary', payment, field.termMonths, interest, total);
       }
       return t(
         'field.loanSummaryFees',
@@ -848,6 +849,7 @@ function fieldLabels() {
         formatAmount(borrowed),
         formatAmount(toAmount(field.amount)),
         interest,
+        total,
       );
     },
     income: t('field.income'),

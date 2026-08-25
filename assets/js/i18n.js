@@ -77,12 +77,15 @@ const STRINGS = {
     'field.onceWordShort': 'month',
     'field.growthSummary': (rate, amount, months) =>
       `Climbing ${rate}% a year · ${amount} a time by month ${months}`,
-    'field.loanSummary': (payment, term, interest) =>
-      `${payment} a month for ${term} ${term === 1 ? 'month' : 'months'} · ${interest} of that is interest`,
+    // "of that is interest" read as though the interest came out of the amount
+    // just typed. It is added to it, so the line says on top, and names the
+    // total repaid — the figure that settles the question either way.
+    'field.loanSummary': (payment, term, interest, total) =>
+      `${payment} a month for ${term} ${term === 1 ? 'month' : 'months'} · ${interest} of interest on top, ${total} repaid in all`,
     // Only when there are fees: the sum that is actually lent is no longer
     // the one the reader typed, so it is the fact the line has to carry.
-    'field.loanSummaryFees': (payment, term, borrowed, received, interest) =>
-      `${payment} a month for ${term} ${term === 1 ? 'month' : 'months'} · ${borrowed} borrowed to receive ${received} · ${interest} of that is interest`,
+    'field.loanSummaryFees': (payment, term, borrowed, received, interest, total) =>
+      `${payment} a month for ${term} ${term === 1 ? 'month' : 'months'} · ${borrowed} borrowed to receive ${received} · ${interest} of interest on top, ${total} repaid in all`,
     'field.period': 'How often it lands',
     'field.period.1': 'Every month',
     'field.period.3': 'Every quarter',
@@ -298,10 +301,10 @@ const STRINGS = {
     'field.onceWordShort': 'mois',
     'field.growthSummary': (rate, amount, months) =>
       `+${rate} % par an · ${amount} à chaque fois au mois ${months}`,
-    'field.loanSummary': (payment, term, interest) =>
-      `${payment} par mois pendant ${term} mois · dont ${interest} d’intérêts`,
-    'field.loanSummaryFees': (payment, term, borrowed, received, interest) =>
-      `${payment} par mois pendant ${term} mois · ${borrowed} empruntés pour recevoir ${received} · dont ${interest} d’intérêts`,
+    'field.loanSummary': (payment, term, interest, total) =>
+      `${payment} par mois pendant ${term} mois · ${interest} d’intérêts en plus, ${total} remboursés en tout`,
+    'field.loanSummaryFees': (payment, term, borrowed, received, interest, total) =>
+      `${payment} par mois pendant ${term} mois · ${borrowed} empruntés pour recevoir ${received} · ${interest} d’intérêts en plus, ${total} remboursés en tout`,
     'field.period': 'À quelle fréquence',
     'field.period.1': 'Chaque mois',
     'field.period.3': 'Chaque trimestre',
