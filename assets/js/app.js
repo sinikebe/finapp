@@ -11,7 +11,7 @@
 import {
   project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
   hasAmounts, hasInvestments, hasDebt, hasOwned,
-  loanPayment, loanInterest, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
+  loanPayment, loanInterest, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
   fieldTotalOf, shareOut,
 } from './projection.js';
 import {
@@ -811,6 +811,9 @@ function fieldLabels() {
     onceWordShort: t('field.onceWordShort'),
     rateUnit: t('field.rateUnit'),
     rateUnitShort: t('field.rateUnitShort'),
+    fees: t('field.fees'),
+    feesUnit: t('field.feesUnit'),
+    feesUnitShort: t('field.feesUnitShort'),
     termUnit: t('field.termUnit'),
     termUnitShort: t('field.termUnitShort'),
     // Only worth spelling out once it actually climbs, and only as far as the
@@ -827,12 +830,26 @@ function fieldLabels() {
         state.months,
       );
     },
-    loanSummary: (field) => t(
-      'field.loanSummary',
-      formatAmount(loanPayment(field.amount, field.annualRate, field.termMonths)),
-      field.termMonths,
-      formatAmount(loanInterest(field)),
-    ),
+    // Two sentences, because with no fees the borrowed sum is the amount that
+    // was typed and saying it back would be noise. With fees it is the one
+    // thing the reader cannot see: they entered what they need, not what the
+    // bank will lend.
+    loanSummary: (field) => {
+      const borrowed = borrowedOf(field);
+      const payment = formatAmount(loanPayment(borrowed, field.annualRate, field.termMonths));
+      const interest = formatAmount(loanInterest(field));
+      if (toAmount(field.fees) <= 0) {
+        return t('field.loanSummary', payment, field.termMonths, interest);
+      }
+      return t(
+        'field.loanSummaryFees',
+        payment,
+        field.termMonths,
+        formatAmount(borrowed),
+        formatAmount(toAmount(field.amount)),
+        interest,
+      );
+    },
     income: t('field.income'),
     expense: t('field.expense'),
     untitled: t('field.untitled'),

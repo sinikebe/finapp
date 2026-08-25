@@ -75,6 +75,15 @@ export const FIELD_SCHEMA = {
     default: '',
     read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : ''),
   },
+  fees: {
+    // What a lender charges to arrange a loan, and lends you along with it. It
+    // is separate from the amount because the amount is what you *need*: a
+    // reader wanting 200,000 in hand should type 200,000, not work backwards
+    // from what the bank will end up lending. Empty is none, which is what
+    // every loan written before this reads as.
+    default: '',
+    read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : ''),
+  },
   termMonths: {
     // How long a loan runs. Kept inside the projection's own horizon limit so a
     // hand-edited store can't ask for a million payments.

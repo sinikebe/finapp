@@ -85,6 +85,19 @@ export function shiftReturns(fields, points) {
 }
 
 /**
+ * What a loan actually lends: what you need, plus the fees the lender adds to
+ * it. **This is the seam for a loan's principal** — the amount on the field is
+ * what the reader wants in hand, and everything that amortises, is owed, or is
+ * repaid works from what the bank hands over instead.
+ *
+ * Fees default to none, so every loan written before they existed borrows
+ * exactly its amount and nothing moves under anyone.
+ */
+export function borrowedOf(field) {
+  return roundMoney(Math.min(toAmount(field.amount) + toAmount(field.fees), MAX_AMOUNT));
+}
+
+/**
  * The level repayment that clears `principal` over `termMonths`, interest
  * included — the standard amortisation formula. At 0% it is simply the
  * principal split evenly, which is also what the formula tends to.
@@ -99,10 +112,11 @@ export function loanPayment(principal, annualRate, termMonths) {
   return roundMoney((amount * rate) / (1 - (1 + rate) ** -term));
 }
 
-/** What a loan costs beyond what was borrowed. */
+/** What a loan costs beyond what was borrowed — the fees are not interest. */
 export function loanInterest(field) {
   const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
-  return roundMoney(loanPayment(field.amount, field.annualRate, term) * term - toAmount(field.amount));
+  const borrowed = borrowedOf(field);
+  return roundMoney(loanPayment(borrowed, field.annualRate, term) * term - borrowed);
 }
 
 /**
@@ -164,7 +178,7 @@ export function drawMonthOf(field) {
  */
 export function outstandingOf(field, month) {
   const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
-  const principal = toAmount(field.amount);
+  const principal = borrowedOf(field);
   if (!principal) return 0;
 
   const drawn = drawMonthOf(field);
@@ -176,7 +190,7 @@ export function outstandingOf(field, month) {
   if (paid >= term) return 0;
 
   const rate = monthlyRate(field.annualRate);
-  const payment = loanPayment(field.amount, field.annualRate, term);
+  const payment = loanPayment(principal, field.annualRate, term);
   let balance = principal;
   for (let m = 1; m <= Math.max(0, paid); m += 1) {
     balance = roundMoney(Math.max(0, balance * (1 + rate) - payment));
@@ -216,7 +230,7 @@ export function contributionOf(field, month) {
     const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
     const first = firstPaymentOf(field);
     return month >= first && month < first + term
-      ? loanPayment(field.amount, field.annualRate, term)
+      ? loanPayment(borrowedOf(field), field.annualRate, term)
       : 0;
   }
 
@@ -338,7 +352,7 @@ export function project(input = {}) {
   // A loan not yet drawn is not yet a debt: only one taken from the outset is
   // owed at month 0.
   const owing = new Map(loans.map(
-    (field) => [field.id, drawMonthOf(field) === 0 ? toAmount(field.amount) : 0],
+    (field) => [field.id, drawMonthOf(field) === 0 ? borrowedOf(field) : 0],
   ));
   const sumOf = (map, list) => roundMoney(
     list.reduce((total, field) => total + (map.get(field.id) || 0), 0),
@@ -391,13 +405,13 @@ export function project(input = {}) {
       if (month < drawn) { owing.set(field.id, 0); continue; }
       // The month the money arrives: the debt appears, and nothing is repaid
       // yet — the first payment is the month after.
-      if (month === drawn) { owing.set(field.id, toAmount(field.amount)); continue; }
+      if (month === drawn) { owing.set(field.id, borrowedOf(field)); continue; }
       if (month - drawn > term) { owing.set(field.id, 0); continue; }
       // A month's interest, then the payment against it: what is left is the
       // principal still outstanding. Floored at zero so the last payment's
       // rounding cannot leave a debt behind.
       const rate = monthlyRate(field.annualRate);
-      const payment = loanPayment(field.amount, field.annualRate, term);
+      const payment = loanPayment(borrowedOf(field), field.annualRate, term);
       owing.set(field.id, roundMoney(Math.max(0, owing.get(field.id) * (1 + rate) - payment)));
     }
 
@@ -534,7 +548,11 @@ export function inTodaysMoney(projection, annualRate) {
  * should still see their charts rather than "add an amount".
  */
 export function hasAmounts(projection) {
-  return projection.fields.some((field) => toAmount(field.amount) > 0);
+  // A loan counts by what it borrows, so a fee-only loan does not leave the
+  // debt tile contradicting a chart that says nothing has been entered.
+  return projection.fields.some((field) => (
+    field.kind === 'loan' ? borrowedOf(field) > 0 : toAmount(field.amount) > 0
+  ));
 }
 
 /** True when any field builds a balance worth charting on its own. */
@@ -545,7 +563,7 @@ export function hasInvestments(projection) {
 /** True when something is still owed — a loan being repaid. */
 export function hasDebt(projection) {
   return projection.fields.some(
-    (field) => field.kind === 'loan' && field.direction === 'expense' && toAmount(field.amount) > 0,
+    (field) => field.kind === 'loan' && field.direction === 'expense' && borrowedOf(field) > 0,
   );
 }
 
