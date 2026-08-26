@@ -40,6 +40,7 @@ const STATE_KEY = 'finapp.state.v3';
 const LEGACY_FIELDS_KEY = 'finapp.state.v2';
 const LEGACY_INPUT_KEY = 'finapp.inputs.v1';
 const THEME_KEY = 'finapp.theme.v1';
+const UPDATE_CHECKED_KEY = 'finapp.updateChecked.v1';
 const LANG_KEY = 'finapp.language.v1';
 const THEME_ORDER = ['auto', 'light', 'dark'];
 const THEME_COLORS = { light: '#f9f9f7', dark: '#0d0d0d' };
@@ -131,6 +132,9 @@ const ui = {
   aboutCommit: $('about-commit'),
   aboutDate: $('about-date'),
   aboutLog: $('about-log'),
+  aboutUpdate: $('about-update'),
+  aboutUpdateRow: $('about-update-row'),
+  aboutUpdateNote: $('about-update-note'),
   aboutReset: $('about-reset'),
   aboutResetRow: $('about-reset-row'),
   aboutConfirm: $('about-confirm'),
@@ -1374,6 +1378,10 @@ function renderAbout() {
   ui.aboutCommit.textContent = BUILD.commit;
   ui.aboutDate.textContent = BUILD.date;
 
+  // What the update row has to say right now, so opening the panel — or
+  // changing language — never leaves a line standing from last time.
+  ui.aboutUpdateNote.textContent = ui.updateToast.hidden ? '' : t('update.found');
+
   ui.aboutLog.textContent = '';
   const fragment = document.createDocumentFragment();
   for (const release of RELEASES) {
@@ -1562,18 +1570,47 @@ window.addEventListener('appinstalled', () => {
   ui.installButton.hidden = true;
 });
 
+/* ------------------------------------------------------------ new versions */
+
+/**
+ * How stale the last look for a new worker may be before opening the app runs
+ * another. Asking on every load would fetch `sw.js` far more often than a
+ * static site ever changes; never asking would leave an installed app on the
+ * build it was installed with, since nothing else here goes to the network.
+ */
+const UPDATE_INTERVAL = 60 * 60 * 1000;
+
+let registered = null;
 let reloadOnControllerChange = false;
 
-function watchForUpdate(registration) {
-  const offerReload = (worker) => {
-    ui.updateToast.hidden = false;
-    ui.updateReload.onclick = () => {
-      ui.updateReload.disabled = true;
-      reloadOnControllerChange = true;
-      worker.postMessage({ type: 'SKIP_WAITING' });
-    };
+/**
+ * Offer the reader the build that is waiting.
+ *
+ * `worker` is the one waiting to take over, or null when there is none left to
+ * wait for — the case in a second tab, where another tab has already accepted
+ * the update and the new worker claimed every client at once.
+ */
+function offerReload(worker) {
+  ui.updateToast.hidden = false;
+  ui.updateReload.disabled = false;
+  ui.aboutUpdateNote.textContent = t('update.found');
+  ui.updateReload.onclick = () => {
+    // `installed` is the only state with anything left to skip. A worker that
+    // has since activated is already in charge of this page — the page is just
+    // the old one — and one made redundant by a newer worker will never
+    // activate. Posting to either does nothing, and did: the button greyed
+    // itself out and the reload never came.
+    if (!worker || worker.state !== 'installed') {
+      window.location.reload();
+      return;
+    }
+    ui.updateReload.disabled = true;
+    reloadOnControllerChange = true;
+    worker.postMessage({ type: 'SKIP_WAITING' });
   };
+}
 
+function watchForUpdate(registration) {
   if (registration.waiting && navigator.serviceWorker.controller) offerReload(registration.waiting);
 
   registration.addEventListener('updatefound', () => {
@@ -1585,24 +1622,83 @@ function watchForUpdate(registration) {
   });
 }
 
+/**
+ * Ask the server whether a newer worker exists, and remember when we asked.
+ *
+ * @returns {Promise<boolean>} whether a new version is on its way. True does
+ *   not mean it has arrived: a worker found here is still installing, and
+ *   `watchForUpdate` is what offers the reload once it is ready.
+ */
+async function lookForUpdate() {
+  if (!registered) return false;
+  writeStore(UPDATE_CHECKED_KEY, Date.now());
+  await registered.update();
+  return Boolean(registered.installing || registered.waiting);
+}
+
+/** Ask, but only if the last answer has gone stale. The time is kept in the
+ *  store rather than in this tab, because when the device last asked is one
+ *  fact however many tabs are open. */
+function lookForUpdateIfStale() {
+  const asked = Number(readStore(UPDATE_CHECKED_KEY, 0)) || 0;
+  // A time in the future is a clock that has been put back, not a check that
+  // has not happened yet: read it as stale rather than waiting for the clock.
+  const since = Date.now() - asked;
+  if (since >= 0 && since < UPDATE_INTERVAL) return;
+  lookForUpdate().catch(() => { /* offline: the next opening asks again */ });
+}
+
+ui.aboutUpdate.addEventListener('click', async () => {
+  ui.aboutUpdate.disabled = true;
+  ui.aboutUpdateNote.textContent = t('update.checking');
+  try {
+    // Asked for by name, so it runs whatever the clock says.
+    const coming = await lookForUpdate();
+    // Unless `offerReload` overtook us, in which case it has said something
+    // truer: the version is not on its way, it is here.
+    if (ui.updateToast.hidden) {
+      ui.aboutUpdateNote.textContent = coming ? t('update.coming') : t('update.current');
+    }
+  } catch {
+    ui.aboutUpdateNote.textContent = t('update.unreachable');
+  }
+  ui.aboutUpdate.disabled = false;
+});
+
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  // The first worker claims this page as soon as it activates; reloading on that
-  // would flash the app on every first visit. Only the reader's own "Reload"
-  // click earns a reload.
+  // Whether a worker was already in charge when this page loaded. A first visit
+  // has none, and that worker claims the page the moment it activates — reading
+  // that as a new version would offer a reload on every first visit.
+  const wasControlled = Boolean(navigator.serviceWorker.controller);
+
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!reloadOnControllerChange) return;
-    reloadOnControllerChange = false;
-    window.location.reload();
+    if (reloadOnControllerChange) {
+      reloadOnControllerChange = false;
+      window.location.reload();
+      return;
+    }
+    // A worker this tab never asked for is now in charge: another tab accepted
+    // the update. This page is the old build under the new worker, so it has
+    // the same offer to make — with nothing left to skip, only a reload.
+    if (wasControlled) offerReload(null);
   });
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' })
       .then((registration) => {
+        registered = registration;
+        // Until there is a worker, the button has nobody to ask.
+        ui.aboutUpdateRow.hidden = false;
         watchForUpdate(registration);
-        // The shell is served from the cache, so ask explicitly whether a newer
-        // worker exists rather than waiting for the browser's own schedule.
-        registration.update().catch(() => {});
+        lookForUpdateIfStale();
       })
       .catch(() => { /* offline support is a bonus, never a blocker */ });
+  });
+
+  // An installed app is opened far more often than it is loaded: it is left
+  // running for days and come back to. Coming back to it is an opening.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') lookForUpdateIfStale();
   });
 }
 

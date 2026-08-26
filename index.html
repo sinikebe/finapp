@@ -222,6 +222,13 @@
     </dl>
     <p class="hint" id="about-note" data-i18n="about.note"></p>
 
+    <!-- Hidden until a worker is actually registered: on a page served without
+         one there is nothing for this button to ask. -->
+    <div class="about-update" id="about-update-row" hidden>
+      <button id="about-update" class="ghost-button" type="button" data-i18n="update.check">Check for updates</button>
+      <p class="hint" id="about-update-note" role="status"></p>
+    </div>
+
     <div class="about-reset" id="about-reset-row">
       <button id="about-reset" class="ghost-button" type="button" data-i18n="about.reset">Start again</button>
       <p class="hint" id="about-reset-note" data-i18n="about.resetNote"></p>

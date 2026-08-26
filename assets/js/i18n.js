@@ -278,6 +278,12 @@ const STRINGS = {
     'footer.note': 'Everything is calculated on your device and saved only in this browser. No account, no network.',
     'update.ready': 'A new version is ready.',
     'update.reload': 'Reload',
+    'update.check': 'Check for updates',
+    'update.checking': 'Looking…',
+    'update.current': 'You are running the newest version.',
+    'update.coming': 'A new version is downloading. You will be offered a reload when it is ready.',
+    'update.found': 'A new version is ready. Close this panel to reload it.',
+    'update.unreachable': 'Could not reach the server. You may be offline.',
   },
 
   fr: {
@@ -528,6 +534,12 @@ const STRINGS = {
     'footer.note': 'Tout est calculé sur votre appareil et enregistré uniquement dans ce navigateur. Aucun compte, aucun réseau.',
     'update.ready': 'Une nouvelle version est prête.',
     'update.reload': 'Recharger',
+    'update.check': 'Rechercher une mise à jour',
+    'update.checking': 'Recherche\u00a0…',
+    'update.current': 'Vous utilisez la version la plus récente.',
+    'update.coming': 'Une nouvelle version se télécharge. Un rechargement vous sera proposé dès qu’elle sera prête.',
+    'update.found': 'Une nouvelle version est prête. Fermez ce panneau pour la recharger.',
+    'update.unreachable': 'Le serveur est injoignable. Vous êtes peut-être hors ligne.',
   },
 };
 

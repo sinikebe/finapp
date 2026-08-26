@@ -1242,6 +1242,7 @@ main {
 }
 .about-what { margin: 0; font-size: 13.5px; color: var(--text-secondary); }
 
+.about-update,
 .about-reset {
   display: flex;
   align-items: center;
@@ -1251,6 +1252,7 @@ main {
   padding-top: 16px;
   border-top: 1px solid var(--grid-line);
 }
+.about-update .hint,
 .about-reset .hint { margin: 0; flex: 1 1 220px; }
 
 .about-confirm {

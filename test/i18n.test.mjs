@@ -49,6 +49,19 @@ test('French sets a no-break space before a colon, and before a percent sign', (
   assert.ok(fr('chart.reading', 'Mois 3', '900').includes(' :'));
 });
 
+test('every phrase the page asks for by name is one the dictionary has', async () => {
+  // The markup names its phrases as strings, so a mistyped one is invisible
+  // until it renders as `update.chekc` in front of a reader — and the fallback
+  // that makes an unknown key degrade to itself is what hides it.
+  const { readFile } = await import('node:fs/promises');
+  const markup = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const asked = [...markup.matchAll(/data-i18n(?:-aria)?="([^"]+)"/g)].map((match) => match[1]);
+  assert.ok(asked.length > 20, 'the page names its phrases by key');
+  for (const key of new Set(asked)) {
+    assert.ok(key in STRINGS.en, `index.html asks for ${key}, which the dictionary has not got`);
+  }
+});
+
 test('an unknown key degrades to English, then to the key itself', () => {
   const fr = makeTranslator('fr');
   assert.equal(fr('nope.not.here'), 'nope.not.here');

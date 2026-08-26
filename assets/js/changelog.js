@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v36', date: '2026-08-26',
+    version: 'v37', date: '2026-08-26',
+    en: 'A Check for updates button in the About panel, an hourly look whenever you open the app, and a Reload button that works in every open tab rather than only the one that clicked it.',
+    fr: 'Un bouton Rechercher une mise à jour dans le panneau À propos, une vérification horaire à chaque ouverture, et un bouton Recharger qui fonctionne dans tous les onglets ouverts, et non dans le seul qui l’a cliqué.',
+  },
+  {
+    version: 'v36', date: '2026-08-26', commit: '4aec87f',
     en: 'Syncing a field nobody has named no longer writes over an unrelated blank row in the other plans: it finds the copy of itself that adding a strategy made, or it is added.',
     fr: 'Synchroniser un champ sans nom n’écrase plus une ligne vierge sans rapport dans les autres plans\u00a0: il retrouve la copie de lui-même qu’a créée l’ajout d’une stratégie, ou vient s’ajouter.',
   },
