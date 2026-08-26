@@ -8,7 +8,7 @@ import {
   spreadField, unlinkField, removeEverywhere,
   migrateFields,
 } from '../assets/js/strategies.js';
-import { createField, labelOf } from '../assets/js/fields.js';
+import { createField, labelOf, FIELD_SHAPE } from '../assets/js/fields.js';
 
 const t = (key, position) => (key === 'strategy.defaultName' ? `Strategy ${position}` : key);
 const copyName = (name) => `${name} (copy)`;
@@ -229,4 +229,165 @@ test('sync operations never mutate what they are given', () => {
   unlinkField(before, before[0].fields[0].id);
   removeEverywhere(before, before[0].fields[0].id);
   assert.equal(JSON.stringify(before), snapshot);
+});
+
+/* ------------------------------------------- syncing a field nobody named */
+
+/** A field as "Add a field" makes one: no name of the reader's, and none from
+ *  the dictionary either. */
+const unnamed = (amount, extra = {}) => createField({ amount, ...extra });
+
+test('an unnamed field is nobody else\'s counterpart', () => {
+  // Both strategies hold a field the reader never got round to naming. They
+  // have nothing to do with each other; only the empty name is shared.
+  const before = normalizeStrategies([
+    { fields: [unnamed('4000', { direction: 'income' })] },
+    { fields: [unnamed('1200', { kind: 'loan', annualRate: '3', termMonths: 240 })] },
+  ]);
+  const theirs = fieldsOf(before, 1)[0];
+
+  const after = spreadField(before, { ...fieldsOf(before, 0)[0], synced: true });
+
+  const kept = after[1].fields.find((field) => field.id === theirs.id);
+  assert.ok(kept, 'a nameless field is not evidence that two fields are the same one');
+  assert.deepEqual(
+    [kept.amount, kept.kind, kept.annualRate, kept.termMonths],
+    ['1200', 'loan', '3', 240],
+    'so everything entered into it is still there',
+  );
+});
+
+test('a strategy with no counterpart gains the unnamed field too', () => {
+  const before = normalizeStrategies([
+    { fields: [unnamed('4000', { direction: 'income' })] },
+    { fields: [unnamed('900', { kind: 'once', startMonth: 12 })] },
+  ]);
+  const mine = fieldsOf(before, 0)[0];
+  const theirs = fieldsOf(before, 1)[0];
+
+  const after = spreadField(before, { ...mine, synced: true });
+
+  assert.deepEqual(
+    after[1].fields.map((field) => field.id),
+    [theirs.id, mine.id],
+    'theirs stays where it was and the synced one arrives after it',
+  );
+  const [own, arrived] = after[1].fields;
+  assert.deepEqual(
+    [own.amount, own.direction, own.kind, own.startMonth],
+    ['900', 'expense', 'once', 12],
+    'nothing of theirs was written over',
+  );
+  assert.deepEqual(
+    [arrived.amount, arrived.direction, arrived.synced],
+    ['4000', 'income', true],
+    'and what arrived is the field that was synced',
+  );
+});
+
+test('spreading an unnamed field again finds the copy it left', () => {
+  const before = normalizeStrategies([
+    { fields: [unnamed('4000', { direction: 'income' })] },
+    { fields: [unnamed('700')] },
+  ]);
+  const mine = { ...fieldsOf(before, 0)[0], synced: true };
+  // The first spread is what puts the copy there; from then on the id is what
+  // links them, exactly as it is for a field with a name.
+  const linked = spreadField(before, mine);
+  const raised = spreadField(linked, { ...mine, amount: '4500' });
+
+  assert.equal(raised[1].fields.length, 2, 'the second spread did not add a second copy');
+  assert.equal(
+    raised[1].fields.find((field) => field.id === mine.id).amount, '4500', 'it followed',
+  );
+  assert.equal(raised[1].fields[0].amount, '700', 'and their own field stood still through both');
+});
+
+test('an unnamed field syncs with the copy a new strategy made of it', () => {
+  const before = normalizeStrategies([{ fields: [unnamed('4000', { direction: 'income' })] }]);
+  // "Add a strategy" copies the one on screen, and a copy's unsynced fields
+  // get ids of their own — so a field and its own copy are strangers by id,
+  // and, unnamed, strangers by name as well. They are still one field: sync
+  // must land on the copy rather than beside it, or this plan counts 4,000 a
+  // month twice and the comparison chart says so.
+  const two = duplicateStrategy(before, before[0].id, copyName, t);
+  const mine = fieldsOf(two, 0)[0];
+  assert.notEqual(fieldsOf(two, 1)[0].id, mine.id, 'the copy starts out a stranger by id');
+
+  const after = spreadField(two, { ...mine, synced: true });
+
+  assert.equal(after[1].fields.length, 1, 'the copy is the field, not a second one');
+  assert.deepEqual(
+    [after[1].fields[0].id, after[1].fields[0].amount, after[1].fields[0].synced],
+    [mine.id, '4000', true],
+    'and from here the two share one id',
+  );
+});
+
+test('two identical unnamed fields sync as two, each onto its own copy', () => {
+  // Two rows the reader typed the same figure into and never named. Copying
+  // the strategy copies both, so syncing them has to pair them off one for
+  // one rather than dropping both onto whichever copy comes first.
+  const before = normalizeStrategies([{ fields: [unnamed('200'), unnamed('200')] }]);
+  const two = duplicateStrategy(before, before[0].id, copyName, t);
+  const [mine, also] = fieldsOf(two, 0);
+
+  const once = spreadField(two, { ...mine, synced: true });
+  const twice = spreadField(once, { ...fieldsOf(once, 0)[1], synced: true });
+
+  assert.deepEqual(
+    twice[1].fields.map((field) => field.id),
+    [mine.id, also.id],
+    'the second sync took the copy the first one had left, not the one it had taken',
+  );
+  for (const strategy of twice) {
+    assert.deepEqual(
+      strategy.fields.map((field) => [field.amount, field.synced]),
+      [['200', true], ['200', true]],
+      'two rows here, two rows there, and both of them linked',
+    );
+  }
+});
+
+test('an unnamed field adopts nothing that differs from it in any respect', () => {
+  // Every attribute a field has, so that adding one to FIELD_SCHEMA has to be
+  // thought about here too: what both fields hold, then the one thing theirs
+  // holds differently.
+  const differences = {
+    labelKey: [{}, { labelKey: 'field.rent' }],
+    label: [{}, { label: 'Rent' }],
+    direction: [{}, { direction: 'income' }],
+    amount: [{}, { amount: '4001' }],
+    kind: [{}, { kind: 'loan' }],
+    annualRate: [{}, { annualRate: '3' }],
+    fees: [{}, { fees: '900' }],
+    termMonths: [{ kind: 'loan' }, { termMonths: 120 }],
+    periodMonths: [{}, { periodMonths: 12 }],
+    startMonth: [{}, { startMonth: 6 }],
+    endMonth: [{}, { endMonth: 24 }],
+    sellMonth: [{ kind: 'investment' }, { sellMonth: 18 }],
+  };
+  assert.deepEqual(
+    Object.keys(differences).sort(),
+    Object.keys(FIELD_SHAPE).filter((key) => key !== 'id' && key !== 'synced').sort(),
+    'every attribute a field has is a way two fields can differ, a new one included',
+  );
+
+  for (const [attribute, [shared, difference]] of Object.entries(differences)) {
+    const before = normalizeStrategies([
+      { fields: [unnamed('4000', shared)] },
+      { fields: [unnamed('4000', { ...shared, ...difference })] },
+    ]);
+    const mine = fieldsOf(before, 0)[0];
+    const theirs = fieldsOf(before, 1)[0];
+    assert.notDeepEqual(
+      { ...theirs, id: mine.id }, mine,
+      `${attribute}: the difference has to survive normalisation, or this case proves nothing`,
+    );
+
+    const after = spreadField(before, { ...mine, synced: true });
+
+    assert.equal(after[1].fields.length, 2, `a different ${attribute} makes it a different field`);
+    assert.deepEqual(after[1].fields[0], theirs, 'so theirs is added to, never written over');
+  }
 });

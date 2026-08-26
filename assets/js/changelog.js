@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v35', date: '2026-08-26',
+    version: 'v36', date: '2026-08-26',
+    en: 'Syncing a field nobody has named no longer writes over an unrelated blank row in the other plans: it finds the copy of itself that adding a strategy made, or it is added.',
+    fr: 'Synchroniser un champ sans nom n’écrase plus une ligne vierge sans rapport dans les autres plans\u00a0: il retrouve la copie de lui-même qu’a créée l’ajout d’une stratégie, ou vient s’ajouter.',
+  },
+  {
+    version: 'v35', date: '2026-08-26', commit: 'c837fbb',
     en: 'Start again: a button in the About panel that puts back the three plans the app opens with, once you have confirmed it.',
     fr: 'Recommencer\u00a0: un bouton du panneau À propos qui rétablit les trois plans d’origine, après confirmation.',
   },

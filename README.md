@@ -316,7 +316,13 @@ How a counterpart is found is the whole design:
   say "Income" mean the same income — that is what makes this work on
   strategies built before anyone thought to link them. After the first spread
   their ids agree, so the name is never consulted again and a rename cannot
-  break the link. A field already following something else is never adopted.
+  break the link. A field already following something else is never adopted, and
+  a field nobody has named has no name to match on.
+- **By likeness last, for a field nobody named.** Its counterpart is a row alike
+  in every respect but the id — which is what a field and the copy "Add a
+  strategy" made of it are, a copy's unsynced fields getting ids of their own.
+  Writing over such a row loses nothing of theirs, because it held nothing of
+  its own.
 - **Otherwise it is added.** A synced field exists everywhere by definition.
 
 Two consequences worth stating outright. Removing a synced field removes it

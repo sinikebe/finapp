@@ -10,7 +10,7 @@
  * appears only once there is something to compare against.
  */
 
-import { normalizeFields, createField, newId, MAX_FIELDS } from './fields.js';
+import { normalizeFields, createField, newId, MAX_FIELDS, FIELD_SHAPE } from './fields.js';
 
 /**
  * Four is the ceiling because four is how many series colours the palette can
@@ -127,23 +127,44 @@ function nameKeyOf(field) {
   return field.label || field.labelKey || '';
 }
 
+/** Alike in every respect the store keeps but the id: whatever is written over
+ *  such a row, nothing of theirs is lost, because it held nothing of its own. */
+function sameButForId(entry, field) {
+  return Object.keys(FIELD_SHAPE).every(
+    (key) => key === 'id' || key === 'synced' || entry[key] === field[key],
+  );
+}
+
 /**
  * Put one field into every strategy: the same field, with the same id.
  *
  * A counterpart is looked for by id first — the case once a field is already
- * synced — and by name second. That second rule is what lets syncing work on
- * strategies built before anyone thought to link them: two lists that both say
- * "Income" mean the same income, and after the first spread their ids agree, so
- * the name is never consulted again. A strategy with no counterpart at all
- * gains the field, because a synced field exists everywhere by definition.
+ * synced — then by name, and last by likeness. The name rule is what lets
+ * syncing work on strategies built before anyone thought to link them: two
+ * lists that both say "Income" mean the same income, and after the first spread
+ * their ids agree, so the name is never consulted again.
+ *
+ * But a field nobody has named has no name to match on, and two blanks are not
+ * a claim that two fields are the same one — reading one empty name as equal to
+ * another let a field synced here write over the amount, kind and window
+ * another strategy had entered there, off screen. So it falls to likeness
+ * instead: a row alike in every respect but the id *is* this field, and writing
+ * over it loses nothing. That is exactly what "Add a strategy" leaves behind,
+ * since a copy's unsynced fields get ids of their own.
+ *
+ * A strategy with no counterpart at all gains the field, because a synced field
+ * exists everywhere by definition.
  */
 export function spreadField(strategies, field) {
   return normalizeStrategies(strategies).map((strategy) => {
     const { fields } = strategy;
     let index = fields.findIndex((entry) => entry.id === field.id);
-    if (index === -1) {
+    if (index === -1 && nameKeyOf(field)) {
       // Never adopt a field that is already following something else.
       index = fields.findIndex((entry) => !entry.synced && nameKeyOf(entry) === nameKeyOf(field));
+    }
+    if (index === -1) {
+      index = fields.findIndex((entry) => !entry.synced && sameButForId(entry, field));
     }
     if (index === -1) {
       if (fields.length >= MAX_FIELDS) return strategy;
