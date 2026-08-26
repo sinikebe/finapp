@@ -676,6 +676,19 @@ alongside the running one, and the app offers a **Reload** button rather than
 swapping the page out mid-edit; accepting it activates the new worker, drops the
 old cache, and reloads. Declining it changes nothing until the next visit.
 
+Accepting it in one tab activates the worker for every tab, so the others are
+left running the old build under the new worker. They keep the same offer — with
+nothing left to skip, Reload there simply reloads — and a tab that had not been
+offered anything gets the offer at that moment, because it has just become the
+stale one.
+
+Nothing here goes to the network otherwise, so the app has to ask. It asks when
+you open it, and no more than once an hour: the time of the last look is kept in
+the store, so however many tabs are open it is one question a device asks. Coming
+back to a backgrounded app counts as opening it, which is how an installed app
+that is never reloaded still hears about a new version. **Check for updates** in
+the About panel asks whatever the clock says, and says what it found.
+
 **Bump `CACHE_VERSION` in `sw.js` whenever a precached file changes.** That is
 the one manual step in the whole project — there is no build to do it for you,
 and browsers only look for a new worker when `sw.js` itself changes. CI fails
