@@ -1,14 +1,28 @@
 # Finapp
 
-A small progressive web app that estimates your financial future. List what
-comes in and what goes out each month, choose a horizon, and it plots three
-cumulative curves — income, expenses and net — over the months ahead, plus what
-you are worth in total once there is a balance sheet to speak of. Lay out more
-than one plan and it puts them side by side.
+**Estimate your financial future in the browser.** List what comes in and what
+goes out each month, choose a horizon, and read the curves — for one plan or
+for several, side by side.
 
-Everything runs on the device: no build step, no dependencies, no account, and
-nothing about you leaving the machine it is typed on. The whole thing is static
-files served from a folder.
+[![CI](https://github.com/sinikebe/finapp/actions/workflows/ci.yml/badge.svg)](https://github.com/sinikebe/finapp/actions/workflows/ci.yml)
+[![Deployed to Pages](https://github.com/sinikebe/finapp/actions/workflows/pages/pages-build-deployment/badge.svg)](https://sinikebe.github.io/finapp/)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none-2ea44f)](package.json)
+[![Build step: none](https://img.shields.io/badge/build%20step-none-2ea44f)](CONTRIBUTING.md)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Built with Claude Code](https://img.shields.io/badge/built%20with-Claude%20Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
+
+### [Open it &rarr;](https://sinikebe.github.io/finapp/)
+
+Nothing to install and nothing to sign up for: it is a page, and it keeps
+working offline once you have opened it.
+
+[![Three strategies side by side: one line each for buying on a loan, saving up to buy cash, and saving up and selling the fund, above a table of where each one stands after 240 months](docs/screenshot.png)](https://sinikebe.github.io/finapp/)
+
+It plots three cumulative curves — income, expenses and net — over the months
+ahead, plus what you are worth in total once there is a balance sheet to speak
+of. Everything runs on the device: no build step, no dependencies, no account,
+and nothing about you leaving the machine it is typed on. The whole thing is
+static files served from a folder.
 
 *Interface disponible en français : l’application détecte la langue du
 navigateur et le bouton **FR / EN** dans l’en-tête permet d’en changer à tout
@@ -195,6 +209,8 @@ out and left over. When you spend more than you earn the leftover node changes
 sides rather than going negative, and a flow too thin to see is given a floor
 rather than allowed to vanish.
 
+![The flow diagram: one salary ribbon into a pool labelled "All of it", and out of it ribbons for everyday costs, a mortgage split into principal and interest, and what is kept](docs/flow-diagram.png)
+
 ## What it opens on
 
 An empty form answers nothing, so the app opens on one question asked three
@@ -256,7 +272,25 @@ plainer app and not a broken one, and the app falls back to a plain page where
 service workers are unavailable. Installability depends on the browser:
 Chromium prompts, Safari installs through *Add to Home Screen*.
 
+## Built with Claude Code
+
+**Finapp was written with [Claude Code](https://claude.com/claude-code)** — the
+app, its tests, its French translation and this documentation. Every feature
+arrived as a pull request opened from a Claude Code session and squash-merged
+after CI; the co-author trailers are in the history, and the About panel's
+changelog is the same list read from the other side.
+
+That is also why the repository is shaped the way it is. The rules an agent has
+to be held to are the rules that keep a codebase honest anyway: one seam per
+kind of change, model operations that are pure, a test for every claim the
+documentation makes out loud, and CI that fails the build when the service
+worker's cache version falls behind the files it serves.
+
 ## Contributing
 
 How to run it, what lives where, and the two manual steps a release needs are
-in [CONTRIBUTING.md](CONTRIBUTING.md).
+in [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome.
+
+## License
+
+[MIT](LICENSE).
