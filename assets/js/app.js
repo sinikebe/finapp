@@ -12,7 +12,7 @@ import {
   project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
   hasAmounts, hasDebt, hasOwned,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
-  fieldTotalOf, loanPartsOf, shareOut, toNumber,
+  fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
@@ -947,13 +947,19 @@ function fieldLabels() {
     growthSummary: (field) => {
       const rate = toNumber(field.annualRate);
       if (!Number.isFinite(rate) || rate === 0 || !toAmount(field.amount)) return '';
-      const years = yearsRunning(field, state.months);
+      // The month the field last lands on, not the horizon: a yearly amount
+      // over twenty months last landed at month 12, and quoting the horizon
+      // named a figure the projection never uses — 1,050 by month 20 for a
+      // field that moved 1,000 and will not move again until month 24.
+      const lands = lastLandingOf(field, state.months);
+      if (!lands) return '';
+      const years = yearsRunning(field, lands);
       if (years < 1) return '';
       return t(
         'field.growthSummary',
         formatRate(rate),
         formatAmount(grownBy(field.amount, field.annualRate, years)),
-        state.months,
+        lands,
       );
     },
     // Two sentences, because with no fees the borrowed sum is the amount that
@@ -990,7 +996,7 @@ function fieldLabels() {
     duplicateNamed: (name) => t('field.duplicateNamed', name),
     removeNamed: (name) => t('field.removeNamed', name),
     directionNamed: (name) => t('field.directionNamed', name),
-    amountNamed: (name) => t('field.amountNamed', name),
+    amountNamed: (what, name) => t('field.amountNamed', what, name),
   };
 }
 

@@ -234,6 +234,26 @@ export function startOf(field) {
 }
 
 /**
+ * The last month at or before `months` on which a field actually moves money,
+ * or 0 if it never does inside the horizon.
+ *
+ * Asked of `contributionOf` rather than worked out again here, so the answer
+ * cannot drift from the one the projection uses. The walk starts at whichever
+ * of the horizon, the end and the sale comes first, so for anything periodic
+ * it finds its month within one period.
+ */
+export function lastLandingOf(field, months) {
+  const end = Math.trunc(Number(field.endMonth) || 0);
+  const sold = Math.trunc(Number(field.sellMonth) || 0);
+  const horizon = toMonths(months);
+  const from = Math.min(horizon, end || horizon, sold || horizon);
+  for (let month = from; month >= 1; month -= 1) {
+    if (contributionOf(field, month) > 0) return month;
+  }
+  return 0;
+}
+
+/**
  * A loan's first payment. With no start of its own that is month 1, which is
  * what every loan written before windows existed means.
  */

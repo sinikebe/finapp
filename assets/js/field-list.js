@@ -294,6 +294,13 @@ export function createFieldList(options) {
     sell.addEventListener('input', () => onCommand({ type: 'update', id, patch: { sellMonth: sell.value } }));
     sell.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { sellMonth: sell.value } }));
     to.addEventListener('input', () => onCommand({ type: 'update', id, patch: { endMonth: to.value } }));
+    // Every other numeric box settles on blur, and these two need it as much:
+    // `normalizeField` clamps an end back up to its beginning, and gives a
+    // one-off at least month 1 — corrections `syncValue` refuses to write while
+    // the reader is still in the box, so without a settle the row goes on
+    // showing a number the projection has already thrown away.
+    from.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { startMonth: from.value } }));
+    to.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { endMonth: to.value } }));
 
     sync.addEventListener('click', () => onCommand({ type: 'sync', id }));
     duplicate.addEventListener('click', () => onCommand({ type: 'duplicate', id }));
@@ -406,7 +413,11 @@ export function createFieldList(options) {
     // box needs no such help: it announces its own value.
     row.element.setAttribute('aria-label', named);
     row.direction.setAttribute('aria-label', labels.directionNamed(named));
-    row.amount.setAttribute('aria-label', labels.amountNamed(named));
+    // The sr-only label says what this box means for this kind of field; an
+    // aria-label would replace it outright, so it carries that wording too.
+    // Without this every box announced "Amount each month" — for a loan you are
+    // borrowing once, for a house you already own, for a yearly bill.
+    row.amount.setAttribute('aria-label', labels.amountNamed(labels.amountFor(field.kind), named));
 
     row.sync.hidden = !comparing;
     row.sync.setAttribute('aria-pressed', field.synced ? 'true' : 'false');
@@ -420,7 +431,11 @@ export function createFieldList(options) {
     // At the cap the model would refuse the copy; say so rather than no-op.
     row.duplicate.disabled = atCap;
     row.remove.setAttribute('aria-label', labels.removeNamed(named));
-    row.element.dataset.direction = field.direction;
+    // The stripe repeats what the direction select says — except on the two
+    // kinds that hide the select, where it is the only thing saying it. An
+    // asset is the worse of the two: `normalizeField` calls it income purely as
+    // bookkeeping, so it wore the income colour while moving no cash at all.
+    row.element.dataset.direction = isAsset ? 'none' : field.direction;
   }
 
   return {
