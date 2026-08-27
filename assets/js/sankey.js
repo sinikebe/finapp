@@ -301,9 +301,21 @@ export function createSankey({ mount, id, title, description, labels, formatValu
       }
       if (!measured || measured <= room) return;
 
+      // A loan arrives as its parts, named "Mortgage · principal" and
+      // "Mortgage · interest" — so the half that tells them apart is the half
+      // a phone's gutter cuts off, and both nodes came out reading "Mortgag…".
+      // Where a name has a part, the part goes in on its own rather than a
+      // prefix every sibling shares: the table still carries the whole thing.
+      const part = label.split(' \u00b7 ').pop();
+      if (part !== label) {
+        node.name.textContent = part;
+        if (node.text.getComputedTextLength() <= room) return;
+      }
+
       // Bisection rather than a character at a time: every measurement forces a
       // synchronous layout, and this runs on the redraw behind every keystroke.
       // Sixty characters cost six reflows here instead of sixty.
+      node.name.textContent = label;
       let low = 0;
       let high = label.length;
       let best = '';
