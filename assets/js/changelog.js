@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v37', date: '2026-08-26',
+    version: 'v38', date: '2026-08-26',
+    en: 'Documentation put back in step with the code, and the About panel can no longer leak into the page on a browser without dialog support.',
+    fr: 'La documentation remise en accord avec le code, et le panneau À propos ne peut plus apparaître dans la page sur un navigateur sans prise en charge de dialog.',
+  },
+  {
+    version: 'v37', date: '2026-08-26', commit: '3f5c178',
     en: 'A Check for updates button in the About panel, an hourly look whenever you open the app, and a Reload button that works in every open tab rather than only the one that clicked it.',
     fr: 'Un bouton Rechercher une mise à jour dans le panneau À propos, une vérification horaire à chaque ouverture, et un bouton Recharger qui fonctionne dans tous les onglets ouverts, et non dans le seul qui l’a cliqué.',
   },

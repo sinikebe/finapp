@@ -9,8 +9,8 @@
  */
 
 export const BUILD = Object.freeze({
-  version: 'v37',
+  version: 'v38',
   branch: 'main',
-  commit: '4aec87f',
+  commit: '3f5c178',
   date: '2026-08-26',
 });

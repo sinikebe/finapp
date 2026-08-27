@@ -190,13 +190,13 @@ function toRateText(value, fallback = DEFAULT_INFLATION) {
 }
 
 /**
- * The stored shape is `{ strategies, activeId, months, inflation, realMoney }`.
- * The last two arrived later and are simply absent from an older store, which
- * reads as the defaults — no migration, because nothing changed shape. Two
- * older shapes are
- * carried over once and retired, so nobody loses what they had entered: a bare
- * list of fields from before strategies, and before that a single income and a
- * single rent.
+ * The stored shape is `{ strategies, activeId, months, inflation, realMoney,
+ * spread, showRange, tax }`. Everything after the horizon arrived later and is
+ * simply absent from an older store, which reads as the defaults — no
+ * migration, because nothing changed shape. Two older shapes are carried over
+ * once and retired, so nobody loses what they had entered: a bare list of
+ * fields from before strategies, and before that a single income and a single
+ * rent.
  */
 function loadState() {
   const saved = readStore(STATE_KEY, null);

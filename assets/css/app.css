@@ -1161,6 +1161,11 @@ main {
 
 /* ------------------------------------------------------------------- about */
 
+/* Where `<dialog>` is unsupported there is no UA rule hiding a closed one, and
+   `showModal` throws, so the whole panel — the button that throws every plan
+   away included — would sit in the page from first paint. */
+.about:not([open]) { display: none; }
+
 .about {
   width: min(560px, calc(100vw - 32px));
   max-height: min(72vh, 720px);

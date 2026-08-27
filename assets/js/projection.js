@@ -16,13 +16,16 @@ export const MAX_MONTHS = 600;
 /**
  * The largest monthly flow, per direction. It caps single fields and their sum
  * alike — twenty fields can't add up to something the arithmetic can no longer
- * represent. Money is held in units, not integer cents, so the cap bounds what
- * is representable rather than what is exact: below 2**45 (~3.5e13) a double's
- * step is finer than half a cent, so every total there is faithful, and above
- * it rounding has nowhere exact to land. A worst-case run — MAX_MONTHS of
- * MAX_AMOUNT, 6e13 — accumulates about two units of drift. Nothing a person
- * types comes near that; the cap is there to bound the arithmetic, not to
- * promise exactness at its own ceiling.
+ * represent. Money is held in units, not integer cents, so `roundMoney` is
+ * exact only while a total's cents are still a whole number a double can hold,
+ * and this cap is what keeps them there: the worst run, MAX_MONTHS of
+ * MAX_AMOUNT, is 6e13, whose 6e15 cents sit well inside 2**53. So every total
+ * the flows produce is exact, that run included.
+ *
+ * What the cap does not bound is a compounded balance — an investment is
+ * multiplied rather than added — so an implausible rate over fifty years can
+ * carry one past ~9e13, where a double's step is wider than a cent. Nothing a
+ * person types comes near either bound.
  */
 export const MAX_AMOUNT = 1e11;
 
@@ -368,16 +371,19 @@ export function flowIn(fields, direction, month) {
  * so a horizon of N months yields N + 1 points. The balances do not: you
  * already own what you own and owe what you owe, so month 0 carries them.
  *
- * @param {{fields?: Array<object>, months?: number|string}} input
+ * `proceeds` is a point series only: it exists so `profit` can tell a realised
+ * gain from a paper one, and nothing asks for the horizon's worth of it.
+ *
+ * @param {{fields?: Array<object>, months?: number|string, taxRate?: number}} input
  * @returns {{
- *   fields: Array<object>, months: number,
- *   monthlyIncome: number, monthlyExpenses: number, monthlyNet: number,
+ *   fields: Array<object>, months: number, taxRate: number,
+ *   averages: {income: number, expenses: number, net: number},
  *   points: Array<{month: number, income: number, expenses: number, net: number,
  *                  invested: number, contributed: number, proceeds: number,
  *                  profit: number,
  *                  owned: number, debt: number, worth: number}>,
  *   totals: {income: number, expenses: number, net: number, invested: number,
- *            contributed: number, proceeds: number, profit: number,
+ *            contributed: number, profit: number,
  *            owned: number, debt: number, worth: number}
  * }}
  */
