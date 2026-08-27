@@ -56,6 +56,18 @@ keeps both languages side by side rather than in the dictionary: it grows one
 entry per release and the two readings of an entry are written together, so
 splitting them would only let them drift.
 
+## The repository's own description
+
+GitHub keeps a repository's **description**, **homepage** and **topics** in its
+settings rather than in a file, so no commit can set them and no test can check
+them. `package.json` holds the copy that *is* version-controlled — `description`,
+`homepage` and `keywords` — and the settings page should be kept saying the same
+thing; treat that file as the source and the settings form as a mirror of it.
+
+One part of it is checked: a test holds the `homepage` to the README's own links
+to the app, because that is the pair whose drifting would strand a reader on the
+front page rather than merely look untidy in a sidebar.
+
 ## Layout
 
 ```

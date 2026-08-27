@@ -48,6 +48,20 @@ test('every npm script is one the docs tell you to run', async () => {
   }
 });
 
+test('the README sends a reader to the address package.json calls home', async () => {
+  // The app's address is written down in four places that must agree: the
+  // repository's own homepage field on GitHub, package.json, and both the badge
+  // and the "Open it" link in the README. Only the last three are in this
+  // repository, so these are the three a test can hold together — if the Pages
+  // URL ever moves, this fails rather than leaving a dead link on the front page.
+  const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8');
+  const home = manifest.homepage;
+  assert.ok(home, 'package.json names a homepage');
+  const links = readme.split(`(${home})`).length - 1;
+  assert.ok(links >= 2, `the README links to ${home} at least twice, found ${links}`);
+});
+
 test('the README points at the contributing guide it handed those mechanics to', async () => {
   // Cutting the README only works if what left it stays reachable from it.
   const readme = await readFile(new URL('../README.md', import.meta.url), 'utf8');
