@@ -49,6 +49,12 @@ test('French sets a no-break space before a colon, a percent sign, and inside gu
     assert.equal(broken, null, `${key} uses a breaking space in "${broken}": ${text}`);
   }
   assert.ok(fr('chart.reading', 'Mois 3', '900').includes(' :'));
+  // The reading of a comparison nests one inside the other, so both separators
+  // have to be the dictionary's — the inner one was a colon written into the
+  // drawing, and a French reader heard the outer one spaced and every inner
+  // one not.
+  assert.ok(fr('chart.seriesReading', 'Acheter', '900').includes('\u00a0:'));
+  assert.equal(makeTranslator('en')('chart.seriesReading', 'Buy', '900'), 'Buy: 900');
 });
 
 test('every phrase the page asks for by name is one the dictionary has', async () => {
@@ -93,6 +99,17 @@ test('every language points at a manifest, and they agree on app identity', asyn
     assert.equal(json.lang, language, `${href} declares its own language`);
     return json;
   }));
+
+  // The French manifest is prose the app ships, so it is held to the same
+  // typography as everything else it ships: it is the one French string living
+  // outside both the dictionary and the changelog, and until this it was the one
+  // nothing read — which is how it came to break the rule.
+  const french = manifests[LANGUAGES.indexOf('fr')];
+  for (const [key, value] of Object.entries(french)) {
+    if (typeof value !== 'string') continue;
+    const broken = breakingSpaceIn(value);
+    assert.equal(broken, null, `manifest.fr ${key} uses a breaking space in "${broken}": ${value}`);
+  }
 
   // Differing identity would make the browser treat these as two separate apps.
   const [first, ...rest] = manifests;

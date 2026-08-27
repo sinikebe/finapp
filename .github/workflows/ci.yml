@@ -40,7 +40,7 @@ jobs:
             echo "Base commit $base is gone (history was rewritten) — nothing to compare."
             exit 0
           fi
-          changed=$(git diff --name-only "$base" HEAD -- index.html manifest.webmanifest assets)
+          changed=$(git diff --name-only "$base" HEAD -- index.html manifest.webmanifest manifest.fr.webmanifest assets)
           if [ -z "$changed" ]; then
             echo "No precached file changed."
             exit 0
