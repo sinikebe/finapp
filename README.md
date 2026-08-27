@@ -288,8 +288,12 @@ worker's cache version falls behind the files it serves.
 
 ## Contributing
 
-How to run it, what lives where, and the two manual steps a release needs are
-in [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome.
+**Issues are open to everyone** — a bug, a figure that reads wrong, a question
+about why something is the way it is, an idea for a kind of field. Pull
+requests are limited to collaborators, so open an issue rather than a
+fork-and-PR; the reasoning, and what to do with a patch you have already
+written, is in [CONTRIBUTING.md](CONTRIBUTING.md), along with how to run it,
+what lives where, and the two manual steps a release needs.
 
 ## License
 

@@ -1,5 +1,22 @@
 # Contributing
 
+## Issues, and pull requests
+
+**Issues are open to everyone.** A bug, a figure that reads wrong, a question
+about why something is the way it is, an idea for a kind of field — all of them
+belong in [an issue](https://github.com/sinikebe/finapp/issues), and most of
+what this app does arrived that way.
+
+**Pull requests are limited to collaborators.** The repository is set to accept
+them only from people with write access, so a fork-and-PR will not open — which
+is worth knowing before you write the patch rather than after. Open an issue
+instead, and put the patch in it: a diff, or a branch on your own fork to look
+at, is read the same way a pull request would be.
+
+None of that touches the licence. Forking is open, and MIT means you may take
+the code, change it and ship your own — the restriction is on merging into this
+repository, not on what you may do with what is in it.
+
 ## Run it
 
 ```sh
