@@ -34,9 +34,38 @@ export function roundMoney(value) {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+/**
+ * Read a figure however it was written down.
+ *
+ * A number box parses by the *browser's* locale while the app prints by the
+ * language the *reader* picked, so the two disagree the moment they differ: the
+ * app shows a French reader 674 379,24 and then drops the comma out of what
+ * they type back, storing twelve-fifty as 1250 — a hundredfold error, silently,
+ * in the one place an app like this must never make one. So the boxes take text
+ * and the separators are sorted out here, once, for every figure the app reads.
+ *
+ * Spaces of every width are grouping and go. A comma is a decimal point except
+ * where it is plainly grouping: English groups in threes, and no fraction of
+ * money or of a percentage is written to exactly three places. That leaves
+ * "1,234" as one thousand and "12,50" as twelve and a half, which is what each
+ * of them was written to mean.
+ */
+export function toNumber(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return NaN;
+  const bare = value.replace(/\s/g, '');
+  // A decimal point settles it: every comma left is grouping.
+  if (bare.includes('.')) return Number.parseFloat(bare.replace(/,/g, ''));
+  const parts = bare.split(',');
+  if (parts.length === 1) return Number.parseFloat(bare);
+  const last = parts[parts.length - 1];
+  if (parts.length > 2 || last.length === 3) return Number.parseFloat(parts.join(''));
+  return Number.parseFloat(`${parts.slice(0, -1).join('')}.${last}`);
+}
+
 /** Coerce anything (string from an <input>, null, NaN) to a non-negative amount. */
 export function toAmount(value) {
-  const n = typeof value === 'number' ? value : Number.parseFloat(value);
+  const n = toNumber(value);
   if (!Number.isFinite(n) || n <= 0) return 0;
   return roundMoney(Math.min(n, MAX_AMOUNT));
 }
@@ -50,7 +79,7 @@ export function toMonths(value) {
 
 /** A yearly percentage, as typed, into the fraction one month earns. */
 export function monthlyRate(annualRate) {
-  const percent = Number.parseFloat(annualRate);
+  const percent = toNumber(annualRate);
   if (!Number.isFinite(percent) || percent <= 0) return 0;
   // A century of interest a year is already absurd; past that the arithmetic is
   // the least of anyone's problems.
@@ -66,7 +95,7 @@ export function monthlyRate(annualRate) {
  * in a contract rather than in the market, so loans keep `monthlyRate`.
  */
 export function monthlyGrowth(annualRate) {
-  const percent = Number.parseFloat(annualRate);
+  const percent = toNumber(annualRate);
   if (!Number.isFinite(percent)) return 0;
   return Math.max(-100, Math.min(percent, 1000)) / 100 / 12;
 }
@@ -77,11 +106,11 @@ export function monthlyGrowth(annualRate) {
  * where it is: what a loan costs was agreed, not guessed.
  */
 export function shiftReturns(fields, points) {
-  const shift = Number.parseFloat(points);
+  const shift = toNumber(points);
   if (!Number.isFinite(shift) || shift === 0) return fields;
   return fields.map((field) => {
     if (field.kind !== 'investment' && field.kind !== 'asset') return field;
-    const rate = Number.parseFloat(field.annualRate);
+    const rate = toNumber(field.annualRate);
     if (!Number.isFinite(rate)) return field;
     return { ...field, annualRate: String(rate + shift) };
   });
@@ -179,7 +208,7 @@ export function loanPartsOf(field, months) {
  */
 export function grownBy(amount, annualRate, years) {
   const base = toAmount(amount);
-  const percent = Number.parseFloat(annualRate);
+  const percent = toNumber(annualRate);
   if (!base || !Number.isFinite(percent) || percent === 0 || years <= 0) return base;
   const rate = Math.max(-100, Math.min(percent, 1000)) / 100;
   return roundMoney(Math.min(base * (1 + rate) ** Math.trunc(years), MAX_AMOUNT));
@@ -582,7 +611,7 @@ export function project(input = {}) {
  */
 export function afterTax(gain, taxRate) {
   if (!(gain > 0)) return roundMoney(gain);
-  const percent = Number.parseFloat(taxRate);
+  const percent = toNumber(taxRate);
   const rate = Number.isFinite(percent) ? Math.min(Math.max(percent, 0), 100) / 100 : 0;
   return roundMoney(gain * (1 - rate));
 }

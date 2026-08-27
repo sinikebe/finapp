@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v40', date: '2026-08-27',
+    version: 'v41', date: '2026-08-27',
+    en: 'Figures are read the way you write them: 12,50 typed in French is twelve and a half, not twelve hundred and fifty, and 1,234 is still one thousand.',
+    fr: 'Les montants sont lus tels que vous les écrivez\u00a0: 12,50 vaut douze et demi, et non mille deux cent cinquante, et 1,234 reste bien mille.',
+  },
+  {
+    version: 'v40', date: '2026-08-27', commit: '2318e53',
     en: 'A card whose table you opened stays open through an edit and through a change of language; an investment that never starts no longer draws an empty card; and the range columns line up with the figures they name.',
     fr: 'Une carte dont vous avez ouvert le tableau le garde ouvert malgré une modification ou un changement de langue\u00a0; un placement qui ne démarre jamais ne dessine plus de carte vide\u00a0; et les colonnes de la fourchette s’alignent sur les chiffres qu’elles nomment.',
   },

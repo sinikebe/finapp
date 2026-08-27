@@ -398,8 +398,18 @@ a field's contribution vary over time: **`contributionOf(field, month)` is the
 one function that decides what a field moves in a given month**, and periods
 were added by teaching it a single rule. Amounts are rounded to whole cents at
 every step, so what you read is what adds up.
-Input is coerced rather than trusted: a negative or unparseable amount becomes
-`0`, the horizon is clamped to 1–600 months — fifty years, which the slider now
+Input is coerced rather than trusted, and read in whichever notation it was
+written in. A money or rate box takes text rather than being a number input,
+because a number input parses by the *browser's* locale while the app prints by
+the language the *reader* chose: shown `674 379,24`, a French reader typing
+`12,50` back had the comma dropped and stored twelve-fifty as `1250`. `toNumber`
+reads the separators instead — spaces of every width group, and a comma is a
+decimal point except where it is plainly grouping, so `1,234` is still one
+thousand — and what the app writes back into a box uses the reader's own
+separator rather than correcting them into somebody else's notation.
+
+Beyond that: a negative or unparseable amount becomes `0`,
+the horizon is clamped to 1–600 months — fifty years, which the slider now
 reaches; it stopped at ten before, so a twenty-five-year mortgage could never be
 followed to the month it was paid off — and both a single field and the sum
 of a direction are capped at a hundred billion a month. Money is held in units
