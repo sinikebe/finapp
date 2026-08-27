@@ -2,7 +2,32 @@
   "name": "finapp",
   "version": "1.0.0",
   "private": true,
-  "description": "A PWA that projects cumulative income, expenses and net over the months ahead.",
+  "description": "Estimate your financial future in the browser: cumulative income, expenses, net and net worth over the months ahead, with several plans side by side.",
+  "homepage": "https://sinikebe.github.io/finapp/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sinikebe/finapp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sinikebe/finapp/issues"
+  },
+  "keywords": [
+    "pwa",
+    "progressive-web-app",
+    "offline-first",
+    "service-worker",
+    "vanilla-javascript",
+    "no-dependencies",
+    "no-build-step",
+    "personal-finance",
+    "financial-planning",
+    "data-visualization",
+    "sankey-diagram",
+    "es-modules",
+    "i18n",
+    "github-pages",
+    "claude-code"
+  ],
   "type": "module",
   "scripts": {
     "start": "node tools/serve.mjs",
