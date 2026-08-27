@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v43', date: '2026-08-27',
+    version: 'v44', date: '2026-08-27',
+    en: 'Switching or removing a strategy, and backing out of Start again, leave the keyboard where you are rather than at the top of the page.',
+    fr: 'Changer ou supprimer une stratégie, et renoncer à Recommencer, laissent le clavier là où vous êtes plutôt qu’en haut de la page.',
+  },
+  {
+    version: 'v43', date: '2026-08-27', commit: 'cdd0118',
     en: 'The panels say where you are and what they mean: the comparison names the quantity it judged on and marks the plan on screen, a click inside the About panel keeps it open, the small print is readable, and a rate you type is the rate the arithmetic uses.',
     fr: 'Les panneaux disent où vous êtes et ce qu’ils veulent dire\u00a0: la comparaison nomme la grandeur qu’elle a jugée et marque le plan affiché, un clic dans le panneau À propos ne le ferme plus, les petits caractères sont lisibles, et un taux saisi est bien celui qu’utilise le calcul.',
   },

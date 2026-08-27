@@ -133,6 +133,30 @@ export function createStrategyBar(options) {
       }
     },
 
+    /**
+     * Land focus on the strategy now showing, after the tab that was pressed
+     * has been replaced by its name box.
+     *
+     * Not `focusName`: that selects the text as well, arming the next keystroke
+     * to overwrite a name the reader only meant to switch to.
+     */
+    focusTab(id) {
+      const entry = entries.get(id);
+      if (entry && !entry.input.hidden) entry.input.focus();
+      else add.focus();
+    },
+
+    /**
+     * Land focus after a removal. The Remove button is where the reader is, so
+     * it keeps them there — unless taking the list down to one has hidden the
+     * whole actions row, and with it the tabs, which leaves nothing there to
+     * hold focus and drops it to the document.
+     */
+    focusAfterRemove() {
+      if (actions.hidden || remove.hidden || remove.disabled) add.focus();
+      else remove.focus();
+    },
+
     /** Put the caret in a strategy's name, ready to be typed over. */
     focusName(id) {
       const entry = entries.get(id);
