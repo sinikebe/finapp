@@ -21,6 +21,17 @@ function compactFallback(value) {
   return plainFallback(value);
 }
 
+/** The character this locale puts between a figure and its fraction. */
+function decimalPointOf(locale) {
+  try {
+    const parts = new Intl.NumberFormat(locale).formatToParts(1.1);
+    const point = parts.find((part) => part.type === 'decimal');
+    return point ? point.value : '.';
+  } catch {
+    return '.';
+  }
+}
+
 function build(locale, options, fallback) {
   try {
     const formatter = new Intl.NumberFormat(locale, options);
@@ -45,6 +56,7 @@ export function setFormatLocale(locale) {
     tag = undefined;
   }
   current = {
+    point: decimalPointOf(tag),
     amount: build(tag, { maximumFractionDigits: 2, minimumFractionDigits: 0 }, plainFallback),
     whole: build(tag, { maximumFractionDigits: 0 }, plainFallback),
     compact: build(tag, { notation: 'compact', maximumFractionDigits: 1 }, compactFallback),
@@ -52,6 +64,15 @@ export function setFormatLocale(locale) {
 }
 
 setFormatLocale(undefined);
+
+/**
+ * A figure written back into a box the reader types in: their own decimal
+ * separator, and no grouping, so what the app hands back reads like what they
+ * wrote rather than like a correction into somebody else's notation.
+ */
+export function formatTyped(value) {
+  return String(value).replace('.', current.point);
+}
 
 /** Full precision-to-cents amount: 72,012 · 1,234.5 · -480 */
 export function formatAmount(value) {

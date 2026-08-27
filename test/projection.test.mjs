@@ -7,12 +7,44 @@ import {
   flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf,
   grownBy, yearsRunning, fieldTotalOf, loanPartsOf, shareOut,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate,
-  toAmount, toMonths, roundMoney, MAX_MONTHS, MAX_AMOUNT,
+  toAmount, toMonths, toNumber, roundMoney, MAX_MONTHS, MAX_AMOUNT,
 } from '../assets/js/projection.js';
 import { createField, normalizeFields } from '../assets/js/fields.js';
 
 const income = (amount) => createField({ direction: 'income', amount });
 const expense = (amount) => createField({ direction: 'expense', amount });
+
+test('a figure is read the way it was written, in either notation', () => {
+  // A number box parses by the browser's locale while the app prints by the
+  // reader's chosen language, so the two disagree the moment they differ: a
+  // French reader was shown 674 379,24 and had the comma dropped out of what
+  // they typed back, storing twelve-fifty as 1250.
+  assert.equal(toNumber('12,50'), 12.5, 'a comma is a decimal point');
+  assert.equal(toNumber('12.50'), 12.5);
+  assert.equal(toNumber('2,5'), 2.5);
+  assert.equal(toNumber('674\u00a0379,24'), 674379.24, 'a no-break space groups');
+  assert.equal(toNumber('674\u202f379,24'), 674379.24, 'so does a narrow one');
+  assert.equal(toNumber('1 234,56'), 1234.56);
+
+  // ...except where it is plainly grouping, which is what it was before.
+  assert.equal(toNumber('1,234'), 1234, 'three digits after it is a thousand');
+  assert.equal(toNumber('1,234,567'), 1234567, 'and so is more than one of them');
+  assert.equal(toNumber('1,234.56'), 1234.56, 'a decimal point settles it outright');
+
+  assert.equal(toNumber(42), 42, 'a number is already read');
+  for (const junk of ['', 'abc', null, undefined, {}, [], NaN]) {
+    assert.ok(Number.isNaN(toNumber(junk)), `${String(junk)} is not a figure`);
+  }
+
+  // And every coercion the reader's typing reaches agrees with it.
+  assert.equal(toAmount('12,50'), 12.5);
+  assert.equal(toAmount('abc'), 0);
+  assert.equal(monthlyRate('2,4'), 2.4 / 100 / 12);
+  assert.equal(monthlyGrowth('-1,2'), -1.2 / 100 / 12);
+  assert.equal(afterTax(100, '12,5'), 87.5);
+  assert.equal(grownBy('100', '2,5', 1), 102.5);
+  assert.equal(shiftReturns([createField({ kind: 'investment', annualRate: '6,5' })], '1,5')[0].annualRate, '8');
+});
 
 test('a horizon of N months yields N + 1 points, starting at zero', () => {
   const result = project({ fields: [income(3000), expense(1200)], months: 24 });

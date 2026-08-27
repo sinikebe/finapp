@@ -139,7 +139,7 @@
       <div class="filter money-filter" id="inflation-filter" hidden>
         <label for="inflation" data-i18n="filter.inflation">Inflation a year</label>
         <div class="range-line">
-          <input id="inflation" type="number" min="0" max="100" step="0.1" inputmode="decimal">
+          <input id="inflation" type="text" inputmode="decimal" autocomplete="off">
           <span class="rate-unit" aria-hidden="true">%</span>
         </div>
       </div>
@@ -149,14 +149,14 @@
       <div class="filter money-filter" id="tax-filter" hidden>
         <label for="tax" data-i18n="filter.tax">Tax on gains</label>
         <div class="range-line">
-          <input id="tax" type="number" min="0" max="100" step="1" inputmode="decimal">
+          <input id="tax" type="text" inputmode="decimal" autocomplete="off">
           <span class="rate-unit" aria-hidden="true">%</span>
         </div>
       </div>
       <div class="filter money-filter" id="spread-filter" hidden>
         <label for="spread" data-i18n="filter.spread">Returns, give or take</label>
         <div class="range-line">
-          <input id="spread" type="number" min="0" max="50" step="0.5" inputmode="decimal">
+          <input id="spread" type="text" inputmode="decimal" autocomplete="off">
           <span class="rate-unit" aria-hidden="true">%</span>
         </div>
       </div>

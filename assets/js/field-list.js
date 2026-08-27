@@ -11,6 +11,8 @@
  */
 
 import { labelOf, MAX_FIELDS, PERIODS, KINDS } from './fields.js';
+import { toNumber } from './projection.js';
+import { formatTyped } from './format.js';
 import { html, svgEl } from './dom.js';
 
 const ACTION_ICONS = {
@@ -107,11 +109,13 @@ export function createFieldList(options) {
 
     const amountLabel = html('label', 'sr-only', controls);
     const amount = html('input', 'field-amount', controls);
-    amount.type = 'number';
+    // Text, not number: a number box parses by the browser's locale, and a
+    // comma typed into one where that locale does not use it is dropped before
+    // any of this can see it — twelve-fifty arriving as 1250. `toNumber` reads
+    // the separators instead.
+    amount.type = 'text';
     amount.id = `field-${field.id}-amount`;
     amount.inputMode = 'decimal';
-    amount.min = '0';
-    amount.step = 'any';
     amount.autocomplete = 'off';
     amount.placeholder = '0';
     amountLabel.htmlFor = amount.id;
@@ -124,11 +128,9 @@ export function createFieldList(options) {
     const feesUnit = html('span', 'unit', feesWrap);
     const feesUnitFull = html('span', 'unit-full', feesUnit);
     const feesUnitShort = html('span', 'unit-short', feesUnit);
-    fees.type = 'number';
+    fees.type = 'text';
     fees.id = `field-${field.id}-fees`;
     fees.inputMode = 'decimal';
-    fees.min = '0';
-    fees.step = 'any';
     fees.autocomplete = 'off';
     fees.placeholder = '0';
     feesLabel.htmlFor = fees.id;
@@ -151,11 +153,9 @@ export function createFieldList(options) {
     const rateUnit = html('span', 'unit', rateWrap);
     const rateUnitFull = html('span', 'unit-full', rateUnit);
     const rateUnitShort = html('span', 'unit-short', rateUnit);
-    rate.type = 'number';
+    rate.type = 'text';
     rate.id = `field-${field.id}-rate`;
     rate.inputMode = 'decimal';
-    rate.min = '0';
-    rate.step = 'any';
     rate.autocomplete = 'off';
     rateLabel.htmlFor = rate.id;
 
@@ -265,9 +265,9 @@ export function createFieldList(options) {
     amount.addEventListener('input', () => {
       // A negative amount is meaningless here — the direction carries the sign
       // — so drop the sign rather than the digits the reader just typed.
-      const typed = Number(amount.value);
+      const typed = toNumber(amount.value);
       if (amount.value !== '' && Number.isFinite(typed) && typed < 0) {
-        amount.value = String(Math.abs(typed));
+        amount.value = formatTyped(Math.abs(typed));
       }
       onCommand({ type: 'update', id, patch: { amount: amount.value } });
     });
@@ -277,9 +277,9 @@ export function createFieldList(options) {
     fees.addEventListener('input', () => {
       // Negative fees would be a lender paying you to borrow; the same rule the
       // amount follows, for the same reason.
-      const typed = Number(fees.value);
+      const typed = toNumber(fees.value);
       if (fees.value !== '' && Number.isFinite(typed) && typed < 0) {
-        fees.value = String(Math.abs(typed));
+        fees.value = formatTyped(Math.abs(typed));
       }
       onCommand({ type: 'update', id, patch: { fees: fees.value } });
     });

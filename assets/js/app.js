@@ -12,14 +12,14 @@ import {
   project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
   hasAmounts, hasDebt, hasOwned,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
-  fieldTotalOf, loanPartsOf, shareOut,
+  fieldTotalOf, loanPartsOf, shareOut, toNumber,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
   normalizeFields, migrateLegacyInputs, labelOf,
 } from './fields.js';
 import {
-  formatAmount, formatCompact, formatMonth, formatHorizon, formatRate, setFormatLocale,
+  formatAmount, formatCompact, formatMonth, formatHorizon, formatRate, formatTyped, setFormatLocale,
 } from './format.js';
 import { html } from './dom.js';
 import { createLineChart, endLabelPad } from './chart.js';
@@ -945,7 +945,7 @@ function fieldLabels() {
     // Only worth spelling out once it actually climbs, and only as far as the
     // horizon on screen — the number moves with the slider, which is the point.
     growthSummary: (field) => {
-      const rate = Number.parseFloat(field.annualRate);
+      const rate = toNumber(field.annualRate);
       if (!Number.isFinite(rate) || rate === 0 || !toAmount(field.amount)) return '';
       const years = yearsRunning(field, state.months);
       if (years < 1) return '';
@@ -1106,7 +1106,9 @@ function runCommand(command) {
       const patch = { ...command.patch };
       if ('amount' in patch) {
         const amount = toAmount(patch.amount);
-        patch.amount = amount ? String(amount) : '';
+        // Their own decimal separator: a French reader who typed 12,50 and got
+        // back 12.5 would reasonably think the app had misread them.
+        patch.amount = amount ? formatTyped(amount) : '';
       }
       setActiveFields(updateField(fields(), command.id, normalizeLabelPatch(patch, command.id)));
       spreadIfSynced(command.id);
@@ -1220,7 +1222,7 @@ function render() {
 
   // The two runs behind a band: the same plan with every return moved down and
   // up. Only worth computing when something actually depends on a return.
-  const spread = Number.parseFloat(state.spread);
+  const spread = toNumber(state.spread);
   const ranged = state.showRange && Number.isFinite(spread) && spread > 0
     && (investsInside(projection) || hasOwned(projection));
   const lower = ranged ? projectionFor(shiftReturns(projection.fields, -spread)) : null;
