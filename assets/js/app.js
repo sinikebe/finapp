@@ -10,7 +10,7 @@
 
 import {
   project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
-  hasAmounts, hasInvestments, hasDebt, hasOwned,
+  hasAmounts, hasDebt, hasOwned,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
   fieldTotalOf, loanPartsOf, shareOut,
 } from './projection.js';
@@ -360,6 +360,19 @@ window.addEventListener('storage', (event) => {
 
 /* ------------------------------------------------------------------- charts */
 
+/**
+ * Whether an investment does anything inside the horizon, which is a different
+ * question from whether one is listed. `hasInvestments` asks the fields, so it
+ * says yes to a fund that starts after the last month drawn — and the app's own
+ * first plan does exactly that, putting its housing money into a fund the month
+ * after the mortgage ends. On the default twenty-year horizon that left an
+ * Investment value card with a flat line at zero and three tiles reading 0,
+ * under a note promising each card is drawn "only once it has something to say".
+ */
+function investsInside(projection) {
+  return projection.totals.contributed > 0 || projection.totals.invested > 0;
+}
+
 const CHARTS = [
   { id: 'chart-income', key: 'income', colorVar: '--series-income' },
   { id: 'chart-expenses', key: 'expenses', colorVar: '--series-expenses' },
@@ -371,7 +384,7 @@ const CHARTS = [
     id: 'chart-worth',
     key: 'worth',
     colorVar: '--series-worth',
-    when: (projection) => hasInvestments(projection) || hasDebt(projection) || hasOwned(projection),
+    when: (projection) => investsInside(projection) || hasDebt(projection) || hasOwned(projection),
     // Deliberately on the flows' shared scale rather than its own: the whole
     // point of the card is the gap between the total and the net beside it,
     // which is what the investments have added. Its own scale would hide it.
@@ -380,7 +393,7 @@ const CHARTS = [
     id: 'chart-invested',
     key: 'invested',
     colorVar: '--series-invested',
-    when: hasInvestments,
+    when: investsInside,
     // Drawn against what was actually paid in: the gap between the two lines
     // is the gain, which is the only reason anyone holds the thing.
     reference: 'contributed',
@@ -392,43 +405,75 @@ const CHARTS = [
 ];
 
 let charts = [];
-/** Which cards were built last, so they are rebuilt only when the set changes. */
-let chartsBuilt = '';
 
 function activeCharts(projection) {
   return CHARTS.filter((spec) => !spec.when || spec.when(projection));
 }
 
-function buildCharts(specs) {
-  for (const chart of charts) chart.instance.destroy();
-  ui.charts.textContent = '';
-  chartsBuilt = specs.map((spec) => spec.id).join(',');
-  charts = specs.map((spec) => {
-    const title = t(`chart.${spec.key}.title`);
-    return {
-      ...spec,
-      instance: createLineChart({
-        mount: ui.charts,
-        id: spec.id,
-        title,
-        description: t(`chart.${spec.key}.description`),
-        labels: {
-          showTable: t('chart.showTable'),
-          hideTable: t('chart.hideTable'),
-          tableCaption: t('chart.tableCaption', title),
-          monthColumn: t('chart.monthColumn'),
-          ariaLabel: (months, endValue, count) => t('chart.aria', title, months, endValue, count),
-          reading: (month, value) => t('chart.reading', month, value),
-        },
-        formatValue: formatAmount,
-        formatTick: formatCompact,
-        formatMonth: (month) => formatMonth(month, t),
-        onHover: (index) => {
-          for (const chart of charts) chart.instance.setActive(index);
-        },
-      }),
-    };
+/** Every word a card owns, in the language of the moment. */
+function chartWords(spec) {
+  const title = t(`chart.${spec.key}.title`);
+  return {
+    title,
+    description: t(`chart.${spec.key}.description`),
+    labels: {
+      showTable: t('chart.showTable'),
+      hideTable: t('chart.hideTable'),
+      tableCaption: t('chart.tableCaption', title),
+      monthColumn: t('chart.monthColumn'),
+      ariaLabel: (months, endValue, count) => t('chart.aria', title, months, endValue, count),
+      reading: (month, value) => t('chart.reading', month, value),
+    },
+  };
+}
+
+/**
+ * Bring the set of cards into line with `specs`, keeping every card that is
+ * already there.
+ *
+ * Rebuilding the lot was cheap to write and expensive to read: whether a card's
+ * table is open lives in its own closure, so tearing down the four that did not
+ * change in order to add a fifth shut every table the reader had opened. Adding
+ * or clearing an investment is an ordinary edit, and reading the monthly figures
+ * while making one has to be possible.
+ */
+function syncCharts(specs) {
+  const wanted = new Set(specs.map((spec) => spec.id));
+  for (const chart of charts) {
+    if (!wanted.has(chart.id)) chart.instance.destroy();
+  }
+  const standing = new Map(charts.map((chart) => [chart.id, chart]));
+  charts = specs.map((spec) => standing.get(spec.id) || {
+    ...spec,
+    instance: createLineChart({
+      mount: ui.charts,
+      id: spec.id,
+      ...chartWords(spec),
+      formatValue: formatAmount,
+      formatTick: formatCompact,
+      formatMonth: (month) => formatMonth(month, t),
+      onHover: (index) => {
+        for (const chart of charts) chart.instance.setActive(index);
+      },
+    }),
   });
+  // Whatever order they were made in, they end up in the order `specs` asks
+  // for: appending a node already in the list moves it rather than copying it.
+  for (const chart of charts) ui.charts.appendChild(chart.instance.element);
+}
+
+/** Re-word every standing card, for a language change. Rebuilding them would
+ *  say the same thing and shut every open table doing it. */
+function relabelCharts() {
+  for (const chart of charts) {
+    const words = chartWords(chart);
+    chart.instance.setHeading({
+      title: words.title,
+      description: words.description,
+      tableCaption: words.labels.tableCaption,
+    });
+    chart.instance.setLabels(words.labels);
+  }
 }
 
 /* --------------------------------------------------------------- comparing */
@@ -438,9 +483,9 @@ const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'profit', 'ow
 
 /** Metrics that say nothing until the thing they measure exists. */
 const CONDITIONAL_METRICS = {
-  worth: (projections) => projections.some((p) => hasInvestments(p) || hasDebt(p) || hasOwned(p)),
-  invested: (projections) => projections.some((p) => hasInvestments(p)),
-  profit: (projections) => projections.some((p) => hasInvestments(p)),
+  worth: (projections) => projections.some((p) => investsInside(p) || hasDebt(p) || hasOwned(p)),
+  invested: (projections) => projections.some(investsInside),
+  profit: (projections) => projections.some(investsInside),
   owned: (projections) => projections.some((p) => hasOwned(p)),
   debt: (projections) => projections.some((p) => hasDebt(p)),
 };
@@ -1168,16 +1213,16 @@ function render() {
 
   // The conditional cards come and go with the fields, so they are rebuilt
   // only when the set actually changes rather than on every keystroke.
-  const wantsInvestments = hasInvestments(projection);
+  const wantsInvestments = investsInside(projection);
   const specs = activeCharts(projection);
-  if (specs.map((spec) => spec.id).join(',') !== chartsBuilt) buildCharts(specs);
+  syncCharts(specs);
   const series = specs.map((spec) => seriesOf(projection, spec.key));
 
   // The two runs behind a band: the same plan with every return moved down and
   // up. Only worth computing when something actually depends on a return.
   const spread = Number.parseFloat(state.spread);
   const ranged = state.showRange && Number.isFinite(spread) && spread > 0
-    && (hasInvestments(projection) || hasOwned(projection));
+    && (investsInside(projection) || hasOwned(projection));
   const lower = ranged ? projectionFor(shiftReturns(projection.fields, -spread)) : null;
   const upper = ranged ? projectionFor(shiftReturns(projection.fields, spread)) : null;
   const bands = specs.map((spec) => (ranged && BAND_KEYS.has(spec.key) ? {
@@ -1244,7 +1289,11 @@ function render() {
   ui.profitTile.hidden = !wantsInvestments;
   ui.profitLabel.textContent = t('summary.profit', formatRate(state.tax));
   ui.profitValue.textContent = hasInput ? formatAmount(projection.totals.profit) : '—';
-  ui.taxFilter.hidden = !wantsInvestments;
+  // The rate is applied to every plan, and the comparison's Profit column is
+  // offered while any of them has an investment — so gating its control on the
+  // plan on screen could hide the rate while the figures it produced were still
+  // in the table, with nothing to say that switching plans would bring it back.
+  ui.taxFilter.hidden = !projections.some(investsInside);
   // The bottom line, and the only tile that names its own horizon: without an
   // investment it would repeat the hero to the cent, so it comes and goes with
   // the investment cards.
@@ -1525,9 +1574,7 @@ function applyLanguage(next) {
   ui.langButton.setAttribute('aria-label', t('lang.aria'));
 
   applyTheme(theme);
-  // The language owns every label on a card, so they are rebuilt wholesale;
-  // `render` puts the data back a moment later.
-  buildCharts(activeCharts(project({ fields: fields(), months: state.months })));
+  relabelCharts();
   if (compareChart) buildCompareChart();
   if (sankey) buildSankey();
   render();

@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v39', date: '2026-08-27',
+    version: 'v40', date: '2026-08-27',
+    en: 'A card whose table you opened stays open through an edit and through a change of language; an investment that never starts no longer draws an empty card; and the range columns line up with the figures they name.',
+    fr: 'Une carte dont vous avez ouvert le tableau le garde ouvert malgré une modification ou un changement de langue\u00a0; un placement qui ne démarre jamais ne dessine plus de carte vide\u00a0; et les colonnes de la fourchette s’alignent sur les chiffres qu’elles nomment.',
+  },
+  {
+    version: 'v39', date: '2026-08-27', commit: '20b39f8',
     en: 'The flow diagram no longer credits a salary with money that came from selling a holding: what a sale brought in is its own strand, named Cashed in.',
     fr: 'Le diagramme de flux ne crédite plus un salaire de l’argent venu de la vente d’un placement\u00a0: ce qu’une vente a rapporté forme son propre flux, nommé Encaissé.',
   },
