@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { RELEASES } from '../assets/js/changelog.js';
 import { BUILD } from '../assets/js/version.js';
 import { LANGUAGES } from '../assets/js/i18n.js';
+import { breakingSpaceIn } from './french-spacing.mjs';
 
 test('the stamped version is the one the service worker serves', async () => {
   // The two are written by different hands — one generated, one edited — and a
@@ -61,11 +62,10 @@ test('the running build is described somewhere in the log', () => {
 
 test('French in the log follows the same typography as the dictionary', () => {
   // The changelog lives outside i18n.js, so it would otherwise sit outside the
-  // rule that catches a breaking space before a colon or a percent sign.
+  // rule too — which is why the rule is a module both files import rather than
+  // a regex each of them keeps its own copy of.
   for (const release of RELEASES) {
-    assert.ok(
-      !/[^\s  ] [:;?!»%]/.test(release.fr),
-      `${release.version} uses a breaking space: ${release.fr}`,
-    );
+    const broken = breakingSpaceIn(release.fr);
+    assert.equal(broken, null, `${release.version} uses a breaking space in "${broken}": ${release.fr}`);
   }
 });
