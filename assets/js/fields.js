@@ -200,6 +200,12 @@ export function normalizeField(value) {
   // An end before the beginning would land nothing at all and say nothing
   // about why. Read as "it starts and stops in the same month".
   if (field.endMonth && field.endMonth < field.startMonth) field.endMonth = field.startMonth;
+  // A sale before the purchase is the same mistake wearing another name, and
+  // it was the one kind of window nothing straightened: the two guards in
+  // `contributionOf` overlapped, so the field moved nothing in any month and
+  // sat in the list showing an amount and a rate with nothing to say why.
+  // Read as "bought and sold in the same month".
+  if (field.sellMonth && field.sellMonth < field.startMonth) field.sellMonth = field.startMonth;
 
   return field;
 }

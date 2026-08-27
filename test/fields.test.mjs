@@ -8,6 +8,7 @@ import {
   addField, updateField, duplicateField, removeField, neighbourOf,
   defaultFields, migrateLegacyInputs,
 } from '../assets/js/fields.js';
+import { contributionOf } from '../assets/js/projection.js';
 
 const t = (key) => ({ 'field.default.income': 'Income', 'field.default.rent': 'Rent' }[key] || key);
 const copyName = (name) => `${name} (copy)`;
@@ -196,6 +197,28 @@ test('the schema and the shape it derives cannot drift apart', () => {
   // an attribute in one but not the other is an attribute silently unread.
   assert.deepEqual(Object.keys(FIELD_SHAPE), Object.keys(FIELD_SCHEMA));
   assert.deepEqual(Object.keys(createField()), Object.keys(FIELD_SHAPE));
+});
+
+test('a window that closes before it opens is straightened, both kinds', () => {
+  // An end before the beginning was already read as "starts and stops in the
+  // same month". A sale before the purchase is the same mistake wearing another
+  // name and was the one window nothing straightened: `contributionOf` blocks
+  // months before the start and months after the sale, so the two guards
+  // overlapped and the field moved nothing in any month at all — while sitting
+  // in the list showing an amount and a rate, with nothing to say why.
+  assert.equal(normalizeField({ amount: '500', startMonth: 12, endMonth: 6 }).endMonth, 12);
+
+  const backwards = normalizeField({
+    kind: 'investment', amount: '500', annualRate: '6', startMonth: 12, sellMonth: 6,
+  });
+  assert.equal(backwards.sellMonth, 12, 'bought and sold in the same month');
+  assert.equal(contributionOf(backwards, 12), 500, 'so the month it opens is a month it lands');
+
+  // A window the right way round is nobody's business but the reader's.
+  const sane = normalizeField({ kind: 'investment', amount: '500', startMonth: 6, sellMonth: 24 });
+  assert.deepEqual([sane.startMonth, sane.sellMonth], [6, 24]);
+  // And a sale with no start of its own still means what it said.
+  assert.equal(normalizeField({ kind: 'investment', amount: '500', sellMonth: 6 }).sellMonth, 6);
 });
 
 test('how often an amount lands is part of the field, and defaults to monthly', () => {

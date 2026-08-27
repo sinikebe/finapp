@@ -110,9 +110,13 @@ export function shiftReturns(fields, points) {
   if (!Number.isFinite(shift) || shift === 0) return fields;
   return fields.map((field) => {
     if (field.kind !== 'investment' && field.kind !== 'asset') return field;
+    // An unreadable rate is the nought the rest of the model already reads it
+    // as — `monthlyGrowth('')` is 0 — and blank is what every investment starts
+    // out with. Skipping it banded the one field the reader had just added
+    // differently from an identical one where they had typed the nought in.
     const rate = toNumber(field.annualRate);
-    if (!Number.isFinite(rate)) return field;
-    return { ...field, annualRate: String(rate + shift) };
+    const base = Number.isFinite(rate) ? rate : 0;
+    return { ...field, annualRate: String(base + shift) };
   });
 }
 
@@ -158,7 +162,12 @@ export function loanTotal(field) {
 export function loanInterest(field) {
   const term = Math.max(1, Math.trunc(Number(field.termMonths) || 0));
   const borrowed = borrowedOf(field);
-  return roundMoney(loanPayment(borrowed, field.annualRate, term) * term - borrowed);
+  // Floored, because a payment is rounded to the cent in both directions: at
+  // 0% over three months, 1,000 repays 333.33 a month and the residue is a
+  // penny *short*, which the row then advertised as "-0.01 of interest" — over
+  // a diagram reporting 0 for the same quantity, since `loanPartsOf` floors its
+  // own. A loan that repays a penny less than it lent has cost nothing.
+  return roundMoney(Math.max(0, loanPayment(borrowed, field.annualRate, term) * term - borrowed));
 }
 
 /**
