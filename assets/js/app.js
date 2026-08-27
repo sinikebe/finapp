@@ -1060,9 +1060,16 @@ function strategyLabels() {
  */
 function runStrategyCommand(command) {
   switch (command.type) {
-    case 'select':
+    case 'select': {
+      // The tab just pressed becomes the active strategy, so the next render
+      // hides it and puts the name box in its place — and setting `hidden` on
+      // the focused element drops focus to the document.
       state.activeId = activeIdOf(state.strategies, command.id);
-      break;
+      persist();
+      render();
+      bar.focusTab(state.activeId);
+      return;
+    }
 
     case 'rename':
       state.strategies = updateStrategy(state.strategies, command.id, { name: command.name });
@@ -1097,7 +1104,12 @@ function runStrategyCommand(command) {
       const neighbour = strategyNeighbourOf(state.strategies, state.activeId);
       state.strategies = removeStrategy(state.strategies, state.activeId);
       state.activeId = activeIdOf(state.strategies, neighbour);
-      break;
+      // Removing the second-to-last one hides the row this button is in, which
+      // takes focus with it: land it on whatever is still on screen.
+      persist();
+      render();
+      bar.focusAfterRemove();
+      return;
     }
 
     default:
@@ -1536,8 +1548,14 @@ function armReset(asking) {
   // The whole row, not just the button: the line explaining what the button
   // does reads as orphaned once the button it describes is gone.
   ui.aboutResetRow.hidden = asking;
-  // Focus lands on keeping what you have, so a stray Return does the safe thing.
+  // Focus lands on keeping what you have, so a stray Return does the safe
+  // thing — and on the way back it lands on the button that reappears, since
+  // hiding the one the reader just pressed would otherwise drop focus to the
+  // document, outside a dialog that is still open. The `open` guard matters:
+  // the About button disarms before `showModal`, and must not steal the focus
+  // that opening the panel is about to place on Close.
   if (asking) ui.aboutResetNo.focus();
+  else if (ui.aboutDialog.open) ui.aboutReset.focus();
 }
 
 ui.aboutOpen.addEventListener('click', () => {
