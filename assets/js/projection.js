@@ -371,8 +371,10 @@ export function flowIn(fields, direction, month) {
  * so a horizon of N months yields N + 1 points. The balances do not: you
  * already own what you own and owe what you owe, so month 0 carries them.
  *
- * `proceeds` is a point series only: it exists so `profit` can tell a realised
- * gain from a paper one, and nothing asks for the horizon's worth of it.
+ * `proceeds` is money that arrived by cashing a holding in rather than by a
+ * field earning it. It is already inside `income`, and carried separately so
+ * that `profit` can tell a realised gain from a paper one — and so the flow
+ * diagram can name where that part of the income came from.
  *
  * @param {{fields?: Array<object>, months?: number|string, taxRate?: number}} input
  * @returns {{
@@ -383,7 +385,7 @@ export function flowIn(fields, direction, month) {
  *                  profit: number,
  *                  owned: number, debt: number, worth: number}>,
  *   totals: {income: number, expenses: number, net: number, invested: number,
- *            contributed: number, profit: number,
+ *            contributed: number, proceeds: number, profit: number,
  *            owned: number, debt: number, worth: number}
  * }}
  */
@@ -563,6 +565,7 @@ export function project(input = {}) {
       net: last.net,
       invested: last.invested,
       contributed: last.contributed,
+      proceeds: last.proceeds,
       profit: last.profit,
       owned: last.owned,
       debt: last.debt,

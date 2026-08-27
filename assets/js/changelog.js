@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v38', date: '2026-08-26',
+    version: 'v39', date: '2026-08-27',
+    en: 'The flow diagram no longer credits a salary with money that came from selling a holding: what a sale brought in is its own strand, named Cashed in.',
+    fr: 'Le diagramme de flux ne crédite plus un salaire de l’argent venu de la vente d’un placement\u00a0: ce qu’une vente a rapporté forme son propre flux, nommé Encaissé.',
+  },
+  {
+    version: 'v38', date: '2026-08-26', commit: 'e945397',
     en: 'Documentation put back in step with the code, and the About panel can no longer leak into the page on a browser without dialog support.',
     fr: 'La documentation remise en accord avec le code, et le panneau À propos ne peut plus apparaître dans la page sur un navigateur sans prise en charge de dialog.',
   },
