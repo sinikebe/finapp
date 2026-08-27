@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v44', date: '2026-08-27',
+    version: 'v45', date: '2026-08-27',
+    en: 'A loan at 0% no longer advertises negative interest, an investment left at its blank rate gets the same range as one you typed a nought into, and a sale set before the purchase is straightened rather than quietly moving nothing.',
+    fr: 'Un emprunt à 0\u00a0% n’affiche plus d’intérêts négatifs, un placement laissé à son taux vide obtient la même fourchette que celui où vous avez saisi un zéro, et une vente placée avant l’achat est redressée au lieu de ne rien faire en silence.',
+  },
+  {
+    version: 'v44', date: '2026-08-27', commit: '5744407',
     en: 'Switching or removing a strategy, and backing out of Start again, leave the keyboard where you are rather than at the top of the page.',
     fr: 'Changer ou supprimer une stratégie, et renoncer à Recommencer, laissent le clavier là où vous êtes plutôt qu’en haut de la page.',
   },

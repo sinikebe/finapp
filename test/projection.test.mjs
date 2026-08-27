@@ -46,6 +46,52 @@ test('a figure is read the way it was written, in either notation', () => {
   assert.equal(shiftReturns([createField({ kind: 'investment', annualRate: '6,5' })], '1,5')[0].annualRate, '8');
 });
 
+test('interest is what a loan costs, and a cost is never negative', () => {
+  // A payment is rounded to the cent in both directions, so at 0% the residue
+  // can fall a penny short: 1,000 over three months repays 333.33 a month, and
+  // the row advertised "-0.01 of interest" over a diagram reporting 0 for the
+  // same quantity — `loanPartsOf` has always floored its own.
+  const short = createField({ kind: 'loan', amount: '1000', annualRate: '0', termMonths: 3 });
+  assert.equal(loanInterest(short), 0, 'a loan that repays a penny less has cost nothing');
+  assert.equal(loanInterest(short), loanPartsOf(short, 4).interest, 'and the two agree');
+
+  // The other direction is real interest and stays reported: README:557 names
+  // this case, and it is the reason the residue is reported at all.
+  const over = createField({ kind: 'loan', amount: '200000', annualRate: '0', termMonths: 300 });
+  assert.equal(loanTotal(over), 200001);
+  assert.equal(loanInterest(over), 1, 'a rounded-up repayment costs the extra unit');
+  assert.equal(loanInterest(over), loanPartsOf(over, 301).interest);
+
+  // The row and the diagram agree for every 0% loan, whichever way it rounds.
+  for (const [amount, term] of [[1000, 3], [438132, 98], [1, 7], [999, 11], [50000, 360]]) {
+    const loan = createField({ kind: 'loan', amount: String(amount), annualRate: '0', termMonths: term });
+    assert.ok(loanInterest(loan) >= 0, `${amount} over ${term} months costs nothing or more`);
+    assert.equal(loanInterest(loan), loanPartsOf(loan, term + 1).interest, `${amount}/${term} agree`);
+  }
+});
+
+test('a rate left blank is the nought the rest of the model reads it as', () => {
+  // `monthlyGrowth('')` is 0, and blank is what every investment starts out
+  // with — so skipping it here banded the field the reader had just added
+  // differently from an identical one where they had typed the nought in.
+  const blank = createField({ kind: 'investment', amount: '500' });
+  const zero = createField({ kind: 'investment', amount: '500', annualRate: '0' });
+  const over = (field) => project({ fields: [field], months: 120 }).totals.invested;
+  assert.equal(over(blank), over(zero), 'the two project identically to begin with');
+
+  for (const shift of [3, -3]) {
+    assert.equal(
+      over(shiftReturns([blank], shift)[0]),
+      over(shiftReturns([zero], shift)[0]),
+      `and identically once returns move by ${shift}`,
+    );
+  }
+  assert.equal(shiftReturns([blank], 3)[0].annualRate, '3');
+  assert.equal(shiftReturns([createField({ kind: 'investment', annualRate: '6' })], 3)[0].annualRate, '9',
+    'a rate of its own still moves by the same points');
+  assert.equal(shiftReturns([blank], 0)[0], blank, 'and a shift of nothing is still a no-op');
+});
+
 test('a horizon of N months yields N + 1 points, starting at zero', () => {
   const result = project({ fields: [income(3000), expense(1200)], months: 24 });
   assert.equal(result.points.length, 25);
