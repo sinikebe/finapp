@@ -55,8 +55,9 @@ test('interest is what a loan costs, and a cost is never negative', () => {
   assert.equal(loanInterest(short), 0, 'a loan that repays a penny less has cost nothing');
   assert.equal(loanInterest(short), loanPartsOf(short, 4).interest, 'and the two agree');
 
-  // The other direction is real interest and stays reported: README:557 names
-  // this case, and it is the reason the residue is reported at all.
+  // The other direction is real interest and stays reported: at 0% a payment
+  // rounded to the cent need not divide the principal evenly, and `loanInterest`
+  // has always called that residue what it is.
   const over = createField({ kind: 'loan', amount: '200000', annualRate: '0', termMonths: 300 });
   assert.equal(loanTotal(over), 200001);
   assert.equal(loanInterest(over), 1, 'a rounded-up repayment costs the extra unit');
