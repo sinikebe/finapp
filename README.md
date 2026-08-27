@@ -19,6 +19,7 @@ moment.*
 npm start          # static server on http://127.0.0.1:4173
 npm test           # unit tests for the models, the projection, the scales
 npm run icons      # regenerate the icon set from tools/generate-icons.mjs
+npm run stamp      # rewrite assets/js/version.js from sw.js and the checkout
 ```
 
 A service worker only registers over `http(s)`, so open the app through the dev
@@ -401,13 +402,15 @@ Input is coerced rather than trusted: a negative or unparseable amount becomes
 `0`, the horizon is clamped to 1–600 months — fifty years, which the slider now
 reaches; it stopped at ten before, so a twenty-five-year mortgage could never be
 followed to the month it was paid off — and both a single field and the sum
-of a direction are capped at a hundred billion a month. That cap keeps every
-total representable, which is not quite the same as keeping it exact: money is
-held in units rather than in whole cents, and past about 35 trillion the gap
-between two neighbouring doubles is wider than half a cent, so rounding has
-nowhere exact to land. Below that every total is faithful; only a run at the
-very ceiling — six hundred months of the largest amount the form takes —
-drifts, and then by about two units in sixty trillion.
+of a direction are capped at a hundred billion a month. Money is held in units
+rather than in whole cents, so a total is exact only while its cents are still a
+whole number a double can hold — and the cap is what keeps them there. Six
+hundred months at the ceiling is sixty trillion, whose cents sit comfortably
+inside that range, so every total the flows produce lands exactly, the run at
+the very ceiling included. What the cap does not bound is a compounded balance:
+an investment is multiplied rather than added, so an implausible rate over fifty
+years can carry one past ninety trillion, where a double's step is wider than a
+cent. Nothing anyone types comes near either.
 
 Amounts carry no currency symbol. The app never asks which currency you use, so
 it never claims to know.
@@ -485,10 +488,11 @@ chart passes one per strategy.
   CVD *floor* and still validate, and the shipped four all clear the higher
   *target*, so the search held that bar rather than the one that merely passes.
 - **Nothing is gated behind hover.** Each line is labelled at its endpoint —
-  labels nudge apart when two lines finish close together — a crosshair tooltip
-  follows the pointer (and the arrow keys: `Shift` jumps a year, `Home`/`End`
-  jump to the ends), hovering one flow card moves all three, and every card has
-  a table view with the exact monthly figures.
+  where two would land on top of each other the later one is dropped, and the
+  legend and the table still carry its series — a crosshair tooltip follows the
+  pointer (and the arrow keys: `Shift` jumps a year, `Home`/`End` jump to the
+  ends), hovering one flow card moves all three, and every card has a table view
+  with the exact monthly figures.
 - **A band is context, not a mark.** It is painted under everything, at low
   opacity, in its line's own colour — and its bounds are columns in the card's
   table, because no figure in this app lives only inside a drawing.
@@ -586,11 +590,11 @@ the surface, the three washes sit ΔE 3.6 apart for a normal-vision reader at th
 16% they ship at — and running the validator up the scale, they reach only 13.1
 at 55%, which is already the saturated block the mark specs forbid at this size.
 The floors are 15 and 8. So the wash is deliberately *not* an identity channel:
-it is connective tissue, and identity is carried four times over by the solid
-node rectangles (which do pass, at ΔE 9.2 light and 9.4 dark), the name written
-beside every node, the legend, and the table. Anyone tempted to make the ribbons
-"clearer" by saturating them should re-run that measurement first: it does not
-work, and it costs the card its calm.
+it is connective tissue, and identity is carried by the solid node rectangles
+(which do pass, at ΔE 9.2 light and 9.4 dark), the legend, the table, and — for
+every node with room for one — the name written beside it. Anyone tempted to
+make the ribbons "clearer" by saturating them should re-run that measurement
+first: it does not work, and it costs the card its calm.
 
 ### The two places it degrades, and what it does about them
 
@@ -626,9 +630,12 @@ assets/js/sankey.js        the flow diagram: in, pooled, out
 assets/js/dom.js           the two DOM helpers the views share
 assets/js/format.js        locale-aware number formatting
 assets/js/i18n.js          English and French copy
+assets/js/changelog.js     what changed, release by release, in both languages
+assets/js/version.js       the build stamp the About panel reads (generated)
 assets/js/app.js           wiring: inputs, state, theme, language, install, updates
 tools/generate-icons.mjs   icon set, rendered from a vector description
 tools/serve.mjs            development server (never deployed)
+tools/stamp-version.mjs    writes version.js from sw.js and the git checkout
 test/                      node:test unit tests
 ```
 
@@ -689,10 +696,11 @@ back to a backgrounded app counts as opening it, which is how an installed app
 that is never reloaded still hears about a new version. **Check for updates** in
 the About panel asks whatever the clock says, and says what it found.
 
-**Bump `CACHE_VERSION` in `sw.js` whenever a precached file changes.** That is
-the one manual step in the whole project — there is no build to do it for you,
-and browsers only look for a new worker when `sw.js` itself changes. CI fails
-the build if a precached file moves without it.
+**Bump `CACHE_VERSION` in `sw.js` whenever a precached file changes, then run
+`npm run stamp`.** Those two are the whole project's manual steps — there is no
+build to do either for you, and browsers only look for a new worker when `sw.js`
+itself changes. CI fails the build if a precached file moves without the bump,
+and a test fails if the stamp names a different version than the worker serves.
 
 ## Languages
 
@@ -786,7 +794,13 @@ than re-rendering, so nothing you add can start stealing focus mid-edit.
 
 ## Browser support
 
-Any browser with ES modules, `Intl.NumberFormat`, CSS custom properties and
-`ResizeObserver` — Chrome/Edge 88+, Firefox 89+, Safari 15+. Installability
+Any browser with ES modules, `Intl.NumberFormat`, CSS custom properties,
+`ResizeObserver` and `<dialog>` — Chrome/Edge 88+, Firefox 98+, Safari 15.4+.
+`<dialog>` is what moves the floor: without `showModal` the About panel cannot
+open. Three later niceties degrade rather than break, so an older engine gets a
+plainer app and not a broken one — `color-mix` tints a linked field's button
+(Chrome/Edge 111, Firefox 113, Safari 16.2), `accent-color` colours the horizon
+slider, and `100svh` keeps the page tall under a phone's address bar.
+Installability
 depends on the browser: Chromium prompts, Safari installs through *Add to Home
 Screen*. The app degrades to a plain page if service workers are unavailable.
