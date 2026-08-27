@@ -807,6 +807,29 @@ Two habits keep this cheap: model operations are pure and return new lists, so
 state changes stay traceable; and the list UI reconciles rows in place rather
 than re-rendering, so nothing you add can start stealing focus mid-edit.
 
+## On a phone
+
+The layout is one column that narrows rather than a separate mobile build, and
+two media queries carry almost all of it. At 640px the field row stacks and its
+controls take pixel bases sized to the longest word each has to show; the
+strategy tabs stop wrapping and scroll sideways instead, because three plans
+wrapped is most of a phone screen spent before the first field. Below 380px the
+shell gives back its own margins — 40 of a 320px screen was an eighth of the
+page — and the header wraps rather than pushing a button off the edge.
+
+**Size is keyed to the pointer, not to the width.** A phone held in landscape is
+still a phone and a touchscreen laptop is still touched, so `(pointer: coarse)`
+is what raises every control to the 44px both Apple and Android publish, and
+raises the strategy name to 16px — under that a phone zooms the page in on focus
+and does not zoom back out. It is the last block in the stylesheet, because a
+media query adds no specificity and an override layer has to win on order.
+
+Two things give way rather than break. A wide table scrolls inside its own
+wrapper with its first column pinned, so the figures move and the name they
+belong to does not. And a flow-diagram node whose name will not fit the gutter
+shows the half that tells it apart — "principal", "interest" — rather than the
+prefix every sibling shares; the table has the whole name either way.
+
 ## Browser support
 
 Any browser with ES modules, `Intl.NumberFormat`, CSS custom properties,

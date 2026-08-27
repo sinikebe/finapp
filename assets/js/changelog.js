@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v46', date: '2026-08-27',
+    version: 'v47', date: '2026-08-27',
+    en: 'A pass over the app on a phone: every control is thumb-sized, the plans scroll sideways instead of stacking, a wide table keeps its names in view while the figures scroll, and nothing runs off the edge of a small screen.',
+    fr: 'Une passe sur l’application au téléphone\u00a0: chaque commande est à la taille du pouce, les plans défilent latéralement au lieu de s’empiler, un tableau large garde ses noms en vue pendant que les chiffres défilent, et plus rien ne déborde d’un petit écran.',
+  },
+  {
+    version: 'v46', date: '2026-08-27', commit: '9946d5f',
     en: 'French typography reaches the last three places it did not: the keyboard reading of the comparison chart, the installed app’s French description, and the French line of the README.',
     fr: 'La typographie française atteint les trois derniers endroits qui lui échappaient\u00a0: la lecture au clavier du graphique de comparaison, la description française de l’application installée, et la ligne française du README.',
   },

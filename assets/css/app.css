@@ -252,6 +252,12 @@ main {
 
 /* --------------------------------------------------------------- strategies */
 
+/* A grid item's `min-width: auto` keeps it from shrinking under its own
+   content, which is the same opt-out `.panel` documents — and the bar needed it
+   the moment its tabs became a sideways scroller on a phone: without it the
+   scroller's full width pushed the whole panel past the screen. */
+#strategies { min-width: 0; }
+
 .strategy-bar {
   display: flex;
   flex-wrap: wrap;
@@ -300,6 +306,12 @@ main {
    at down by its height. This costs a strip of the viewport and moves nothing.
    It appears only once the bar in the form has scrolled away, so the two are
    never both on screen. */
+/* Whatever the reader jumps to — the skip link, an anchor — lands below the
+   fixed bar rather than under it. The bar is 44px plus the notch inset. */
+:target,
+main > section,
+.chart-card { scroll-margin-top: calc(56px + env(safe-area-inset-top, 0px)); }
+
 .strategy-jump {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -368,7 +380,22 @@ main {
 /* --------------------------------------------------------------- comparing */
 
 .compare-table { max-height: none; margin-top: 4px; }
-.compare-table th[scope="row"] { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+/* Sticky and unwrapped: the table scrolls sideways on a phone, and a name is
+   what makes a row of figures mean anything — scroll the numbers out from under
+   it and you are reading an anonymous row. Unwrapped because a flex item
+   shrinks to its longest word, so "Buy now, on a loan" came out four lines
+   tall, one word per line, in every row. */
+.compare-table th[scope="row"] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  position: sticky;
+  left: 0;
+  white-space: nowrap;
+  background: var(--surface-1);
+}
+.compare-table tr.is-active th[scope="row"] { background: var(--surface-2); }
 .compare-table tr.is-active { background: var(--surface-2); }
 /* Where you are, said in something other than a 1.1:1 tint: the same ink strip
    the jump tabs and the changelog use to mark it. */
@@ -536,7 +563,37 @@ main {
 
 /* On a phone the name takes its own line, the buttons take the last one, and
    the rest pair up two by two. */
+/* A 320px screen spends 40 of its pixels on the shell's own margins, which is
+   an eighth of the page. Below 380 they come down — and the header wraps rather
+   than pushing its last button off the edge, which is what it did at 320 once
+   the buttons were sized for a thumb. */
+@media (max-width: 380px) {
+  main { padding-left: 12px; padding-right: 12px; }
+  .app-bar { padding-left: 12px; padding-right: 12px; }
+  .panel { padding: 16px; }
+}
+
+.app-bar { flex-wrap: wrap; }
+
 @media (max-width: 640px) {
+  /* Wrapping put three plans on three full-width lines — the better part of
+     three hundred pixels of a phone screen spent before the first field. They
+     scroll sideways instead, which is what the bar pinned to the top of the
+     window already does with the same tabs.
+
+     `display: contents` on the wrap has to go with it: a scroller needs real
+     children to lay out, and the name box is a sibling of its own tab. */
+  .strategy-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 1px;
+  }
+  .strategy-tabs::-webkit-scrollbar { display: none; }
+  .strategy-tab-wrap { display: contents; }
+  .strategy-tab,
+  .strategy-name { flex: none; }
+
   .field-name { flex-basis: 100%; }
 
   /* The buttons sit beside the controls on a desktop, where 82px costs
@@ -772,7 +829,11 @@ main {
   color: var(--text-secondary);
 }
 
-.range-line { display: flex; align-items: center; gap: 12px; }
+/* Wraps, because the slider's own 140px floor plus the readout beside it comes
+   to 299px — three more than a 320px phone has once the shell's padding is
+   taken out, which is exactly the three pixels the page used to scroll
+   sideways by. */
+.range-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
 .range-line input[type="range"] {
   flex: 1 1 auto;
@@ -1293,4 +1354,51 @@ main {
   background: var(--status-critical);
   border-color: var(--status-critical);
   color: var(--surface-1);
+}
+
+/* ------------------------------------------------------- a finger, not a mouse */
+
+/*
+ * A pointer that cannot hover cannot aim either. Every control the app offers
+ * is comfortable at 36 or 40px under a mouse and a nuisance under a thumb, so
+ * on a coarse pointer they all reach 44px — the figure both Apple and Android
+ * publish, and the one the icon buttons were already built to.
+ *
+ * Keyed on the pointer rather than the width: a phone held in landscape is
+ * still a phone, and a touchscreen laptop is still touched. Nothing here
+ * changes what the app looks like under a mouse.
+ */
+@media (pointer: coarse) {
+  .ghost-button,
+  .preset,
+  .strategy-tab,
+  .strategy-name,
+  .add-strategy,
+  .add-field,
+  .table-toggle {
+    min-height: 44px;
+  }
+
+  .icon-button { width: 44px; }
+
+  /* Wide as well as tall: "In" is a two-letter chip, and 44 is a square. */
+  .preset { min-width: 44px; }
+
+  /* The boxes in the filter row are controls like any other. */
+  .money-filter input,
+  .filter input[type="text"],
+  .filter input[type="number"] { min-height: 44px; }
+
+  /* A 24px-tall slider is a 24px-tall target: the thumb is easy enough to grab
+     but the track around it is not, and the track is most of what a thumb hits. */
+  .range-line input[type="range"] { height: 44px; }
+
+  /* Under 16px a phone zooms the page in on focus and does not zoom back out,
+     which leaves the reader panned somewhere they did not ask to be. Every
+     other box in the app already clears it; the strategy name did not. */
+  .strategy-name { font-size: 16px; }
+
+  /* A link is a target too, and this one is the first thing a keyboard or
+     switch user reaches. */
+  .skip-link { min-height: 44px; display: flex; align-items: center; }
 }
