@@ -64,6 +64,7 @@ tools/generate-icons.mjs   icon set, rendered from a vector description
 tools/serve.mjs            development server (never deployed)
 tools/stamp-version.mjs    writes version.js from sw.js and the git checkout
 test/                      node:test unit tests
+docs/                      the screenshots the README shows
 ```
 
 ## Extending it
