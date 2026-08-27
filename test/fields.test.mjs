@@ -157,26 +157,45 @@ test('a labelKey the dictionary does not know reads as unnamed, not as the key',
 test('the schema is the only edit a new attribute needs', () => {
   // The promise the field model makes: add an entry here and normalisation,
   // creation, duplication and a storage round-trip all carry it.
-  FIELD_SCHEMA.startMonth = {
-    default: '1',
-    read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : '1'),
+  //
+  // A key the schema has *not* got, because that is the promise. Standing on
+  // `startMonth` proved nothing about a new attribute — and the teardown then
+  // deleted a live one, which is why running the files in one process took
+  // fifteen other tests down with it.
+  const found = Object.keys(FIELD_SCHEMA);
+  assert.ok(!found.includes('category'), 'category is genuinely new, or this proves nothing');
+  FIELD_SCHEMA.category = {
+    default: 'none',
+    read: (value) => (typeof value === 'string' && value ? value : 'none'),
   };
   try {
-    const field = createField({ direction: 'expense', amount: '500', startMonth: 7 });
-    assert.equal(field.startMonth, '7', 'createField carries it');
-    assert.equal(createField().startMonth, '1', 'and defaults it');
-    assert.equal(normalizeField({ startMonth: {} }).startMonth, '1', 'and coerces it');
+    const field = createField({ direction: 'expense', amount: '500', category: 'housing' });
+    assert.equal(field.category, 'housing', 'createField carries it');
+    assert.equal(createField().category, 'none', 'and defaults it');
+    assert.equal(normalizeField({ category: {} }).category, 'none', 'and coerces it');
 
     const list = duplicateField([field], field.id, (name) => `${name} (copy)`, t);
-    assert.equal(list[1].startMonth, '7', 'duplication carries it');
+    assert.equal(list[1].category, 'housing', 'duplication carries it');
 
     const roundTripped = normalizeFields(JSON.parse(JSON.stringify(list)));
-    assert.equal(roundTripped[1].startMonth, '7', 'a storage round trip carries it');
+    assert.equal(roundTripped[1].category, 'housing', 'a storage round trip carries it');
 
-    assert.ok('startMonth' in updateField(list, field.id, { amount: '600' })[0], 'updates keep it');
+    assert.equal(updateField(list, field.id, { amount: '600' })[0].category, 'housing', 'updates keep it');
   } finally {
-    delete FIELD_SCHEMA.startMonth;
+    delete FIELD_SCHEMA.category;
   }
+  // Outside the finally, so it is checked after the restoring: a test that
+  // leaves the model altered is a test that breaks whichever runs next.
+  assert.deepEqual(Object.keys(FIELD_SCHEMA), found, 'and the schema is left as it was found');
+});
+
+test('the schema and the shape it derives cannot drift apart', () => {
+  // FIELD_SHAPE is built from FIELD_SCHEMA once, at load, so nothing that
+  // reaches into either at runtime can be allowed to leave them disagreeing —
+  // `sameButForId` walks the shape while `normalizeField` walks the schema, and
+  // an attribute in one but not the other is an attribute silently unread.
+  assert.deepEqual(Object.keys(FIELD_SHAPE), Object.keys(FIELD_SCHEMA));
+  assert.deepEqual(Object.keys(createField()), Object.keys(FIELD_SHAPE));
 });
 
 test('how often an amount lands is part of the field, and defaults to monthly', () => {
@@ -224,8 +243,13 @@ test('a rate is kept as typed, for the projection to make sense of', () => {
 test('an investment is always money going out, whatever the store says', () => {
   assert.equal(createField({ kind: 'investment', direction: 'income' }).direction, 'expense');
   assert.equal(normalizeField({ kind: 'investment', direction: 'income' }).direction, 'expense');
-  const flipped = updateField([createField({ kind: 'investment' })], undefined, {});
-  assert.equal(flipped.length, 1);
+  // Through an update too, which is the path the reader actually takes: the
+  // direction select is hidden on an investment, but a store — or a kind
+  // switched after the fact — can still ask for income.
+  const list = [createField({ kind: 'investment' })];
+  assert.equal(updateField(list, list[0].id, { direction: 'income' })[0].direction, 'expense');
+  const switched = [createField({ direction: 'income', amount: '300' })];
+  assert.equal(updateField(switched, switched[0].id, { kind: 'investment' })[0].direction, 'expense');
 });
 
 test('a loan repays monthly, whatever period the store carries', () => {

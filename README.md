@@ -729,8 +729,12 @@ To add a language, add a block to `STRINGS` in
 match) and add its code to `LANGUAGES`. Static markup is translated through
 `data-i18n` attributes; anything dynamic goes through the same dictionary —
 including punctuation that differs between languages, such as the no-break space
-French sets before a colon. The tests check that every language carries the same
-keys with the same parameters, so a half-translated release fails the build.
+French sets before a colon, and inside a pair of guillemets. That rule lives in
+[`test/french-spacing.mjs`](test/french-spacing.mjs), in one place because two
+files are held to it, and it checks itself: a test feeds it strings that break
+the rule in each way and asserts it says so. The tests also check that every
+language carries the same keys with the same parameters, so a half-translated
+release fails the build.
 
 ## Your data
 

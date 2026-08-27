@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { LANGUAGES, STRINGS, detectLanguage, localeFor, makeTranslator } from '../assets/js/i18n.js';
+import { breakingSpaceIn } from './french-spacing.mjs';
 
 test('every language carries exactly the same keys', () => {
   const english = Object.keys(STRINGS.en).sort();
@@ -33,7 +34,7 @@ test('English agrees with the count; French leaves "mois" alone', () => {
   assert.equal(fr('horizon.years', 5), '5 ans');
 });
 
-test('French sets a no-break space before a colon, and before a percent sign', () => {
+test('French sets a no-break space before a colon, a percent sign, and inside guillemets', () => {
   const fr = makeTranslator('fr');
   // Every string, not a list someone has to remember to extend: a phrase that
   // takes parameters is called with stand-ins so its punctuation is read too.
@@ -42,9 +43,10 @@ test('French sets a no-break space before a colon, and before a percent sign', (
       ? value(...Array.from({ length: value.length }, () => 2))
       : value;
     assert.equal(typeof text, 'string', `${key} should render to a string`);
-    // `%` belongs in this list for the same reason the rest do: French binds
-    // it to its figure, and a breaking space lets the two land on separate lines.
-    assert.ok(!/[^\s  ] [:;?!»%]/.test(text), `${key} uses a breaking space: ${text}`);
+    // `%` is held to it for the same reason the rest are: French binds it to
+    // its figure, and a breaking space lets the two land on separate lines.
+    const broken = breakingSpaceIn(text);
+    assert.equal(broken, null, `${key} uses a breaking space in "${broken}": ${text}`);
   }
   assert.ok(fr('chart.reading', 'Mois 3', '900').includes(' :'));
 });
