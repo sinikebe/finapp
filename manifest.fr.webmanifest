@@ -1,7 +1,7 @@
 {
   "name": "Finapp — estimez votre avenir financier",
   "short_name": "Finapp",
-  "description": "Projetez vos revenus, vos dépenses et votre solde net cumulés sur les mois à venir. Fonctionne hors ligne ; rien ne quitte votre appareil.",
+  "description": "Projetez vos revenus, vos dépenses et votre solde net cumulés sur les mois à venir. Fonctionne hors ligne ; rien ne quitte votre appareil.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

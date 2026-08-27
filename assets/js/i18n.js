@@ -270,6 +270,10 @@ const STRINGS = {
       `${title}. Line chart over ${months} ${plural(months, 'month', 'months')}, `
       + `ending at ${endValue}. Use the table below this chart for every value.`,
     'chart.reading': (month, value) => `${month}: ${value}`,
+    // One reading names several series, so the separator between a series and
+    // its figure is punctuation too — and punctuation that differs between
+    // languages belongs here rather than hard-coded in the drawing.
+    'chart.seriesReading': (label, value) => `${label}: ${value}`,
 
     'month.start': 'Start',
     'month.nth': (month) => `Month ${month}`,
@@ -527,6 +531,7 @@ const STRINGS = {
       `${title}. Graphique linéaire sur ${months} mois, se terminant à ${endValue}. `
       + 'Le tableau sous ce graphique donne toutes les valeurs.',
     'chart.reading': (month, value) => `${month} : ${value}`,
+    'chart.seriesReading': (label, value) => `${label} : ${value}`,
 
     'month.start': 'Début',
     'month.nth': (month) => `Mois ${month}`,

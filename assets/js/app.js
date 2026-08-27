@@ -430,6 +430,7 @@ function chartWords(spec) {
       monthColumn: t('chart.monthColumn'),
       ariaLabel: (months, endValue, count) => t('chart.aria', title, months, endValue, count),
       reading: (month, value) => t('chart.reading', month, value),
+      seriesReading: (label, value) => t('chart.seriesReading', label, value),
     },
   };
 }
@@ -522,6 +523,7 @@ function buildCompareChart() {
       monthColumn: t('chart.monthColumn'),
       ariaLabel: (months, endValue, count) => t('compare.aria', months, count),
       reading: (month, value) => t('chart.reading', month, value),
+      seriesReading: (label, value) => t('chart.seriesReading', label, value),
     },
     formatValue: formatAmount,
     formatTick: formatCompact,

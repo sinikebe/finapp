@@ -71,7 +71,8 @@ export function monthTickStep(months) {
  *   mount: HTMLElement, id: string, title: string, description: string,
  *   labels: {showTable: string, hideTable: string, tableCaption: string,
  *            monthColumn: string, ariaLabel: (months: number, endValue: string, count: number) => string,
- *            reading: (month: string, value: string) => string},
+ *            reading: (month: string, value: string) => string,
+ *            seriesReading: (label: string, value: string) => string},
  *   formatValue: (n: number) => string, formatTick: (n: number) => string,
  *   formatMonth: (n: number) => string, onHover?: (index: number|null) => void
  * }} options
@@ -588,8 +589,12 @@ export function createLineChart(options) {
     const point = points[next];
     if (!point) return;
     // Every series at that month, so a comparison is heard the way it is seen.
+    // Through the dictionary, because the separator is punctuation: French puts
+    // a no-break space before a colon, and this was the one place in the app
+    // that did not — so a French reader heard the outer colon spaced correctly
+    // and every inner one not.
     const reading = state.series
-      .map((s) => `${s.label}: ${formatValue((s.points[next] || { value: 0 }).value)}`)
+      .map((s) => labels.seriesReading(s.label, formatValue((s.points[next] || { value: 0 }).value)))
       .join(', ');
     announcer.textContent = labels.reading(
       formatMonth(point.month),
