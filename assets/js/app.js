@@ -645,7 +645,14 @@ function sankeyData(projection) {
 
   const incoming = weigh('income');
   const outgoing = weigh('expense');
-  const inShares = shareOut(projection.totals.income, incoming.map((e) => e.weight));
+  // Not all of what came in was earned by a field. Cashing a holding in puts
+  // its balance into `income` too, and no field carries it — so apportioning
+  // the whole of `income` across the fields would hand each of them a share of
+  // money it never paid, and with no income field at all there would be nothing
+  // on the left of a pool that is full on the right.
+  const cashedIn = projection.totals.proceeds;
+  const earned = roundToCent(projection.totals.income - cashedIn);
+  const inShares = shareOut(earned, incoming.map((e) => e.weight));
   const outShares = shareOut(projection.totals.expenses, outgoing.map((e) => e.weight));
 
   const named = (entry, index, shares, tone) => {
@@ -666,6 +673,13 @@ function sankeyData(projection) {
     .filter((entry) => entry.value > 0);
   const sinks = outgoing.map((entry, index) => named(entry, index, outShares, 'expense'))
     .filter((entry) => entry.value > 0);
+  // A sale is money arriving, so it is a source like any other and wears the
+  // same tone. It is one node however many holdings were sold: which field a
+  // balance came from is not something the projection carries past the month
+  // it was sold in, and the cards above name the holdings anyway.
+  if (cashedIn > 0) {
+    sources.push({ id: 'sold', label: t('sankey.sold'), value: cashedIn, tone: 'income' });
+  }
 
   // What is left over is a destination like any other. When it is negative the
   // same node changes sides: the money had to come from somewhere, and saying
@@ -772,8 +786,14 @@ function renderSankey(projection) {
   // Both gates read the same quantity the drawing does: a restatement can round
   // every flow away, and a section that appears only to say "give a field an
   // amount" is worse than one that stays out of the way.
+  // Every clause the drawing itself requires (sankey.js's `drawable`), plus the
+  // one this section adds: two nodes is not a diagram, it is a sentence, and
+  // the summary already says it. Opening the section on a weaker test than the
+  // drawing uses is how it came to render "give a field an amount" over a plan
+  // where every field had one.
   const worth = hasAmounts(projection)
     && data.total > 0
+    && data.sources.length > 0 && data.sinks.length > 0
     && data.sources.length + data.sinks.length >= 3;
   ui.sankey.hidden = !worth;
   if (!worth) return;

@@ -87,12 +87,39 @@ test('totals match the last point', () => {
     net: last.net,
     invested: last.invested,
     contributed: last.contributed,
+    proceeds: last.proceeds,
     profit: last.profit,
     owned: last.owned,
     debt: last.debt,
     worth: last.worth,
   });
   assert.equal(result.totals.income, 4200 * 60);
+});
+
+test('income is exactly what fields earned plus what was cashed in', () => {
+  // The flow diagram apportions the income total across the income fields and
+  // names the remainder, so the two have to add up to it exactly. When they did
+  // not, every salary was handed a share of money it never paid — and a plan
+  // with no income field at all left the pool empty on one side and full on the
+  // other, which is a diagram saying something untrue about arithmetic.
+  const sold = createField({ kind: 'investment', amount: '500', annualRate: '6', sellMonth: 12 });
+  const earnedBy = (result) => roundMoney(result.fields
+    .filter((field) => field.direction === 'income')
+    .reduce((sum, field) => sum + fieldTotalOf(field, result.months), 0));
+
+  const wage = project({ fields: [income(2200), sold, expense(100)], months: 24 });
+  assert.ok(wage.totals.proceeds > 0, 'the holding was sold inside the horizon');
+  assert.equal(roundMoney(earnedBy(wage) + wage.totals.proceeds), wage.totals.income);
+
+  // The case with nothing to apportion: the sale is the only money arriving.
+  const none = project({ fields: [sold, expense(100)], months: 24 });
+  assert.equal(earnedBy(none), 0, 'no field earns anything here');
+  assert.equal(none.totals.proceeds, none.totals.income, 'so all of it was cashed in');
+
+  // And the case with nothing to name: no holding is sold, so income is earned.
+  const plain = project({ fields: [income(2200), expense(100)], months: 24 });
+  assert.equal(plain.totals.proceeds, 0);
+  assert.equal(earnedBy(plain), plain.totals.income);
 });
 
 test('cents survive without float drift', () => {
@@ -124,6 +151,7 @@ test('an empty projection is all zeroes, not NaN', () => {
     net: 0,
     invested: 0,
     contributed: 0,
+    proceeds: 0,
     profit: 0,
     owned: 0,
     debt: 0,

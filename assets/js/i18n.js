@@ -153,6 +153,7 @@ const STRINGS = {
     'sankey.description': 'Every ribbon is money moving. The widths add up to the same totals as the summary.',
     'sankey.pool': 'All of it',
     'sankey.kept': 'Kept',
+    'sankey.sold': 'Cashed in',
     'sankey.unnamed': 'Unnamed',
     // A loan's repayment, as the parts it is made of. Named rather than
     // coloured: the diagram seats three tones and they mean in, out and left
@@ -414,6 +415,7 @@ const STRINGS = {
     'sankey.description': 'Chaque ruban est de l’argent qui bouge. Les largeurs totalisent les mêmes montants que le récapitulatif.',
     'sankey.pool': 'Le tout',
     'sankey.kept': 'Conservé',
+    'sankey.sold': 'Encaissé',
     'sankey.unnamed': 'Sans nom',
     'sankey.part.principal': (name) => `${name} · capital`,
     'sankey.part.fees': (name) => `${name} · frais`,
