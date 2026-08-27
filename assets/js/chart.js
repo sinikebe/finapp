@@ -44,7 +44,12 @@ export function niceScale(min, max, target = 4) {
   const magnitude = 10 ** Math.floor(Math.log10(rawStep));
   const normalised = rawStep / magnitude;
   const nice = normalised <= 1 ? 1 : normalised <= 2 ? 2 : normalised <= 2.5 ? 2.5 : normalised <= 5 ? 5 : 10;
-  const step = nice * magnitude;
+  // The same floor the flat case above takes, for the same reason: the tick
+  // labels are compact to one decimal, so a step of 0.25 gives gridlines that
+  // print as 0.3 and 0.8 — a line misstating its own value — and a step of
+  // 0.0025 prints five zeroes. It is not money either: a quarter of a cent is
+  // not a figure this app deals in.
+  const step = Math.max(1, nice * magnitude);
   const niceMin = Math.floor(lo / step) * step;
   const niceMax = Math.ceil(hi / step) * step;
   const ticks = [];
@@ -73,9 +78,13 @@ export function monthTickStep(months) {
  */
 export function createLineChart(options) {
   const {
-    mount, id, title, description, labels,
+    mount, id, title, description,
     formatValue, formatTick, formatMonth, onHover,
   } = options;
+  // Re-worded rather than rebuilt when the language changes: a card carries the
+  // reader's open table in its own closure, and rebuilding it to change a
+  // heading shuts the table with it.
+  let labels = options.labels;
 
   const figure = html('figure', 'chart-card', mount);
 
@@ -217,6 +226,16 @@ export function createLineChart(options) {
         layer.thHigh = null;
       }
     });
+    // A row of cells is written series by series — value, then its bounds — so
+    // the header has to be in that order too. Appending puts a band's columns
+    // after every series' own, which is right only when the band arrives with
+    // the column: turn the range on afterwards and the headings slide off the
+    // figures they name. Ordering them here cannot drift.
+    for (const layer of layers) {
+      for (const cell of [layer.th, layer.thLow, layer.thHigh]) {
+        if (cell) headRow.appendChild(cell);
+      }
+    }
   }
 
   let state = {
@@ -631,6 +650,20 @@ export function createLineChart(options) {
       heading.textContent = next.title;
       sub.textContent = next.description;
       tableCaption.textContent = next.tableCaption;
+    },
+
+    /** Every other word the card owns, for a language change. The formatters
+     *  and the reading are closures over the app's own translator, so they
+     *  follow on their own; these three are text already written into the DOM,
+     *  and the aria label is rewritten by the render. */
+    setLabels(next) {
+      labels = next;
+      monthTh.textContent = labels.monthColumn;
+      tableCaption.textContent = labels.tableCaption;
+      toggle.textContent = toggle.getAttribute('aria-expanded') === 'true'
+        ? labels.hideTable
+        : labels.showTable;
+      render();
     },
 
     element: figure,

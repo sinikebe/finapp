@@ -26,6 +26,20 @@ test('a flat series gets whole-number ticks, never fractions of a cent', () => {
   assert.ok(scale.max > scale.min);
 });
 
+test('a live series gets whole-number ticks too, for the same reason', () => {
+  // The flat case above already had this floor. Any other domain did not, so a
+  // one-off income of 1 drew gridlines at 0.25 and 0.75 — labelled 0.3 and 0.8,
+  // each stating a value it was not sitting on — and a domain of 0 to 0.01
+  // printed five identical zeroes down the axis.
+  assert.deepEqual(niceScale(0, 1).ticks, [0, 1]);
+  assert.deepEqual(niceScale(0, 0.01).ticks, [0, 1]);
+  assert.deepEqual(niceScale(0, 3).ticks, [0, 1, 2, 3]);
+  assert.equal(niceScale(-0.5, 0.5).step >= 1, true, 'below zero as well');
+  for (const [lo, hi] of [[0, 0], [0, 1], [0, 0.01], [-0.5, 0.5], [0, 72012], [400, 900]]) {
+    assert.ok(niceScale(lo, hi).step >= 1, `step for ${lo}..${hi} is a whole unit`);
+  }
+});
+
 test('ticks are evenly spaced and free of float noise', () => {
   const scale = niceScale(-1500, 5400);
   for (let i = 1; i < scale.ticks.length; i += 1) {
