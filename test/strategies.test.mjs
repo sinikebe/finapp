@@ -6,7 +6,7 @@ import {
   createStrategy, normalizeStrategy, normalizeStrategies, nameOf, activeIdOf,
   addStrategy, updateStrategy, duplicateStrategy, removeStrategy, neighbourOf,
   spreadField, unlinkField, removeEverywhere,
-  migrateFields,
+  migrateFields, defaultStrategies,
 } from '../assets/js/strategies.js';
 import { createField, labelOf, FIELD_SHAPE } from '../assets/js/fields.js';
 
@@ -220,6 +220,35 @@ test('duplicating a strategy keeps synced ids and renews the rest', () => {
   const ownRent = copy.find((f) => f.labelKey === 'field.rent');
   const sourceRent = source.find((f) => f.labelKey === 'field.rent');
   assert.notEqual(ownRent.id, sourceRent.id, 'an unsynced field is its own again');
+});
+
+test('a copy of a plan the app named is that plan, again', () => {
+  // `nameOf` resolves a `nameKey` exactly as a field's `labelKey` is resolved,
+  // so a plan named that way is named — and all three the app opens with are.
+  // Reading only `source.name` counted them as anonymous, so copying any of
+  // them produced "Strategy 2" rather than "that, again".
+  // A translator that knows the app's own keys, as the app's does — one that
+  // does not is what `nameOf` reads as unnamed, and the last case here covers.
+  const speaks = (key, position) => {
+    if (key === 'strategy.defaultName') return `Strategy ${position}`;
+    return key === 'strategy.default.loan' ? 'Buy now, on a loan' : key;
+  };
+  const app = normalizeStrategies(defaultStrategies());
+  const copied = duplicateStrategy(app, app[0].id, copyName, speaks);
+  assert.equal(nameOf(copied[1], 1, speaks), 'Buy now, on a loan (copy)', 'the copy carries the name');
+
+  const mine = normalizeStrategies([{ name: 'Mine', fields: [] }]);
+  assert.equal(nameOf(duplicateStrategy(mine, mine[0].id, copyName, t)[1], 1, t), 'Mine (copy)');
+
+  // A plan known only by its position has no name to copy, and still gets none
+  // — including one whose stored key this version's dictionary has never heard
+  // of, which `nameOf` already reads as unnamed.
+  const stale = normalizeStrategies([{ nameKey: 'strategy.default.gone', fields: [] }]);
+  assert.equal(duplicateStrategy(stale, stale[0].id, copyName, t)[1].name, '');
+  const anonymous = normalizeStrategies([{ fields: [] }, { fields: [] }]);
+  const after = duplicateStrategy(anonymous, anonymous[0].id, copyName, t);
+  assert.deepEqual(after.map((s, i) => nameOf(s, i, t)), ['Strategy 1', 'Strategy 2', 'Strategy 3']);
+  assert.equal(after[1].name, '', 'and nothing was stored for it');
 });
 
 test('sync operations never mutate what they are given', () => {

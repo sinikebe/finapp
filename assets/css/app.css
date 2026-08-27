@@ -370,6 +370,12 @@ main {
 .compare-table { max-height: none; margin-top: 4px; }
 .compare-table th[scope="row"] { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .compare-table tr.is-active { background: var(--surface-2); }
+/* Where you are, said in something other than a 1.1:1 tint: the same ink strip
+   the jump tabs and the changelog use to mark it. */
+.compare-table tr.is-active th[scope="row"] {
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
 
 /* Blockified for free inside `.compare-table`'s flex row header, but the flow
    table's header is a plain cell — and width and height do not apply to an
@@ -385,7 +391,10 @@ main {
 
 .compare-table .is-ahead { color: var(--status-good); }
 .compare-table .is-behind { color: var(--status-critical); }
-.compare-table .is-baseline { color: var(--text-muted); }
+/* Not `--text-muted`: at 12–13px it reaches only 3.5:1 on the light surface,
+   under the 4.5:1 AA floor for text this size. The token stays where it is
+   decorative — borders, the crosshair — and reads as text in the secondary ink. */
+.compare-table .is-baseline { color: var(--text-secondary); }
 
 /* ------------------------------------------------------------- field list */
 
@@ -1208,7 +1217,7 @@ main {
   margin: 0;
 }
 .about-build div { min-width: 0; }
-.about-build dt { font-size: 12px; color: var(--text-muted); }
+.about-build dt { font-size: 12px; color: var(--text-secondary); }
 .about-build dd {
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1243,11 +1252,11 @@ main {
   margin: 0 0 2px;
 }
 .about-version { font-weight: 600; font-size: 13.5px; }
-.about-when { font-size: 12px; color: var(--text-muted); }
+.about-when { font-size: 12px; color: var(--text-secondary); }
 .about-commit-ref {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 .about-what { margin: 0; font-size: 13.5px; color: var(--text-secondary); }
 

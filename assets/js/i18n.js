@@ -41,7 +41,7 @@ const STRINGS = {
     'about.resetAsk': 'This replaces every plan and every figure you have entered, on this device. There is no undo.',
     'about.resetYes': 'Replace everything',
     'about.resetNo': 'Keep what I have',
-    'about.unreleased': 'not yet released',
+    'about.unreleased': 'commit not recorded',
     'theme.auto': 'Auto',
     'theme.light': 'Light',
     'theme.dark': 'Dark',
@@ -178,8 +178,8 @@ const STRINGS = {
     'sankey.aria': (total, sources, sinks) =>
       `Flow diagram: ${total} in total, from ${sources} ${plural(sources, 'source', 'sources')} to ${sinks} ${plural(sinks, 'destination', 'destinations')}. The table below has every figure.`,
     'compare.heading': 'Strategies side by side',
-    'compare.note': (name, amount, months) =>
-      `${name} comes out ahead: ${amount} after ${months} ${months === 1 ? 'month' : 'months'}.`,
+    'compare.note': (name, metric, amount, months) =>
+      `${name} comes out ahead on ${metric}: ${amount} after ${months} ${months === 1 ? 'month' : 'months'}.`,
     'compare.chartTitle': (metric) => `${metric}, by strategy`,
     'compare.chartDescription': 'One line per strategy, all on one scale.',
     'compare.metricAria': 'What to compare',
@@ -308,7 +308,7 @@ const STRINGS = {
     'about.resetAsk': 'Cela remplace tous vos plans et tous les montants saisis sur cet appareil. Il n’y a pas de retour en arrière.',
     'about.resetYes': 'Tout remplacer',
     'about.resetNo': 'Garder mes plans',
-    'about.unreleased': 'pas encore publiée',
+    'about.unreleased': 'commit non enregistré',
     'theme.auto': 'Auto',
     'theme.light': 'Clair',
     'theme.dark': 'Sombre',
@@ -435,8 +435,8 @@ const STRINGS = {
     'sankey.aria': (total, sources, sinks) =>
       `Diagramme de flux : ${total} au total, de ${sources} ${sources === 1 ? 'source' : 'sources'} vers ${sinks} ${sinks === 1 ? 'destination' : 'destinations'}. Le tableau ci-dessous contient tous les chiffres.`,
     'compare.heading': 'Les stratégies côte à côte',
-    'compare.note': (name, amount, months) =>
-      `${name} arrive en tête : ${amount} après ${months} mois.`,
+    'compare.note': (name, metric, amount, months) =>
+      `${name} arrive en tête sur ${metric} : ${amount} après ${months} mois.`,
     'compare.chartTitle': (metric) => `${metric}, par stratégie`,
     'compare.chartDescription': 'Une ligne par stratégie, toutes sur la même échelle.',
     'compare.metricAria': 'Ce qu’il faut comparer',

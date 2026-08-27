@@ -333,9 +333,16 @@ window.addEventListener('storage', (event) => {
   if (event.key !== STATE_KEY || !event.newValue) return;
   // Never pull the rug out from under someone typing here, and leave the tab
   // in the foreground alone — it is the one the reader is working in.
+  // The assumptions belong in this list too: the horizon slider and the three
+  // rate boxes live in the filter row, outside both of the others, and were
+  // written into unconditionally — so a figure being typed here was replaced
+  // under the caret by whatever another window had just saved.
   const editingHere = document.activeElement instanceof Element
-    && document.activeElement.closest('.field-list, .strategy-bar');
+    && document.activeElement.closest('.field-list, .strategy-bar, .filter-row');
   if (editingHere) return;
+  // And an edit of our own still inside the debounce is an edit: adopting now
+  // would discard it before it was ever written.
+  if (saveTimer) return;
   if (document.visibilityState === 'visible' && document.hasFocus()) return;
   try {
     const incoming = JSON.parse(event.newValue);
@@ -541,7 +548,11 @@ function renderMetrics(projections) {
   // judged on. Otherwise a strategy that invests everything is announced as
   // coming out ahead directly above a chart showing its net far behind.
   if (!metricChosen) metric = wanted.includes('worth') ? 'worth' : 'net';
-  if (!wanted.includes(metric)) metric = 'net';
+  // The same preference when a chosen column disappears, rather than dropping
+  // to Net for good: the note and the gap column are judged on the total, so
+  // falling past it left the chart titled Net under a table headed "Total vs
+  // the first" and a note quoting a total.
+  if (!wanted.includes(metric)) metric = wanted.includes('worth') ? 'worth' : 'net';
 
   let cursor = ui.compareMetrics.firstChild;
   for (const key of wanted) {
@@ -612,7 +623,13 @@ function renderCompareTable(projections) {
   ui.compareBody.textContent = '';
   state.strategies.forEach((strategy, index) => {
     const row = html('tr', null, ui.compareBody);
-    if (strategy.id === state.activeId) row.classList.add('is-active');
+    // A tint of 1.1:1 is not a cue, and colour alone is not one either. The
+    // jump tabs and the changelog both mark where you are with aria-current and
+    // something visible; this table marked it with the tint and nothing else.
+    if (strategy.id === state.activeId) {
+      row.classList.add('is-active');
+      row.setAttribute('aria-current', 'true');
+    }
     const name = html('th', null, row);
     name.scope = 'row';
     name.textContent = nameOf(strategy, index, t);
@@ -895,9 +912,18 @@ function renderComparison(projections) {
     const best = state.strategies
       .map((strategy, index) => ({ strategy, index, worth: projections[index].totals.worth }))
       .reduce((a, b) => (b.worth > a.worth ? b : a));
+    // Judged on the total, whatever the chart is showing — that is the
+    // question the section answers. But it has to say so: read out above a
+    // chart of Profit, an unqualified "comes out ahead" named the plan with the
+    // lowest profit of the three, and quoted a figure that was nowhere on it.
+    // Named as Total where the comparison offers it, and as Net where it does
+    // not — which is exactly where the two are the same figure, because worth
+    // only parts from net once something is invested, owed or owned.
+    const judged = CONDITIONAL_METRICS.worth(projections) ? 'worth' : 'net';
     ui.compareNote.textContent = t(
       'compare.note',
       nameOf(best.strategy, best.index, t),
+      t(`compare.metric.${judged}`),
       formatAmount(best.worth),
       state.months,
     );
@@ -1295,7 +1321,10 @@ function render() {
   ui.investedTile.hidden = !wantsInvestments;
   ui.investedValue.textContent = hasInput ? formatAmount(projection.totals.invested) : '—';
   ui.profitTile.hidden = !wantsInvestments;
-  ui.profitLabel.textContent = t('summary.profit', formatRate(state.tax));
+  // `afterTax` clamps at 100 and `formatRate` at 1000, so a pasted 500 gave a
+  // tile reading "after 500% tax" over a profit of 0. The label names the rate
+  // the arithmetic actually used.
+  ui.profitLabel.textContent = t('summary.profit', formatRate(Math.min(100, toNumber(state.tax) || 0)));
   ui.profitValue.textContent = hasInput ? formatAmount(projection.totals.profit) : '—';
   // The rate is applied to every plan, and the comparison's Profit column is
   // offered while any of them has an investment — so gating its control on the
@@ -1468,7 +1497,10 @@ function renderAbout() {
     html('span', 'about-when', head).textContent = release.date;
     // A commit is a handle for looking something up, so it stays as written
     // rather than being localised into a shape git would not recognise. The
-    // newest release has none until the merge that publishes it creates one.
+    // newest release has none until the merge that publishes it creates one —
+    // so the line says its hash is not recorded, which is what is missing.
+    // Saying "not yet released" would call every deployed build unreleased,
+    // three lines above marking that same entry as the one you are running.
     if (release.commit) html('code', 'about-commit-ref', head).textContent = release.commit;
     else html('span', 'about-when', head).textContent = t('about.unreleased');
     html('p', 'about-what', item).textContent = release[language] || release.en;
@@ -1488,6 +1520,10 @@ function renderAbout() {
  */
 function resetToDefaults() {
   Object.assign(state, defaultState());
+  // Which column the comparison shows is module state rather than stored
+  // state, so it survived the reset: the button promises to land you exactly
+  // where a new reader lands, and a first load has picked nothing.
+  metricChosen = false;
   fillControls();
   save();
   render();
@@ -1518,9 +1554,16 @@ ui.aboutResetYes.addEventListener('click', () => {
   ui.aboutDialog.close();
 });
 ui.aboutClose.addEventListener('click', () => ui.aboutDialog.close());
-// A click on the backdrop lands on the dialog itself, never on its contents.
+// A click on the backdrop lands on the dialog itself, never on its contents —
+// but so does one on the dialog's own 20px padding, or on its scrollbar, and
+// those are clicks inside the panel. So the pointer is tested against the box
+// rather than the target: outside it is the backdrop, inside it is not.
 ui.aboutDialog.addEventListener('click', (event) => {
-  if (event.target === ui.aboutDialog) ui.aboutDialog.close();
+  if (event.target !== ui.aboutDialog) return;
+  const box = ui.aboutDialog.getBoundingClientRect();
+  const outside = event.clientX < box.left || event.clientX > box.right
+    || event.clientY < box.top || event.clientY > box.bottom;
+  if (outside) ui.aboutDialog.close();
 });
 
 /* ----------------------------------------------------------------- language */

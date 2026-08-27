@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v42', date: '2026-08-27',
+    version: 'v43', date: '2026-08-27',
+    en: 'The panels say where you are and what they mean: the comparison names the quantity it judged on and marks the plan on screen, a click inside the About panel keeps it open, the small print is readable, and a rate you type is the rate the arithmetic uses.',
+    fr: 'Les panneaux disent où vous êtes et ce qu’ils veulent dire\u00a0: la comparaison nomme la grandeur qu’elle a jugée et marque le plan affiché, un clic dans le panneau À propos ne le ferme plus, les petits caractères sont lisibles, et un taux saisi est bien celui qu’utilise le calcul.',
+  },
+  {
+    version: 'v42', date: '2026-08-27', commit: '411f8a1',
     en: 'The field list says what it means: each amount box announces what it is for that kind of field, a month box shows the month the projection will use, and the note under a climbing amount quotes a figure the field actually reaches.',
     fr: 'La liste des champs dit ce qu’elle veut dire\u00a0: chaque montant s’annonce selon le type de champ, une case de mois affiche le mois que la projection utilisera, et la note sous un montant qui augmente cite un chiffre que le champ atteint vraiment.',
   },

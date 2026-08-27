@@ -67,6 +67,14 @@ export function nameOf(strategy, index, t) {
   return t('strategy.defaultName', index + 1);
 }
 
+/** What the reader would call this strategy, if anything: their own name, else
+ *  the one the app gave it — and nothing at all for a plan known by position. */
+function namedAs(strategy, index, t) {
+  if (strategy.name) return strategy.name;
+  const shown = nameOf(strategy, index, t);
+  return shown === t('strategy.defaultName', index + 1) ? '' : shown;
+}
+
 /** The id that should be active: the one asked for, if it still exists. */
 export function activeIdOf(strategies, wanted) {
   const list = normalizeStrategies(strategies);
@@ -107,8 +115,11 @@ export function duplicateStrategy(strategies, id, nameCopy, t) {
       (field) => (field.synced ? { ...field } : { ...field, id: newId() }),
     ),
     // A copy of something named is "that, again"; a copy of something unnamed
-    // stays unnamed and simply takes the next position.
-    name: source.name ? nameCopy(nameOf(source, index, t)) : '',
+    // stays unnamed and simply takes the next position. A name the app gave
+    // the plan counts as named — `nameOf` resolves it exactly as a field's
+    // `labelKey` is resolved, and all three plans the app opens with are named
+    // that way, so copying any of them produced "Strategy 2".
+    name: namedAs(source, index, t) ? nameCopy(nameOf(source, index, t)) : '',
   });
   return [...list.slice(0, index + 1), copy, ...list.slice(index + 1)];
 }
