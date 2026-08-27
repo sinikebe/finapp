@@ -426,6 +426,10 @@ main {
   background: var(--series-expenses);
 }
 .field-row[data-direction="income"]::before { background: var(--series-income); }
+/* A thing you own moves no cash in either direction, so it wears neither
+   colour: the model calls an asset income for bookkeeping, and the stripe was
+   the only thing on the row saying so. */
+.field-row[data-direction="none"]::before { background: var(--border-strong); }
 
 /* The controls wrap as a group: adding one to a field costs no layout change,
    and a narrow screen breaks the row instead of squeezing every box. */

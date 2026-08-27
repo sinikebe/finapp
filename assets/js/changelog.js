@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v41', date: '2026-08-27',
+    version: 'v42', date: '2026-08-27',
+    en: 'The field list says what it means: each amount box announces what it is for that kind of field, a month box shows the month the projection will use, and the note under a climbing amount quotes a figure the field actually reaches.',
+    fr: 'La liste des champs dit ce qu’elle veut dire\u00a0: chaque montant s’annonce selon le type de champ, une case de mois affiche le mois que la projection utilisera, et la note sous un montant qui augmente cite un chiffre que le champ atteint vraiment.',
+  },
+  {
+    version: 'v41', date: '2026-08-27', commit: '6de0d39',
     en: 'Figures are read the way you write them: 12,50 typed in French is twelve and a half, not twelve hundred and fifty, and 1,234 is still one thousand.',
     fr: 'Les montants sont lus tels que vous les écrivez\u00a0: 12,50 vaut douze et demi, et non mille deux cent cinquante, et 1,234 reste bien mille.',
   },

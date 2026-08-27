@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax,
   seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
-  flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf,
+  flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf, lastLandingOf,
   grownBy, yearsRunning, fieldTotalOf, loanPartsOf, shareOut,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate,
   toAmount, toMonths, toNumber, roundMoney, MAX_MONTHS, MAX_AMOUNT,
@@ -152,6 +152,55 @@ test('income is exactly what fields earned plus what was cashed in', () => {
   const plain = project({ fields: [income(2200), expense(100)], months: 24 });
   assert.equal(plain.totals.proceeds, 0);
   assert.equal(earnedBy(plain), plain.totals.income);
+});
+
+test('the last month a field lands on is a month it actually lands on', () => {
+  // The note under a climbing field quotes what it will be worth "by month N".
+  // It used to take N from the horizon, which is not a month the field
+  // necessarily moves money in: a yearly amount over twenty months last landed
+  // at month 12, so the note named a figure the projection never uses.
+  const yearly = createField({ direction: 'expense', amount: '1000', annualRate: '5', periodMonths: 12 });
+  assert.equal(lastLandingOf(yearly, 20), 12, 'the horizon is not a landing');
+  assert.equal(lastLandingOf(yearly, 12), 12);
+  assert.equal(lastLandingOf(yearly, 11), 0, 'and before the first one there is none');
+
+  const ending = createField({ direction: 'expense', amount: '500', annualRate: '2', endMonth: 60 });
+  assert.equal(lastLandingOf(ending, 240), 60, 'nor after a field has stopped');
+
+  const sold = createField({ kind: 'investment', amount: '500', annualRate: '6', sellMonth: 24 });
+  assert.equal(lastLandingOf(sold, 240), 24, 'nor after a holding is cashed in');
+
+  assert.equal(lastLandingOf(createField({ direction: 'expense', amount: '500' }), 240), 240, 'monthly runs to the end');
+  assert.equal(lastLandingOf(createField({ kind: 'once', amount: '900', startMonth: 7 }), 240), 7);
+  assert.equal(lastLandingOf(createField({ direction: 'expense', amount: '500', startMonth: 300 }), 240), 0,
+    'a field that never starts inside the horizon lands nowhere in it');
+  assert.equal(lastLandingOf(createField({ direction: 'expense', amount: '' }), 240), 0, 'and nor does an empty one');
+
+  // It agrees with the projection because it asks it: every month after the
+  // one it names moves nothing.
+  for (const field of [yearly, ending, sold]) {
+    const last = lastLandingOf(field, 240);
+    assert.ok(contributionOf(field, last) > 0, 'the month it names does move money');
+    for (let month = last + 1; month <= 240; month += 1) {
+      assert.equal(contributionOf(field, month), 0, `nothing lands at month ${month}`);
+    }
+  }
+
+  // Which is the whole point: the figure the note quotes for that month is the
+  // figure the field moves in it. Quoting the horizon instead named 728.41 for
+  // a field whose last payment was 541.22.
+  const climbing = [yearly, ending, createField({ direction: 'expense', amount: '500', annualRate: '2' })];
+  for (const field of climbing) {
+    for (const months of [20, 60, 240]) {
+      const last = lastLandingOf(field, months);
+      if (!last) continue;
+      assert.equal(
+        grownBy(field.amount, field.annualRate, yearsRunning(field, last)),
+        contributionOf(field, last),
+        `what the note would quote at month ${last} is what the field moves there`,
+      );
+    }
+  }
 });
 
 test('cents survive without float drift', () => {

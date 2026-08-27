@@ -70,10 +70,16 @@ export function createStrategyBar(options) {
       onCommand({ type: 'rename', id, name: input.value });
     });
     // Leaving the box settles it: a trimmed name, or the position back again
-    // if it was emptied.
-    input.addEventListener('blur', () => onCommand({ type: 'settle', id, name: input.value }));
-
+    // if it was emptied. Only if something was actually typed, though — the
+    // box shows a name the app gave the plan, so settling an untouched one
+    // stored that name as the reader's own and it stopped following the
+    // language for good. One Tab through the box was enough to do it.
     const entry = { wrap, button, input, shown: '' };
+    input.addEventListener('blur', () => {
+      if (input.value === entry.shown) return;
+      onCommand({ type: 'settle', id, name: input.value });
+    });
+
     entries.set(id, entry);
     return entry;
   }
