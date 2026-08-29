@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v47', date: '2026-08-27',
+    version: 'v48', date: '2026-08-29',
+    en: 'Share a plan by handing somebody a link. The whole configuration — every strategy, every figure, the horizon and the assumptions — rides inside the address, in the part a browser never sends to a server, so it goes only where you paste it. Opening one asks first, and leaves your language and theme alone.',
+    fr: 'Partagez un plan en donnant un lien. La configuration entière — chaque stratégie, chaque montant, l’horizon et les hypothèses — voyage dans l’adresse, dans la partie qu’un navigateur n’envoie jamais à un serveur\u00a0: elle ne va donc que là où vous la collez. En ouvrir un demande confirmation, et ne touche ni à votre langue ni à votre thème.',
+  },
+  {
+    version: 'v47', date: '2026-08-27', commit: '5a2212f',
     en: 'A pass over the app on a phone: every control is thumb-sized, the plans scroll sideways instead of stacking, a wide table keeps its names in view while the figures scroll, and nothing runs off the edge of a small screen.',
     fr: 'Une passe sur l’application au téléphone\u00a0: chaque commande est à la taille du pouce, les plans défilent latéralement au lieu de s’empiler, un tableau large garde ses noms en vue pendant que les chiffres défilent, et plus rien ne déborde d’un petit écran.',
   },

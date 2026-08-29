@@ -236,6 +236,38 @@ click is labelled *Replace everything* rather than *OK*. Your language and
 theme are left alone: they are preferences about reading the app, not part of
 the plan.
 
+## Handing a plan to somebody
+
+There is no account to share from and no copy on a server to link to, so **the
+link is the copy**. *Share* packs the whole configuration — every strategy,
+every field, the horizon and the assumptions — into the **fragment** of a URL,
+which is the one part of an address a browser never sends to a server. The plan
+travels wherever you paste it and nowhere else, which is the same promise the
+rest of the app makes, kept in the one place where it has to let go. Anyone who
+has the link has the plan, and the panel says so before you send it.
+
+Nothing is compressed, and that is a decision rather than an omission.
+`CompressionStream` would roughly halve the link and sits above this app's
+browser floor — so a link written in one browser could not be opened in
+another, which for a thing whose whole purpose is to be opened elsewhere is the
+worst failure available. Instead the plan is packed: attributes travel by
+position, only where they differ from the default, and an id — which means
+nothing on another device — travels as a slot number. Two synced fields share
+one slot, so *the sameness survives the trip even though the id must not*, and
+the far end mints its own ids. One plan of four fields is a 400-character link;
+the three the app opens with, which is the largest thing it can produce
+unaided, is under 2,500. A test holds both.
+
+Opening one **asks first**. It replaces the plans on the device, which is the
+reader's decision rather than the sender's, so the question is put the way
+*Start again* puts it: focus on keeping what you have, and your language and
+theme left alone. The link is taken out of the address either way — a refusal
+must not be re-asked by every refresh, and an acceptance must not have a reload
+put the shared plan back over whatever you did next. And a link is read as
+exactly as trustworthy as a hand-edited store: everything in it goes through
+the model's own coercion, so nothing a link can say puts a value in the app
+that the app could not have made itself.
+
 ## Your data, and the app itself
 
 Four keys in `localStorage`, on your device only: your strategies, horizon and

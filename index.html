@@ -30,6 +30,7 @@
     </p>
     <div class="app-bar-actions">
       <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
+      <button id="share-open" class="ghost-button" type="button" data-i18n="action.share">Share</button>
       <button id="about-open" class="ghost-button" type="button" data-i18n="about.open">About</button>
       <button id="lang" class="ghost-button" type="button" aria-label="Language: English. Switch to French">
         <span id="lang-label" aria-hidden="true">EN</span>
@@ -245,6 +246,42 @@
 
     <h3 data-i18n="about.changes">What changed</h3>
     <ol class="about-log" id="about-log"></ol>
+  </dialog>
+
+  <!-- Handing the plan over. The link is shown rather than only copied: it
+       carries every figure the reader has entered, so what is being sent is
+       worth being able to look at before it is sent. -->
+  <dialog id="share" class="about" aria-labelledby="share-heading">
+    <div class="about-head">
+      <h2 id="share-heading" data-i18n="share.heading">Share this plan</h2>
+      <button id="share-close" class="icon-button" type="button" data-i18n-aria="share.close">
+        <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M7 7l10 10M17 7L7 17" />
+        </svg>
+      </button>
+    </div>
+    <p class="hint" data-i18n="share.note"></p>
+    <label class="sr-only" for="share-link" data-i18n="share.link">A link carrying this plan</label>
+    <input id="share-link" class="share-link" type="text" readonly>
+    <div class="share-actions">
+      <button id="share-copy" class="ghost-button" type="button" data-i18n="share.copy">Copy link</button>
+      <p class="hint" id="share-said" role="status"></p>
+    </div>
+  </dialog>
+
+  <!-- Shown when the address carries somebody else's plan. It asks, because
+       opening one throws this device's plans away, and that is the reader's
+       decision rather than the link sender's. -->
+  <dialog id="shared" class="about" aria-labelledby="shared-heading">
+    <div class="about-head">
+      <h2 id="shared-heading" data-i18n="share.received">A plan was shared with you</h2>
+    </div>
+    <p class="hint" id="shared-what"></p>
+    <p id="shared-ask" data-i18n="share.receivedAsk"></p>
+    <div class="about-confirm-actions">
+      <button id="shared-open" class="ghost-button is-grave" type="button" aria-describedby="shared-ask" data-i18n="share.receivedYes">Open the shared plan</button>
+      <button id="shared-keep" class="ghost-button" type="button" aria-describedby="shared-ask" data-i18n="share.receivedNo">Keep my own</button>
+    </div>
   </dialog>
 
   <div class="toast" id="update-toast" role="status" hidden>
