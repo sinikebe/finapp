@@ -6,7 +6,7 @@ import {
   createStrategy, normalizeStrategy, normalizeStrategies, nameOf, activeIdOf,
   addStrategy, updateStrategy, duplicateStrategy, removeStrategy, neighbourOf,
   spreadField, unlinkField, removeEverywhere,
-  migrateFields, defaultStrategies,
+  migrateFields, defaultStrategies, originStateOf, markShared,
 } from '../assets/js/strategies.js';
 import { createField, labelOf, FIELD_SHAPE } from '../assets/js/fields.js';
 
@@ -419,4 +419,65 @@ test('an unnamed field adopts nothing that differs from it in any respect', () =
     assert.equal(after[1].fields.length, 2, `a different ${attribute} makes it a different field`);
     assert.deepEqual(after[1].fields[0], theirs, 'so theirs is added to, never written over');
   }
+});
+
+test('a plan says where it came from, and a shared one says whether it still is', () => {
+  // Four states rather than three: "somebody sent me this" and "somebody sent
+  // me this and I have been editing it" are different things to know when you
+  // are about to compare them against your own.
+  const [preset] = defaultStrategies();
+  assert.equal(originStateOf(normalizeStrategy(preset)), 'default');
+  assert.equal(originStateOf(createStrategy({ name: 'Mine' })), 'own');
+
+  const [shared] = markShared(normalizeStrategies([{ name: 'Theirs', fields: [{ label: 'Rent', amount: '950' }] }]));
+  assert.equal(originStateOf(shared), 'shared');
+
+  // Every kind of change counts, because the mark answers "is this still what
+  // they sent me" and all three of these mean no.
+  const renamed = { ...shared, name: 'Theirs, adjusted' };
+  assert.equal(originStateOf(renamed), 'shared-edited', 'a rename is a change');
+
+  const retyped = { ...shared, fields: shared.fields.map((f) => ({ ...f, amount: '1200' })) };
+  assert.equal(originStateOf(retyped), 'shared-edited', 'a figure is a change');
+
+  const added = { ...shared, fields: [...shared.fields, createField({ label: 'Car', amount: '300' })] };
+  assert.equal(originStateOf(added), 'shared-edited', 'another field is a change');
+
+  // And an id is not: the same plan on two devices has different ids for the
+  // same fields, which is exactly what the imprint has to see past.
+  const reidentified = { ...shared, fields: shared.fields.map((f) => ({ ...f, id: 'somewhere-else' })) };
+  assert.equal(originStateOf(reidentified), 'shared', 'an id is not part of what a plan is');
+});
+
+test('origin is local, and survives a store that predates it', () => {
+  // A store written before origins existed carries none. A nameKey is set by
+  // nothing but defaultStrategies, so reading it as the worked example is
+  // honest — and reading everything else as the reader's own is the only other
+  // thing such a store could mean.
+  assert.equal(normalizeStrategy({ nameKey: 'strategy.default.loan' }).origin, 'default');
+  assert.equal(normalizeStrategy({ name: 'Whatever I called it' }).origin, 'own');
+  assert.equal(normalizeStrategy({ origin: 'nonsense' }).origin, 'own', 'and a bad one is not trusted');
+  assert.equal(normalizeStrategy({ origin: 'shared', nameKey: 'x' }).origin, 'shared', 'a real one wins');
+});
+
+test('a copy is your work, whatever it was a copy of', () => {
+  // Duplicating somebody's shared plan makes a plan of yours: you are about to
+  // change it, which is the only reason to have copied it.
+  const t = (key) => key;
+  const [shared] = markShared(normalizeStrategies([{ name: 'Theirs', fields: [{ label: 'Rent', amount: '950' }] }]));
+  const list = normalizeStrategies([shared]);
+  const copied = duplicateStrategy(list, list[0].id, (name) => `${name} (copy)`, t);
+  assert.equal(copied.length, 2);
+  assert.equal(originStateOf(copied[0]), 'shared', 'the original is untouched');
+  assert.equal(originStateOf(copied[1]), 'own', 'the copy is yours');
+  assert.equal(copied[1].imprint, '', 'and carries no record of an arrival it never had');
+});
+
+test('a shared plan does not become edited just by being stored and read back', () => {
+  // The imprint is compared against a strategy that has been through
+  // normalizeStrategy, so it has to be computed on one too — otherwise every
+  // shared plan would read as edited the moment the page was reloaded.
+  const [shared] = markShared(normalizeStrategies([{ name: 'Theirs', fields: [{ label: 'Rent', amount: '950' }] }]));
+  const roundTripped = normalizeStrategy(JSON.parse(JSON.stringify(shared)));
+  assert.equal(originStateOf(roundTripped), 'shared');
 });

@@ -16,8 +16,26 @@
  */
 
 import { html } from './dom.js';
-import { nameOf, MAX_STRATEGIES, MAX_NAME_LENGTH } from './strategies.js';
+import { nameOf, originStateOf, MAX_STRATEGIES, MAX_NAME_LENGTH } from './strategies.js';
 import { actionIcon } from './field-list.js';
+
+/**
+ * Say where a plan came from, on the tab itself: a coloured leading edge, and
+ * the same thing in words on hover and to a screen reader.
+ *
+ * The words are not a nicety. Colour is the whole point of the mark and it is
+ * therefore the one thing that cannot be trusted to carry it alone — and this
+ * app already spends colour on identity twice, on series in the flow cards and
+ * on strategies in the comparison. A third meaning gets a *muted* edge rather
+ * than a bright dot precisely so it does not read as a legend swatch saying
+ * which line in the chart this plan is.
+ */
+function markOrigin(element, strategy, labels) {
+  const origin = originStateOf(strategy);
+  element.dataset.origin = origin;
+  element.title = labels.origin(origin);
+  return origin;
+}
 
 /** Rough auto-size: an input has no intrinsic width, and a fixed one either
  *  truncates a long name or wastes a line on a short one. */
@@ -113,9 +131,13 @@ export function createStrategyBar(options) {
         entry.button.hidden = active;
         entry.input.hidden = !active;
         entry.button.textContent = shown;
-        entry.button.setAttribute('aria-label', labels.switchTo(shown));
+        const origin = markOrigin(entry.button, strategy, labels);
+        markOrigin(entry.input, strategy, labels);
+        // Named in the label as well as coloured, so switching to a plan says
+        // which one it is out loud rather than only to the eye.
+        entry.button.setAttribute('aria-label', `${labels.switchTo(shown)}. ${labels.origin(origin)}`);
 
-        entry.input.setAttribute('aria-label', labels.nameAria);
+        entry.input.setAttribute('aria-label', `${labels.nameAria}. ${labels.origin(origin)}`);
         entry.input.placeholder = labels.namePlaceholder;
         entry.input.size = sizeFor(shown);
         if (entry.input.value !== shown && document.activeElement !== entry.input) {
@@ -272,13 +294,14 @@ export function createStrategyJump(options) {
         const shown = nameOf(strategy, index, t);
         const active = strategy.id === activeId;
         entry.button.textContent = shown;
+        const origin = markOrigin(entry.button, strategy, labels);
         // The one you are on is marked rather than removed: a row that drops
         // the name you are reading is a row that moves under your finger.
         if (active) entry.button.setAttribute('aria-current', 'true');
         else entry.button.removeAttribute('aria-current');
-        entry.button.setAttribute('aria-label', active
+        entry.button.setAttribute('aria-label', `${active
           ? labels.onNamed(shown)
-          : labels.switchTo(shown));
+          : labels.switchTo(shown)}. ${labels.origin(origin)}`);
         if (active) current = entry.button;
       });
 

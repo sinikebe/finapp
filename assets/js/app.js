@@ -30,7 +30,7 @@ import {
   updateStrategy, duplicateStrategy, removeStrategy,
   spreadField, unlinkField, removeEverywhere,
   neighbourOf as strategyNeighbourOf, normalizeStrategies, activeIdOf, nameOf,
-  migrateFields, defaultStrategies,
+  migrateFields, defaultStrategies, markShared, MAX_STRATEGIES,
 } from './strategies.js';
 import { decodePlan, linkFor, planInHash } from './share.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
@@ -150,6 +150,7 @@ const ui = {
   sharedDialog: $('shared'),
   sharedHeading: $('shared-heading'),
   sharedWhat: $('shared-what'),
+  sharedRoom: $('shared-room'),
   sharedAsk: $('shared-ask'),
   sharedOpen: $('shared-open'),
   sharedKeep: $('shared-keep'),
@@ -1057,6 +1058,7 @@ function normalizeLabelPatch(patch, id) {
 function strategyLabels() {
   return {
     tabsAria: t('strategy.tabsAria'),
+    origin: (state) => t(`strategy.origin.${state}`),
     nameAria: t('strategy.nameAria'),
     namePlaceholder: t('strategy.namePlaceholder'),
     add: t('strategy.add'),
@@ -1876,6 +1878,8 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 
 /** A decoded plan waiting on the reader's answer, or null while none is. */
 let offered = null;
+/** Whether taking it on would have to replace what is here, for want of room. */
+let replacing = false;
 
 function openShare() {
   ui.shareLink.value = linkFor(state, window.location.href);
@@ -1905,20 +1909,42 @@ ui.shareCopy.addEventListener('click', copyShareLink);
 ui.shareClose.addEventListener('click', () => ui.shareDialog.close());
 closeOnBackdrop(ui.shareDialog);
 
+/** How many of a shared plan's strategies there is room for beside your own. */
+function roomForShared() {
+  return Math.max(0, MAX_STRATEGIES - state.strategies.length);
+}
+
 /**
- * Take a shared plan on. Written from the same list `loadState` uses for a
- * stored one, and put through the same coercion, because a link is exactly as
- * trustworthy as a store somebody has hand-edited: neither may put a value in
- * the app that the app could not have made itself.
+ * Take a shared plan on, beside the plans already here rather than over them.
  *
- * Saved at once rather than through the debounce, for the reason "Start again"
- * is: this is an edit where a tab closed a quarter of a second later must not
- * leave the old plans in the store and the new ones on the screen.
+ * Adding is the whole point: a comparison is what this app is for, and the
+ * usual reason to open somebody's link is to hold their plan against your own.
+ * Replacing was the first thing this did and it was the wrong thing — it threw
+ * away the very plan you wanted to compare against.
+ *
+ * The horizon and the assumptions do come from the shared plan, because
+ * strategies share one horizon by construction: there is no arrangement where
+ * both readings survive, and a plan built over forty years read at five says
+ * nothing. That is cheap to put back with the slider; a discarded plan is not.
+ *
+ * Put through the same coercion `loadState` uses, because a link is exactly as
+ * trustworthy as a store somebody has hand-edited: neither may put a value in
+ * the app that the app could not have made itself. Saved at once rather than
+ * through the debounce, for the reason "Start again" is.
  */
-function adoptPlan(plan) {
+function adoptPlan(plan, { replacing } = {}) {
+  // Stamped as shared here rather than where the link is unpacked: what a plan
+  // was to whoever sent it is their business, and to whoever opens it, it
+  // arrived from outside.
+  const arriving = markShared(replacing ? plan.strategies : plan.strategies.slice(0, roomForShared()));
+  const kept = replacing ? [] : state.strategies;
+  const strategies = normalizeStrategies([...kept, ...arriving]);
+
   Object.assign(state, {
-    strategies: plan.strategies,
-    activeId: plan.strategies[0].id,
+    strategies,
+    // The first plan that arrived, so the answer to opening a link is the
+    // shared plan on screen rather than a list the reader has to go looking in.
+    activeId: activeIdOf(strategies, arriving.length ? arriving[0].id : state.activeId),
     months: toMonths(plan.months ?? DEFAULT_MONTHS),
     inflation: toRateText(plan.inflation),
     realMoney: plan.realMoney === true,
@@ -1960,9 +1986,28 @@ function offerPlanFromLink() {
   const broken = !offered;
   ui.sharedHeading.textContent = t(broken ? 'share.brokenHeading' : 'share.received');
   ui.sharedWhat.textContent = broken ? t('share.broken') : describePlan(offered);
+  ui.sharedRoom.hidden = broken;
   ui.sharedAsk.hidden = broken;
   ui.sharedOpen.hidden = broken;
   ui.sharedKeep.textContent = t(broken ? 'share.brokenClose' : 'share.receivedNo');
+
+  if (!broken) {
+    const room = roomForShared();
+    const sent = offered.strategies.length;
+    // Full up is the one case where opening a link costs something, so it is
+    // the one case that says so and colours its button: with four plans already
+    // here there is nowhere to put a fifth, and the reader's choice is between
+    // replacing what they have and not reading the link at all.
+    replacing = room === 0;
+    ui.sharedRoom.textContent = replacing ? t('share.receivedNoRoom', MAX_STRATEGIES)
+      : room >= sent ? t('share.receivedRoom')
+        : t('share.receivedSome', room, sent, MAX_STRATEGIES);
+    ui.sharedOpen.textContent = t(replacing ? 'share.receivedReplace' : 'share.receivedYes');
+    ui.sharedOpen.classList.toggle('is-grave', replacing);
+    // The line about what is left alone is only true while nothing is being
+    // thrown away; with no room, the line above it says the opposite outright.
+    ui.sharedAsk.hidden = replacing;
+  }
   ui.sharedDialog.showModal();
   // Focus lands on keeping what you have, so a stray Return does the safe
   // thing — the rule "Start again" follows, for the same reason.
@@ -1970,7 +2015,7 @@ function offerPlanFromLink() {
 }
 
 ui.sharedOpen.addEventListener('click', () => {
-  if (offered) adoptPlan(offered);
+  if (offered) adoptPlan(offered, { replacing });
   offered = null;
   // Closed, so the answer is the app itself showing the plan rather than a
   // panel saying it has.
@@ -1983,6 +2028,16 @@ ui.sharedDialog.addEventListener('close', () => { offered = null; });
 closeOnBackdrop(ui.sharedDialog);
 
 applyLanguage(language);
+
+// A link pasted into the address bar of a tab already showing the app changes
+// the fragment without loading anything, so the question has to be asked on the
+// change as well as on the load. `replaceState`, which is how the link is taken
+// back out again, does not raise this — so clearing the address cannot set the
+// question off a second time.
+window.addEventListener('hashchange', () => {
+  if (ui.sharedDialog.open) return;
+  offerPlanFromLink();
+});
 
 // After the language, so the question is asked in the reader's own.
 offerPlanFromLink();

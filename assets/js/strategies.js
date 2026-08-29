@@ -22,6 +22,18 @@ export const MAX_STRATEGIES = 4;
 
 export const MAX_NAME_LENGTH = 40;
 
+/**
+ * Where a plan came from. Not part of what a plan *is* — two plans with the
+ * same fields are the same plan whoever wrote them — but part of how a reader
+ * holds several at once: which of these did I make, which is the worked example
+ * I have not touched, and which did somebody hand me?
+ *
+ * It is deliberately local. A plan arriving in a link is `shared` to whoever
+ * opened it, whatever it was to the person who sent it, so origin is never
+ * written into a link and never read out of one.
+ */
+export const ORIGINS = ['default', 'own', 'shared'];
+
 /** Coerce anything into a well-formed strategy. */
 export function normalizeStrategy(value) {
   const source = value && typeof value === 'object' ? value : {};
@@ -34,8 +46,61 @@ export function normalizeStrategy(value) {
     // the way an untouched field's does. The reader's own name wins over it,
     // exactly as a field's label wins over its labelKey.
     nameKey: typeof source.nameKey === 'string' ? source.nameKey : '',
+    // A store written before origins existed has none. A `nameKey` is set by
+    // nothing but `defaultStrategies`, so its presence is an honest reading of
+    // "this is one of the plans the app opened with" — and its absence, of
+    // "the reader made this". Nothing else could be known from such a store,
+    // and guessing `own` for all of them would have told the reader their
+    // worked example was their own work.
+    origin: ORIGINS.includes(source.origin) ? source.origin : (source.nameKey ? 'default' : 'own'),
+    // What a shared plan looked like when it arrived, so the bar can say
+    // whether it still does. Empty for anything not shared, and never sent.
+    imprint: typeof source.imprint === 'string' ? source.imprint : '',
     fields: normalizeFields(source.fields),
   };
+}
+
+/**
+ * What a plan is, written down so two of them can be compared.
+ *
+ * Ids are left out: a field's id is its identity on *this* device, and a plan
+ * that arrived with different ids for the same fields is the same plan. What is
+ * in is everything a reader would call a change — the name, and every attribute
+ * the schema defines, in the schema's order, so an attribute added later is
+ * carried without this function being touched.
+ */
+export function imprintOf(strategy) {
+  const fields = (strategy.fields || []).map(
+    (field) => Object.keys(FIELD_SHAPE).filter((key) => key !== 'id').map((key) => field[key]),
+  );
+  return JSON.stringify([strategy.name || '', strategy.nameKey || '', fields]);
+}
+
+/**
+ * Where a plan came from, and — for one that was shared — whether it is still
+ * what arrived. Four states, because "somebody sent me this" and "somebody sent
+ * me this and I have been editing it" are different things to know when you are
+ * about to compare them.
+ */
+export function originStateOf(strategy) {
+  if (strategy.origin !== 'shared') return strategy.origin === 'default' ? 'default' : 'own';
+  // No imprint means nothing to compare against, which is not evidence of a
+  // change: read it as it arrived rather than as edited.
+  if (!strategy.imprint || strategy.imprint === imprintOf(strategy)) return 'shared';
+  return 'shared-edited';
+}
+
+/**
+ * Stamp plans as having just arrived from somebody else, with a record of what
+ * they looked like on arrival. Done here rather than where a link is unpacked,
+ * because it is a fact about strategies rather than about links.
+ */
+export function markShared(strategies) {
+  return strategies.map((strategy) => ({
+    ...strategy,
+    origin: 'shared',
+    imprint: imprintOf(strategy),
+  }));
 }
 
 /** Coerce anything into a list with at least one strategy and unique ids. */
