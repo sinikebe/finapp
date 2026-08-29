@@ -135,6 +135,10 @@ const STRINGS = {
     'field.copyOf': (name) => `${name} (copy)`,
     'fields.empty': 'No fields yet. Add one to start projecting.',
 
+    'strategy.origin.default': 'One of the plans the app opens with',
+    'strategy.origin.own': 'A plan you made',
+    'strategy.origin.shared': 'Shared with you',
+    'strategy.origin.shared-edited': 'Shared with you, and changed since',
     'strategy.defaultName': (position) => `Strategy ${position}`,
     'strategy.tabsAria': 'Your strategies',
     'strategy.nameAria': 'Name of the strategy you are editing',
@@ -301,8 +305,14 @@ const STRINGS = {
     'share.received': 'A plan was shared with you',
     'share.receivedWhat': (plans, fields, horizon) =>
       `${plans} ${plural(plans, 'plan', 'plans')}, ${fields} ${plural(fields, 'field', 'fields')}, over ${horizon}.`,
-    'share.receivedAsk': 'Opening it replaces the plans on this device. Yours are not sent anywhere, but they are not kept either.',
-    'share.receivedYes': 'Open the shared plan',
+    'share.receivedAsk': 'Your own plans, your language and your theme stay as they are. The horizon and the assumptions come from the shared plan, since every plan is read on one horizon.',
+    'share.receivedRoom': 'They will be added beside your own.',
+    'share.receivedSome': (fitting, sent, most) =>
+      `${most} plans is the most the app can chart, so ${plural(fitting, `the first of the ${sent}`, `the first ${fitting} of ${sent}`)} will be added beside your own.`,
+    'share.receivedNoRoom': (most) =>
+      `You already have ${most} plans, which is the most the app can chart. Opening these means replacing yours — there is no undo.`,
+    'share.receivedYes': 'Add to my plans',
+    'share.receivedReplace': 'Replace my plans',
     'share.receivedNo': 'Keep my own',
     'share.brokenHeading': 'That link did not carry a plan',
     'share.broken': 'It may have been cut short on its way to you, or written by a newer version of the app. Nothing on this device has changed.',
@@ -419,6 +429,10 @@ const STRINGS = {
     'field.copyOf': (name) => `${name} (copie)`,
     'fields.empty': 'Aucun champ pour l’instant. Ajoutez-en un pour lancer la projection.',
 
+    'strategy.origin.default': 'Un des plans proposés au départ',
+    'strategy.origin.own': 'Un plan que vous avez créé',
+    'strategy.origin.shared': 'Partagé avec vous',
+    'strategy.origin.shared-edited': 'Partagé avec vous, puis modifié',
     'strategy.defaultName': (position) => `Stratégie ${position}`,
     'strategy.tabsAria': 'Vos stratégies',
     'strategy.nameAria': 'Nom de la stratégie en cours de modification',
@@ -577,8 +591,14 @@ const STRINGS = {
     'share.received': 'Un plan vous a été partagé',
     'share.receivedWhat': (plans, fields, horizon) =>
       `${plans} ${plural(plans, 'plan', 'plans')}, ${fields} ${plural(fields, 'poste', 'postes')}, sur ${horizon}.`,
-    'share.receivedAsk': 'L’ouvrir remplace les plans de cet appareil. Les vôtres ne sont envoyés nulle part, mais ils ne sont pas conservés non plus.',
-    'share.receivedYes': 'Ouvrir le plan partagé',
+    'share.receivedAsk': 'Vos propres plans, votre langue et votre thème ne changent pas. L’horizon et les hypothèses viennent du plan partagé, puisque tous les plans se lisent sur un seul horizon.',
+    'share.receivedRoom': 'Ils seront ajoutés à côté des vôtres.',
+    'share.receivedSome': (fitting, sent, most) =>
+      `L’application ne peut en représenter que ${most}, donc ${plural(fitting, `le premier des ${sent} sera ajouté`, `les ${fitting} premiers sur ${sent} seront ajoutés`)} à côté des vôtres.`,
+    'share.receivedNoRoom': (most) =>
+      `Vous avez déjà ${most} plans, le maximum que l’application peut représenter. Ouvrir ceux-ci remplacera les vôtres : il n’y a pas de retour en arrière.`,
+    'share.receivedYes': 'Ajouter à mes plans',
+    'share.receivedReplace': 'Remplacer mes plans',
     'share.receivedNo': 'Garder les miens',
     'share.brokenHeading': 'Ce lien ne portait pas de plan',
     'share.broken': 'Il a peut-être été tronqué en chemin, ou écrit par une version plus récente de l’application. Rien n’a changé sur cet appareil.',

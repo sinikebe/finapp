@@ -270,14 +270,17 @@
   </dialog>
 
   <!-- Shown when the address carries somebody else's plan. It asks, because
-       opening one throws this device's plans away, and that is the reader's
-       decision rather than the link sender's. -->
+       taking one on is the reader's decision rather than the sender's — and it
+       says how much room there is, since four plans is the most the app can
+       chart and a full list is the one case where opening a link costs
+       something. -->
   <dialog id="shared" class="about" aria-labelledby="shared-heading">
     <div class="about-head">
       <h2 id="shared-heading" data-i18n="share.received">A plan was shared with you</h2>
     </div>
     <p class="hint" id="shared-what"></p>
-    <p id="shared-ask" data-i18n="share.receivedAsk"></p>
+    <p id="shared-room"></p>
+    <p class="hint" id="shared-ask" data-i18n="share.receivedAsk"></p>
     <div class="about-confirm-actions">
       <button id="shared-open" class="ghost-button is-grave" type="button" aria-describedby="shared-ask" data-i18n="share.receivedYes">Open the shared plan</button>
       <button id="shared-keep" class="ghost-button" type="button" aria-describedby="shared-ask" data-i18n="share.receivedNo">Keep my own</button>

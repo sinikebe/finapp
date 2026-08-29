@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v48', date: '2026-08-29',
+    version: 'v49', date: '2026-08-29',
+    en: 'A shared plan is added beside your own now, rather than over them — comparing it against what you already have is the reason to open one. And every tab says where its plan came from: the worked example, one you made, one shared with you, and one shared with you that you have since changed.',
+    fr: 'Un plan partagé s’ajoute désormais à côté des vôtres au lieu de les remplacer : le comparer à ce que vous avez déjà est la raison même de l’ouvrir. Et chaque onglet dit d’où vient son plan : l’exemple d’origine, un plan que vous avez créé, un plan partagé avec vous, et un plan partagé que vous avez modifié depuis.',
+  },
+  {
+    version: 'v48', date: '2026-08-29', commit: 'ff67ddf',
     en: 'Share a plan by handing somebody a link. The whole configuration — every strategy, every figure, the horizon and the assumptions — rides inside the address, in the part a browser never sends to a server, so it goes only where you paste it. Opening one asks first, and leaves your language and theme alone.',
     fr: 'Partagez un plan en donnant un lien. La configuration entière — chaque stratégie, chaque montant, l’horizon et les hypothèses — voyage dans l’adresse, dans la partie qu’un navigateur n’envoie jamais à un serveur\u00a0: elle ne va donc que là où vous la collez. En ouvrir un demande confirmation, et ne touche ni à votre langue ni à votre thème.',
   },

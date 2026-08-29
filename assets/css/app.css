@@ -51,6 +51,22 @@
   --status-good: #006300;     /* success text step — AA on the light surface */
   --status-critical: #d03b3b;
 
+  /* Where a plan came from, marked on its tab. Deliberately *outside* the
+     categorical palette and deliberately muted: colour in this app already
+     means series on the flow cards and strategy in the comparison, and a third
+     meaning must not be mistakable for either. A vivid dot would read as a
+     legend swatch saying which line in the chart a plan is; a low-chroma
+     leading edge reads as chrome, which is what it is. The hues come from the
+     two bands the palette leaves empty — neutral and teal — plus an ochre far
+     enough from the expenses orange in both lightness and chroma. */
+  --origin-own: #7d7b74;      /* yours: the common case, so the quietest */
+  --origin-default: #8f7233;  /* the worked example, not your work */
+  --origin-shared: #2b7f8f;   /* somebody handed you this */
+  /* The same teal, a step deeper — deeper rather than lighter because a
+     lighter one reached only 2.5:1 against the tab and a mark nobody can see is
+     not a mark. Dark mode steps the other way for the same reason. */
+  --origin-edited: #1d616e;   /* the same, gone on since it arrived */
+
   --radius: 14px;
   --radius-sm: 9px;
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -86,6 +102,11 @@
 
     --status-good: #0ca30c;
     --status-critical: #e66767;
+
+    --origin-own: #918f86;
+    --origin-default: #c2a05a;
+    --origin-shared: #55b4c8;
+    --origin-edited: #2f7b89;
   }
 }
 
@@ -118,6 +139,11 @@
 
   --status-good: #0ca30c;
   --status-critical: #e66767;
+
+  --origin-own: #918f86;
+  --origin-default: #c2a05a;
+  --origin-shared: #55b4c8;
+  --origin-edited: #2f7b89;
 }
 
 /* ------------------------------------------------------------------- base */
@@ -289,6 +315,45 @@ main {
   cursor: pointer;
 }
 .strategy-tab:hover { border-color: var(--border-strong); color: var(--text-primary); }
+
+/* Where the plan came from, as a leading edge on its own tab. An inset shadow
+   rather than a border or a child element: the active tab is an <input>, which
+   takes neither a pseudo-element nor a child, and the mark has to look the same
+   on both halves of a tab that is a button in one state and a box in the other.
+   The pill's own radius curves it into a crescent, which is the point — it
+   reads as an edge of the tab rather than as a swatch beside it. */
+.strategy-tab[data-origin],
+.strategy-name[data-origin],
+.strategy-jump-tab[data-origin] {
+  padding-left: 18px;
+  box-shadow: inset 4px 0 0 var(--origin-own);
+}
+
+.strategy-tab[data-origin="default"],
+.strategy-name[data-origin="default"],
+.strategy-jump-tab[data-origin="default"] { box-shadow: inset 4px 0 0 var(--origin-default); }
+
+.strategy-tab[data-origin="shared"],
+.strategy-name[data-origin="shared"],
+.strategy-jump-tab[data-origin="shared"] { box-shadow: inset 4px 0 0 var(--origin-shared); }
+
+/* Shared, and no longer what arrived. Another step of the same colour rather
+   than a new one — it is a variant of a state, not a fourth thing — and broken
+   into a dash, so the difference survives a reader who cannot tell two teals
+   apart, and survives print and forced colours. Both steps clear 3:1 against
+   the tab in both themes, which is the floor for a mark that is not text. */
+.strategy-tab[data-origin="shared-edited"],
+.strategy-name[data-origin="shared-edited"],
+.strategy-jump-tab[data-origin="shared-edited"] {
+  box-shadow: inset 4px 0 0 var(--origin-edited);
+  background-image: repeating-linear-gradient(
+    var(--origin-shared) 0 6px,
+    transparent 6px 11px
+  );
+  background-size: 4px 100%;
+  background-repeat: repeat-y;
+  background-position: left top;
+}
 
 .strategy-name {
   background: var(--surface-2);

@@ -101,6 +101,20 @@ by name at the moment you sync it — which is what makes this work on plans
 built before anyone thought to link them — and by likeness for a row nobody
 named. Removing a synced field removes it everywhere, because it is one field.
 
+**Each tab says where its plan came from**: one of the three the app opens with,
+one you made, one somebody shared with you, or one somebody shared that you have
+changed since — which is a different thing to know, and is worked out by keeping
+a record of what arrived and comparing the plan against it. Ids are left out of
+that comparison, because the same plan on two devices has different ids for the
+same fields.
+
+The mark is a muted leading edge rather than a bright dot, and its colours come
+from the two bands the palette leaves empty. That is not decoration: colour in
+this app already means series on the flow cards and strategy in the comparison,
+and a vivid dot on a tab would read as a legend swatch saying which line in the
+chart that plan is. Every tab also says its origin in words, on hover and to a
+screen reader, so the colour is never carrying it alone.
+
 Once there is a second strategy, a chart draws them all on one scale and a
 table gives each one's totals and its gap to the first. **That gap is measured
 on the total, not the net**: a plan that pours everything into a fund keeps
@@ -258,15 +272,28 @@ the far end mints its own ids. One plan of four fields is a 400-character link;
 the three the app opens with, which is the largest thing it can produce
 unaided, is under 2,500. A test holds both.
 
-Opening one **asks first**. It replaces the plans on the device, which is the
-reader's decision rather than the sender's, so the question is put the way
-*Start again* puts it: focus on keeping what you have, and your language and
-theme left alone. The link is taken out of the address either way — a refusal
-must not be re-asked by every refresh, and an acceptance must not have a reload
-put the shared plan back over whatever you did next. And a link is read as
-exactly as trustworthy as a hand-edited store: everything in it goes through
-the model's own coercion, so nothing a link can say puts a value in the app
-that the app could not have made itself.
+Opening one **adds it beside your own plans rather than over them**. Comparing
+it against what you already have is the reason to open one at all, so replacing
+would throw away the very plan you wanted to compare against. Four plans is
+still the ceiling, so the panel says how many will fit, and a list already full
+is the one case where opening costs something — there the button says *Replace
+my plans* outright and is coloured like the one other button in the app that
+throws something away.
+
+The horizon and the assumptions *do* come from the shared plan, because
+strategies share one horizon by construction: there is no arrangement where both
+readings survive, and a plan built over forty years read at five says nothing.
+That is a slider away; a discarded plan is not.
+
+It **asks first** either way, the way *Start again* asks: focus on keeping what
+you have, and your language and theme left alone. The link is taken out of the
+address whatever you answer — a refusal must not be re-asked by every refresh,
+and an acceptance must not have a reload put the shared plan back over whatever
+you did next — and the question is asked again on a fragment that changes
+without a load, which is what pasting a link into a tab already showing the app
+does. And a link is read as exactly as trustworthy as a hand-edited store:
+everything in it goes through the model's own coercion, so nothing a link can
+say puts a value in the app that the app could not have made itself.
 
 ## Your data, and the app itself
 
