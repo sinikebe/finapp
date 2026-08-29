@@ -289,6 +289,24 @@ const STRINGS = {
     'update.coming': 'A new version is downloading. You will be offered a reload when it is ready.',
     'update.found': 'A new version is ready. Close this panel to reload it.',
     'update.unreachable': 'Could not reach the server. You may be offline.',
+
+    'action.share': 'Share',
+    'share.heading': 'Share this plan',
+    'share.note': 'The whole plan is inside this link: every strategy, every figure, the horizon and the assumptions. It rides in the part of an address a browser never sends to a server, so it goes only where you paste it — and anyone who has it has the plan.',
+    'share.link': 'A link carrying this plan',
+    'share.copy': 'Copy link',
+    'share.copied': 'Copied.',
+    'share.copyYourself': 'Copy it from the box above.',
+    'share.close': 'Close sharing',
+    'share.received': 'A plan was shared with you',
+    'share.receivedWhat': (plans, fields, horizon) =>
+      `${plans} ${plural(plans, 'plan', 'plans')}, ${fields} ${plural(fields, 'field', 'fields')}, over ${horizon}.`,
+    'share.receivedAsk': 'Opening it replaces the plans on this device. Yours are not sent anywhere, but they are not kept either.',
+    'share.receivedYes': 'Open the shared plan',
+    'share.receivedNo': 'Keep my own',
+    'share.brokenHeading': 'That link did not carry a plan',
+    'share.broken': 'It may have been cut short on its way to you, or written by a newer version of the app. Nothing on this device has changed.',
+    'share.brokenClose': 'Close',
   },
 
   fr: {
@@ -547,6 +565,24 @@ const STRINGS = {
     'update.coming': 'Une nouvelle version se télécharge. Un rechargement vous sera proposé dès qu’elle sera prête.',
     'update.found': 'Une nouvelle version est prête. Fermez ce panneau pour la recharger.',
     'update.unreachable': 'Le serveur est injoignable. Vous êtes peut-être hors ligne.',
+
+    'action.share': 'Partager',
+    'share.heading': 'Partager ce plan',
+    'share.note': 'Le plan entier tient dans ce lien\u00a0: chaque stratégie, chaque montant, l’horizon et les hypothèses. Il voyage dans la partie d’une adresse qu’un navigateur n’envoie jamais à un serveur, donc il ne va que là où vous le collez — et quiconque l’a, a le plan.',
+    'share.link': 'Un lien qui porte ce plan',
+    'share.copy': 'Copier le lien',
+    'share.copied': 'Copié.',
+    'share.copyYourself': 'Copiez-le depuis le champ ci-dessus.',
+    'share.close': 'Fermer le partage',
+    'share.received': 'Un plan vous a été partagé',
+    'share.receivedWhat': (plans, fields, horizon) =>
+      `${plans} ${plural(plans, 'plan', 'plans')}, ${fields} ${plural(fields, 'poste', 'postes')}, sur ${horizon}.`,
+    'share.receivedAsk': 'L’ouvrir remplace les plans de cet appareil. Les vôtres ne sont envoyés nulle part, mais ils ne sont pas conservés non plus.',
+    'share.receivedYes': 'Ouvrir le plan partagé',
+    'share.receivedNo': 'Garder les miens',
+    'share.brokenHeading': 'Ce lien ne portait pas de plan',
+    'share.broken': 'Il a peut-être été tronqué en chemin, ou écrit par une version plus récente de l’application. Rien n’a changé sur cet appareil.',
+    'share.brokenClose': 'Fermer',
   },
 };
 

@@ -1344,6 +1344,34 @@ main > section,
 .about-confirm p { margin: 0 0 10px; font-size: 13.5px; }
 .about-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* The link being handed over. Monospace because it is an address rather than
+   prose, and read to check it, not for pleasure; `text-overflow` rather than a
+   wrap because a link long enough to wrap tells the reader nothing extra, and
+   the box is selected on opening so the whole of it is copied either way. */
+.share-link {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  text-overflow: ellipsis;
+}
+
+.share-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.share-actions .hint { margin: 0; }
+
 /* The one button in the app that throws something away. Named in words on the
    button itself, so the colour is a second cue and never the only one. */
 .ghost-button.is-grave {
@@ -1395,8 +1423,13 @@ main > section,
 
   /* Under 16px a phone zooms the page in on focus and does not zoom back out,
      which leaves the reader panned somewhere they did not ask to be. Every
-     other box in the app already clears it; the strategy name did not. */
-  .strategy-name { font-size: 16px; }
+     other box in the app already clears it; the strategy name did not — and
+     neither did the box holding a share link, which is focused and selected the
+     moment the panel opens, so it would zoom before the reader touched it. */
+  .strategy-name,
+  .share-link { font-size: 16px; }
+
+  .share-link { min-height: 44px; }
 
   /* A link is a target too, and this one is the first thing a keyboard or
      switch user reaches. */

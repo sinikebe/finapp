@@ -32,6 +32,7 @@ import {
   neighbourOf as strategyNeighbourOf, normalizeStrategies, activeIdOf, nameOf,
   migrateFields, defaultStrategies,
 } from './strategies.js';
+import { decodePlan, linkFor, planInHash } from './share.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
 import { BUILD } from './version.js';
 import { RELEASES } from './changelog.js';
@@ -140,6 +141,18 @@ const ui = {
   aboutConfirm: $('about-confirm'),
   aboutResetYes: $('about-reset-yes'),
   aboutResetNo: $('about-reset-no'),
+  shareOpen: $('share-open'),
+  shareDialog: $('share'),
+  shareClose: $('share-close'),
+  shareLink: $('share-link'),
+  shareCopy: $('share-copy'),
+  shareSaid: $('share-said'),
+  sharedDialog: $('shared'),
+  sharedHeading: $('shared-heading'),
+  sharedWhat: $('shared-what'),
+  sharedAsk: $('shared-ask'),
+  sharedOpen: $('shared-open'),
+  sharedKeep: $('shared-keep'),
   updateToast: $('update-toast'),
   updateReload: $('update-reload'),
 };
@@ -1574,17 +1587,27 @@ ui.aboutResetYes.addEventListener('click', () => {
   ui.aboutDialog.close();
 });
 ui.aboutClose.addEventListener('click', () => ui.aboutDialog.close());
-// A click on the backdrop lands on the dialog itself, never on its contents —
-// but so does one on the dialog's own 20px padding, or on its scrollbar, and
-// those are clicks inside the panel. So the pointer is tested against the box
-// rather than the target: outside it is the backdrop, inside it is not.
-ui.aboutDialog.addEventListener('click', (event) => {
-  if (event.target !== ui.aboutDialog) return;
-  const box = ui.aboutDialog.getBoundingClientRect();
-  const outside = event.clientX < box.left || event.clientX > box.right
-    || event.clientY < box.top || event.clientY > box.bottom;
-  if (outside) ui.aboutDialog.close();
-});
+
+/**
+ * A click on the backdrop lands on the dialog itself, never on its contents —
+ * but so does one on the dialog's own 20px padding, or on its scrollbar, and
+ * those are clicks inside the panel. So the pointer is tested against the box
+ * rather than the target: outside it is the backdrop, inside it is not.
+ *
+ * Shared by every dialog in the app: the rule is subtle enough that three
+ * copies of it would be three chances to get one of them wrong.
+ */
+function closeOnBackdrop(dialog) {
+  dialog.addEventListener('click', (event) => {
+    if (event.target !== dialog) return;
+    const box = dialog.getBoundingClientRect();
+    const outside = event.clientX < box.left || event.clientX > box.right
+      || event.clientY < box.top || event.clientY > box.bottom;
+    if (outside) dialog.close();
+  });
+}
+
+closeOnBackdrop(ui.aboutDialog);
 
 /* ----------------------------------------------------------------- language */
 
@@ -1840,4 +1863,126 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   });
 }
 
+/* -------------------------------------------------------------------- share */
+
+/*
+ * Everything lives on the device, which is the point of the app and also the
+ * one thing that makes showing somebody your plan awkward: there is no account
+ * to share from and no copy on a server to link to. So the link *is* the copy —
+ * `share.js` packs the whole configuration into a fragment, the part of an
+ * address a browser never sends anywhere. The plan goes where the reader pastes
+ * it and nowhere else, which is the same promise the rest of the app makes.
+ */
+
+/** A decoded plan waiting on the reader's answer, or null while none is. */
+let offered = null;
+
+function openShare() {
+  ui.shareLink.value = linkFor(state, window.location.href);
+  ui.shareSaid.textContent = '';
+  ui.shareDialog.showModal();
+  // Selected on opening, so the link is already in hand for a reader whose
+  // browser refuses the clipboard, or who would rather use their own keyboard.
+  ui.shareLink.select();
+  copyShareLink();
+}
+
+async function copyShareLink() {
+  try {
+    await navigator.clipboard.writeText(ui.shareLink.value);
+    ui.shareSaid.textContent = t('share.copied');
+  } catch {
+    // No clipboard at all, or permission refused. The box above holds the link
+    // and is already selected, so say what to do rather than say nothing and
+    // leave the reader believing they have copied something.
+    ui.shareSaid.textContent = t('share.copyYourself');
+    ui.shareLink.select();
+  }
+}
+
+ui.shareOpen.addEventListener('click', openShare);
+ui.shareCopy.addEventListener('click', copyShareLink);
+ui.shareClose.addEventListener('click', () => ui.shareDialog.close());
+closeOnBackdrop(ui.shareDialog);
+
+/**
+ * Take a shared plan on. Written from the same list `loadState` uses for a
+ * stored one, and put through the same coercion, because a link is exactly as
+ * trustworthy as a store somebody has hand-edited: neither may put a value in
+ * the app that the app could not have made itself.
+ *
+ * Saved at once rather than through the debounce, for the reason "Start again"
+ * is: this is an edit where a tab closed a quarter of a second later must not
+ * leave the old plans in the store and the new ones on the screen.
+ */
+function adoptPlan(plan) {
+  Object.assign(state, {
+    strategies: plan.strategies,
+    activeId: plan.strategies[0].id,
+    months: toMonths(plan.months ?? DEFAULT_MONTHS),
+    inflation: toRateText(plan.inflation),
+    realMoney: plan.realMoney === true,
+    spread: toRateText(plan.spread, DEFAULT_SPREAD),
+    showRange: plan.showRange === true,
+    tax: toRateText(plan.tax, DEFAULT_TAX),
+  });
+  // Which column the comparison shows is module state rather than stored state,
+  // so it would otherwise survive into somebody else's plan and pick a metric
+  // they never chose.
+  metricChosen = false;
+  fillControls();
+  save();
+  render();
+}
+
+/** What is in the plan, said before the reader decides whether to take it. */
+function describePlan(plan) {
+  const fields = plan.strategies.reduce((sum, strategy) => sum + strategy.fields.length, 0);
+  const months = toMonths(plan.months ?? DEFAULT_MONTHS);
+  return t('share.receivedWhat', plan.strategies.length, fields, formatHorizon(months, t));
+}
+
+/**
+ * A plan in the address bar. It is asked about rather than opened, because
+ * taking it on throws away whatever is on this device — and that is the
+ * reader's decision, not the decision of whoever sent them the link.
+ */
+function offerPlanFromLink() {
+  const packed = planInHash(window.location.hash);
+  if (!packed) return;
+  offered = decodePlan(packed);
+
+  // Read once and taken out of the address either way: a reader who declines
+  // must not be asked again by every refresh, and one who accepts must not have
+  // a reload put the shared plan back over whatever they have done since.
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+
+  const broken = !offered;
+  ui.sharedHeading.textContent = t(broken ? 'share.brokenHeading' : 'share.received');
+  ui.sharedWhat.textContent = broken ? t('share.broken') : describePlan(offered);
+  ui.sharedAsk.hidden = broken;
+  ui.sharedOpen.hidden = broken;
+  ui.sharedKeep.textContent = t(broken ? 'share.brokenClose' : 'share.receivedNo');
+  ui.sharedDialog.showModal();
+  // Focus lands on keeping what you have, so a stray Return does the safe
+  // thing — the rule "Start again" follows, for the same reason.
+  ui.sharedKeep.focus();
+}
+
+ui.sharedOpen.addEventListener('click', () => {
+  if (offered) adoptPlan(offered);
+  offered = null;
+  // Closed, so the answer is the app itself showing the plan rather than a
+  // panel saying it has.
+  ui.sharedDialog.close();
+});
+ui.sharedKeep.addEventListener('click', () => ui.sharedDialog.close());
+// Escape and the backdrop are declining too, which is the safe half of the
+// question and therefore the right thing for them to mean.
+ui.sharedDialog.addEventListener('close', () => { offered = null; });
+closeOnBackdrop(ui.sharedDialog);
+
 applyLanguage(language);
+
+// After the language, so the question is asked in the reader's own.
+offerPlanFromLink();

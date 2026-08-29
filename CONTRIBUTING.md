@@ -83,6 +83,7 @@ assets/js/field-list.js    the editable list of fields
 assets/js/strategy-bar.js  the tabs that name, switch and add strategies
 assets/js/chart.js         the SVG line chart, one or many series
 assets/js/sankey.js        the flow diagram: in, pooled, out
+assets/js/share.js         a whole plan packed into a link, and read back
 assets/js/dom.js           the two DOM helpers the views share
 assets/js/format.js        locale-aware number formatting
 assets/js/i18n.js          English and French copy
@@ -117,6 +118,12 @@ describe a change that has actually been made, not a hope:
    send its edits through the existing command stream — plus its label in
    `i18n.js` and one line in `fieldLabels()` in `app.js`, since the list owns no
    English of its own. The row is a wrapping flex line, so no layout change.
+4. Append it to `WIRE_KEYS` in `share.js`, so it travels in a shared link.
+   **Append** — that list is a wire format and its order is what links already
+   in circulation are read by, so inserting into the middle would make every one
+   of them decode into a different plan. A test holds the list to the schema, so
+   forgetting this step fails the build rather than quietly shipping an
+   attribute that never reaches the person you shared the plan with.
 
 This was measured, not assumed: adding a per-field start month took six edits
 across exactly those three files, and duplication, storage round-trips and the
