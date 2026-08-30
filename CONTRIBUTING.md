@@ -84,7 +84,8 @@ assets/js/strategy-bar.js  the tabs that name, switch and add strategies
 assets/js/chart.js         the SVG line chart, one or many series
 assets/js/sankey.js        the flow diagram: in, pooled, out
 assets/js/share.js         a whole plan packed into a link, and read back
-assets/js/dom.js           the two DOM helpers the views share
+assets/js/dom.js           the DOM helpers the views share: two that build a
+                           node, two that update one in place
 assets/js/format.js        locale-aware number formatting
 assets/js/i18n.js          English and French copy
 assets/js/changelog.js     what changed, release by release, in both languages

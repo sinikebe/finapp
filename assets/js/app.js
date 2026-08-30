@@ -347,10 +347,19 @@ window.addEventListener('storage', (event) => {
   if (event.key !== STATE_KEY || !event.newValue) return;
   // Never pull the rug out from under someone typing here, and leave the tab
   // in the foreground alone — it is the one the reader is working in.
-  // The assumptions belong in this list too: the horizon slider and the three
-  // rate boxes live in the filter row, outside both of the others, and were
-  // written into unconditionally — so a figure being typed here was replaced
-  // under the caret by whatever another window had just saved.
+  //
+  // The selector is a list of every region an adoption would write into while
+  // somebody is in it, and each entry earned its place separately:
+  //   `.field-list`    — the rows themselves, the reason the guard exists.
+  //   `.strategy-bar`  — the name box, which is a text field like any other.
+  //   `.filter-row`    — the horizon slider and the three rate boxes. These
+  //                      live outside both of the others and were written into
+  //                      unconditionally, so a figure being typed here was
+  //                      replaced under the caret by whatever another window
+  //                      had just saved.
+  // Anything else that grows an editable control and gets adopted below belongs
+  // on this list too; nothing owns it, so it is only ever as complete as the
+  // last person to add to the block of assignments underneath.
   const editingHere = document.activeElement instanceof Element
     && document.activeElement.closest('.field-list, .strategy-bar, .filter-row');
   if (editingHere) return;
@@ -511,6 +520,24 @@ const CONDITIONAL_METRICS = {
   owned: (projections) => projections.some((p) => hasOwned(p)),
   debt: (projections) => projections.some((p) => hasDebt(p)),
 };
+
+/**
+ * Which quantity a reading falls back to when nobody has picked one: the total
+ * wherever the comparison offers it, and the net wherever it does not — which
+ * is exactly where the two are the same figure, because worth only parts from
+ * net once something is invested, owed or owned.
+ *
+ * Four places needed that answer and each had written it out in its own words:
+ * the two fallbacks in `renderMetrics`, the gap column's heading, and the note
+ * under the chart. They have to agree — a table headed "Total vs the first"
+ * sitting under a chart titled Net is the bug that kept coming back — so the
+ * question gets asked in one place now, and whatever comes to need it next asks
+ * the same one rather than writing a fifth copy.
+ */
+function preferredMetric(projections) {
+  return CONDITIONAL_METRICS.worth(projections) ? 'worth' : 'net';
+}
+
 let metric = 'net';
 /** Whether the reader has picked a column themselves; until then it follows. */
 let metricChosen = false;
@@ -563,12 +590,12 @@ function renderMetrics(projections) {
   // Until the reader picks a column, show the one the note and the gap are
   // judged on. Otherwise a strategy that invests everything is announced as
   // coming out ahead directly above a chart showing its net far behind.
-  if (!metricChosen) metric = wanted.includes('worth') ? 'worth' : 'net';
+  if (!metricChosen) metric = preferredMetric(projections);
   // The same preference when a chosen column disappears, rather than dropping
   // to Net for good: the note and the gap column are judged on the total, so
   // falling past it left the chart titled Net under a table headed "Total vs
   // the first" and a note quoting a total.
-  if (!wanted.includes(metric)) metric = wanted.includes('worth') ? 'worth' : 'net';
+  if (!wanted.includes(metric)) metric = preferredMetric(projections);
 
   let cursor = ui.compareMetrics.firstChild;
   for (const key of wanted) {
@@ -630,7 +657,7 @@ function renderCompareTable(projections) {
   }
   const deltaHead = html('th', 'num', ui.compareHead);
   deltaHead.scope = 'col';
-  deltaHead.textContent = t('compare.deltaColumn', t(`compare.metric.${shows('worth') ? 'worth' : 'net'}`));
+  deltaHead.textContent = t('compare.deltaColumn', t(`compare.metric.${preferredMetric(projections)}`));
 
   // Judged on the total, not the net: a strategy that puts everything into an
   // investment keeps less cash and would read as "behind" while being ahead.
@@ -932,10 +959,8 @@ function renderComparison(projections) {
     // question the section answers. But it has to say so: read out above a
     // chart of Profit, an unqualified "comes out ahead" named the plan with the
     // lowest profit of the three, and quoted a figure that was nowhere on it.
-    // Named as Total where the comparison offers it, and as Net where it does
-    // not — which is exactly where the two are the same figure, because worth
-    // only parts from net once something is invested, owed or owned.
-    const judged = CONDITIONAL_METRICS.worth(projections) ? 'worth' : 'net';
+    // So it names the quantity, and names it the way the gap column does.
+    const judged = preferredMetric(projections);
     ui.compareNote.textContent = t(
       'compare.note',
       nameOf(best.strategy, best.index, t),

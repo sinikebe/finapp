@@ -49,7 +49,7 @@
     <section class="panel" aria-labelledby="inputs-heading">
       <h2 id="inputs-heading" data-i18n="inputs.heading">What comes in and goes out</h2>
       <div id="strategies"></div>
-      <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, and set what it repeats every month.</p>
+      <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.</p>
       <div id="fields"></div>
       <p class="hint" id="sync-hint" data-i18n="inputs.syncHint" hidden></p>
     <p class="hint" id="debt-hint" data-i18n="inputs.debtHint" hidden></p>
@@ -135,10 +135,10 @@
 
     <div class="filter-row money-row">
       <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
-        <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today's money</button>
+        <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today’s money</button>
       </div>
       <div class="filter money-filter" id="inflation-filter" hidden>
-        <label for="inflation" data-i18n="filter.inflation">Inflation a year</label>
+        <label for="inflation" data-i18n="filter.inflation">Inflation a year, as a percentage</label>
         <div class="range-line">
           <input id="inflation" type="text" inputmode="decimal" autocomplete="off">
           <span class="rate-unit" aria-hidden="true">%</span>
@@ -148,14 +148,14 @@
         <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
       </div>
       <div class="filter money-filter" id="tax-filter" hidden>
-        <label for="tax" data-i18n="filter.tax">Tax on gains</label>
+        <label for="tax" data-i18n="filter.tax">Tax on gains, as a percentage</label>
         <div class="range-line">
           <input id="tax" type="text" inputmode="decimal" autocomplete="off">
           <span class="rate-unit" aria-hidden="true">%</span>
         </div>
       </div>
       <div class="filter money-filter" id="spread-filter" hidden>
-        <label for="spread" data-i18n="filter.spread">Returns, give or take</label>
+        <label for="spread" data-i18n="filter.spread">Returns, give or take, as a percentage</label>
         <div class="range-line">
           <input id="spread" type="text" inputmode="decimal" autocomplete="off">
           <span class="rate-unit" aria-hidden="true">%</span>
@@ -170,7 +170,7 @@
         Give a field an amount to project the months ahead.
       </p>
       <div class="chart-grid" id="charts"></div>
-      <p class="scale-note" data-i18n="charts.scaleNote">All three charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid.</p>
+      <p class="scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
     </section>
 
     <section class="charts-section" id="sankey" aria-labelledby="sankey-heading" hidden>
@@ -282,7 +282,7 @@
     <p id="shared-room"></p>
     <p class="hint" id="shared-ask" data-i18n="share.receivedAsk"></p>
     <div class="about-confirm-actions">
-      <button id="shared-open" class="ghost-button is-grave" type="button" aria-describedby="shared-ask" data-i18n="share.receivedYes">Open the shared plan</button>
+      <button id="shared-open" class="ghost-button is-grave" type="button" aria-describedby="shared-ask" data-i18n="share.receivedYes">Add to my plans</button>
       <button id="shared-keep" class="ghost-button" type="button" aria-describedby="shared-ask" data-i18n="share.receivedNo">Keep my own</button>
     </div>
   </dialog>
