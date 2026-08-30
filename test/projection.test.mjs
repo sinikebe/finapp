@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax,
-  seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
+  seriesOf, monthlyOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
   flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf, lastLandingOf,
   grownBy, yearsRunning, fieldTotalOf, loanPartsOf, shareOut,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate,
@@ -341,6 +341,62 @@ test('seriesOf pulls one key out as {month, value}', () => {
   assert.deepEqual(seriesOf(result, 'expenses'), [
     { month: 0, value: 0 }, { month: 1, value: 40 }, { month: 2, value: 80 },
   ]);
+});
+
+test('monthlyOf says what moved in each month, and nothing in month 0', () => {
+  const result = project({ fields: [income(100), expense(40)], months: 3 });
+  assert.deepEqual(monthlyOf(result, 'expenses'), [
+    { month: 0, value: 0 }, { month: 1, value: 40 }, { month: 2, value: 40 }, { month: 3, value: 40 },
+  ]);
+  // Month 0 has no month before it, so nothing can have moved during it. What
+  // it must not do is carry the opening balance through: the house is owned
+  // from the first month, and read a month at a time that is not a month's
+  // gain — it was already there.
+  const owner = project({
+    fields: [createField({ kind: 'asset', amount: 100000 })],
+    months: 2,
+  });
+  assert.equal(seriesOf(owner, 'owned')[0].value, 100000, 'owned outright from the start');
+  assert.equal(monthlyOf(owner, 'owned')[0].value, 0, 'and nothing of it moved in month 0');
+});
+
+test('the months add back up to the total they were taken from', () => {
+  // The whole claim of the per-month reading is that it is the same figures
+  // seen differently, so a first difference that did not telescope back to the
+  // running total would be a second, disagreeing model.
+  //
+  // It adds up to what the horizon *moved*, which is the closing figure less
+  // the opening one — and for a balance sheet those differ: the house here is
+  // owned from month 0, so the months have to come to the total less the house,
+  // not to the total. That is the same rule the card follows.
+  const fields = [
+    income(2200),
+    expense(1000),
+    createField({ direction: 'expense', amount: 800, periodMonths: 12 }),
+    createField({ kind: 'investment', amount: 300, annualRate: '6' }),
+    createField({ kind: 'asset', amount: 90000, annualRate: '1.5' }),
+  ];
+  const result = project({ fields, months: 40 });
+  for (const key of ['income', 'expenses', 'net', 'invested', 'owned', 'worth']) {
+    const moved = monthlyOf(result, key).reduce((sum, point) => sum + point.value, 0);
+    const opening = result.points[0][key];
+    assert.equal(roundMoney(moved), roundMoney(result.totals[key] - opening), `${key} adds back up`);
+  }
+  assert.equal(result.points[0].owned, 90000, 'the house was there before the first month');
+});
+
+test('a month where more goes out than comes in is visible in the per-month net', () => {
+  // The question the running total cannot answer, and the reason this reading
+  // exists: a plan can be comfortably ahead over its whole horizon and still
+  // have one month where the yearly bill lands on top of everything else.
+  const bill = createField({ direction: 'expense', amount: 1200, periodMonths: 12 });
+  const result = project({ fields: [income(1000), expense(400), bill], months: 24 });
+  assert.ok(seriesOf(result, 'net').every((point) => point.value >= 0), 'never behind, cumulatively');
+
+  const each = monthlyOf(result, 'net');
+  assert.equal(each[11].value, 600, 'an ordinary month keeps 600');
+  assert.equal(each[12].value, -600, 'the month the yearly bill lands does not');
+  assert.deepEqual(each.filter((point) => point.value < 0).map((point) => point.month), [12, 24]);
 });
 
 test('extentOf spans every series and always includes zero', () => {

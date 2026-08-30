@@ -743,6 +743,37 @@ export function seriesOf(projection, key) {
   return projection.points.map((p) => ({ month: p.month, value: p[key] }));
 }
 
+/**
+ * The same series read a month at a time: what moved *during* each month,
+ * rather than everything that has moved since month 0.
+ *
+ * A first difference of what `project()` already returns, and that is the whole
+ * of it — the model is asked for nothing new and nothing extra is stored, so
+ * every rule the loop above follows (a yearly bill landing at month 12, a
+ * one-off, a window that closes) is already in the answer. It is the only
+ * reading that can say whether there is a month where more goes out than comes
+ * in: a cumulative net is a running total and hides that inside itself.
+ *
+ * It works on a balance as readily as on a flow. The difference between two
+ * months of `worth` is how much better off that month left you, which is a
+ * real quantity even though it is not money moving.
+ *
+ * Month 0 is nought, deliberately. It has no month before it, so nothing can
+ * have moved during it — and the alternative, letting it carry the opening
+ * balance through, would put the house you already own into a card headed
+ * "each month" and read as a month's income.
+ */
+export function monthlyOf(projection, key) {
+  const { points } = projection;
+  return points.map((point, index) => ({
+    month: point.month,
+    // Rounded rather than taken as it comes: both figures are exact to the
+    // cent, but the difference of two doubles is not, and a card reading
+    // "each month" is exactly where a stray 0.009999999999 would show.
+    value: index === 0 ? 0 : roundMoney(point[key] - points[index - 1][key]),
+  }));
+}
+
 /** Smallest and largest value across several series — the shared chart domain. */
 export function extentOf(seriesList) {
   let min = 0;

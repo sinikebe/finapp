@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { defaultStrategies, DEFAULT_PLAN, nameOf } from '../assets/js/strategies.js';
 import { normalizeFields, createField, labelOf } from '../assets/js/fields.js';
-import { project, loanPayment, roundMoney } from '../assets/js/projection.js';
+import { project, loanPayment, roundMoney, monthlyOf } from '../assets/js/projection.js';
 import { makeTranslator, LANGUAGES } from '../assets/js/i18n.js';
 
 const plans = () => defaultStrategies();
@@ -89,6 +89,39 @@ test('every plan clears its housing by the end, and none goes into the red', () 
       const point = project({ fields: fieldsOf(index), months: horizon }).points[month];
       assert.ok(point.net >= 0, `plan ${index} keeps its cash positive at month ${month}`);
     }
+  }
+});
+
+test('every plan has months where more goes out than comes in, cumulative net or no', () => {
+  // The test above holds all three plans to a cash balance that never goes
+  // negative, and that is exactly the reading that hides this: a running total
+  // that only ever climbs says nothing about the month the property-tax bill
+  // lands on top of everything else, or the month a renter hands over the whole
+  // price of a house. The app deliberately makes such months possible, so the
+  // plans it opens with have them, and the per-month reading is what shows them.
+  const horizon = DEFAULT_PLAN.term;
+  for (const index of [0, 1, 2]) {
+    const run = project({ fields: fieldsOf(index), months: horizon });
+    const behind = monthlyOf(run, 'net').filter((point) => point.value < 0);
+    assert.ok(behind.length > 0, `plan ${index} has a month it does not cover`);
+    // The bill is levied yearly from the month it starts, so the months it
+    // lands on are a year apart — read out of the curve rather than restated.
+    const gaps = new Set(behind.slice(1).map((point, before) => point.month - behind[before].month));
+    assert.ok(gaps.has(12), `plan ${index} is short a year after it was short before`);
+  }
+
+  // The renters hand over the price of a house in a single month, which is
+  // years of saving leaving at once and nothing any month's pay comes near.
+  for (const [index, buy] of [[1, DEFAULT_PLAN.buyOnCash], [2, DEFAULT_PLAN.buyOnBoth]]) {
+    const run = project({ fields: fieldsOf(index), months: horizon });
+    const each = monthlyOf(run, 'net');
+    const worst = each.reduce((low, point) => (point.value < low.value ? point : low));
+    assert.equal(worst.month, buy, `plan ${index}'s worst month is the month it buys`);
+    assert.ok(worst.value < -Number(DEFAULT_PLAN.house) / 2, `plan ${index} is not nearly covered that month`);
+    // And the balance sheet says the month left them no poorer: the money
+    // became a house. That two cards read a month at a time disagree like this
+    // is the whole reason both of them carry the toggle.
+    assert.ok(monthlyOf(run, 'worth')[buy].value > 0, `plan ${index} is no worse off for buying`);
   }
 });
 

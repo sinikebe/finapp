@@ -9,7 +9,7 @@
  */
 
 import {
-  project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
+  project, inTodaysMoney, shiftReturns, seriesOf, monthlyOf, extentOf,
   hasAmounts, hasDebt, hasOwned,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
   fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf,
@@ -114,6 +114,10 @@ const ui = {
   worthLabel: $('worth-label'),
   worthValue: $('worth-value'),
   chartsNote: $('charts-note'),
+  chartsHeading: $('charts-heading'),
+  chartsScaleNote: $('charts-scale-note'),
+  viewTotal: $('view-total'),
+  viewMonthly: $('view-monthly'),
   periodNote: $('period-note'),
   charts: $('charts'),
   summary: document.querySelector('.summary'),
@@ -436,20 +440,71 @@ const CHARTS = [
 
 let charts = [];
 
+/**
+ * Whether the cards are read a month at a time rather than as running totals.
+ *
+ * Module state, not stored state: it is a way of looking at a plan rather than
+ * anything about the plan, so it never goes in the store, never travels in a
+ * shared link, and a reload opens on the running total the heading names.
+ */
+let monthly = false;
+
+/**
+ * Say something else on a node the language loop also writes to.
+ *
+ * The key moves with the text. `applyLanguage` relabels every `[data-i18n]`
+ * node from whatever the attribute says, so a node whose key has moved is
+ * carried into the other language on its own — where writing only the text
+ * would leave the loop putting the phrase for the other reading back.
+ */
+function sayInstead(node, key) {
+  node.dataset.i18n = key;
+  node.textContent = t(key);
+}
+
+/**
+ * Whether a card is drawn to a scale of its own.
+ *
+ * `spec.ownScale` says the card's quantity cannot be compared with the flows:
+ * a balance either dwarfs a cumulative flow or is dwarfed by it, and put on the
+ * shared scale it reads as a flat line along the axis. Read a month at a time
+ * nothing on the page is a balance any more — every card shows what moved
+ * during one month, which is the same kind of figure everywhere — so the
+ * exception lapses with the reading.
+ *
+ * Asked here rather than at both call sites, because the shared extent and a
+ * card's own domain have to give the same answer: disagree and a card is drawn
+ * to one scale while its axis describes another.
+ */
+function ownScaleOf(spec) {
+  return Boolean(spec.ownScale) && !monthly;
+}
+
 function activeCharts(projection) {
   return CHARTS.filter((spec) => !spec.when || spec.when(projection));
 }
 
-/** Every word a card owns, in the language of the moment. */
+/**
+ * One of a card's phrases, in the reading on screen.
+ *
+ * The per-month wording lives under the card's own key rather than in a
+ * dictionary of its own, so a card that learns a new word learns it for both
+ * readings in one place, and the key set says outright which cards have two.
+ */
+function chartWord(key, part) {
+  return t(monthly ? `chart.${key}.monthly.${part}` : `chart.${key}.${part}`);
+}
+
+/** Every word a card owns, in the language and the reading of the moment. */
 function chartWords(spec) {
-  const title = t(`chart.${spec.key}.title`);
+  const title = chartWord(spec.key, 'title');
   return {
     title,
-    description: t(`chart.${spec.key}.description`),
+    description: chartWord(spec.key, 'description'),
     labels: {
       showTable: t('chart.showTable'),
       hideTable: t('chart.hideTable'),
-      tableCaption: t('chart.tableCaption', title),
+      tableCaption: t(monthly ? 'chart.monthlyCaption' : 'chart.tableCaption', title),
       monthColumn: t('chart.monthColumn'),
       ariaLabel: (months, endValue, count) => t('chart.aria', title, months, endValue, count),
       reading: (month, value) => t('chart.reading', month, value),
@@ -493,8 +548,15 @@ function syncCharts(specs) {
   for (const chart of charts) ui.charts.appendChild(chart.instance.element);
 }
 
-/** Re-word every standing card, for a language change. Rebuilding them would
- *  say the same thing and shut every open table doing it. */
+/** Which reading the standing cards are worded for. A card built while the
+ *  per-month view is on is worded for it at birth, so this only has to catch
+ *  the cards that were already there when the reader pressed the chip. */
+let wordedMonthly = monthly;
+
+/** Re-word every standing card, for a language change or a change of reading.
+ *  Rebuilding them would say the same thing and shut every open table doing
+ *  it — and `setLabels` redraws, so this is not something to do per keystroke:
+ *  `render` asks only when the reading has actually moved. */
 function relabelCharts() {
   for (const chart of charts) {
     const words = chartWords(chart);
@@ -505,6 +567,18 @@ function relabelCharts() {
     });
     chart.instance.setLabels(words.labels);
   }
+  wordedMonthly = monthly;
+}
+
+// One chip per reading rather than one that flips: both readings are named, so
+// nobody has to press a button to find out what it does. The guard keeps a
+// second press of the chip already showing from redrawing five cards.
+for (const [button, wanted] of [[ui.viewTotal, false], [ui.viewMonthly, true]]) {
+  button.addEventListener('click', () => {
+    if (monthly === wanted) return;
+    monthly = wanted;
+    render();
+  });
 }
 
 /* --------------------------------------------------------------- comparing */
@@ -1304,7 +1378,14 @@ function render() {
   const wantsInvestments = investsInside(projection);
   const specs = activeCharts(projection);
   syncCharts(specs);
-  const series = specs.map((spec) => seriesOf(projection, spec.key));
+  // A card built just now was worded for the reading on screen; one that was
+  // already standing was not, and `setLabels` redraws it — so this is asked
+  // only when the reading has moved, never on a keystroke.
+  if (wordedMonthly !== monthly) relabelCharts();
+  // Every series on the page comes through here, so the two readings can never
+  // end up drawn from different runs of the model.
+  const readingOf = (run, key) => (monthly ? monthlyOf(run, key) : seriesOf(run, key));
+  const series = specs.map((spec) => readingOf(projection, spec.key));
 
   // The two runs behind a band: the same plan with every return moved down and
   // up. Only worth computing when something actually depends on a return.
@@ -1313,22 +1394,27 @@ function render() {
     && (investsInside(projection) || hasOwned(projection));
   const lower = ranged ? projectionFor(shiftReturns(projection.fields, -spread)) : null;
   const upper = ranged ? projectionFor(shiftReturns(projection.fields, spread)) : null;
+  // The bounds are differenced with the series they bound, so the ribbon is
+  // the range around the month's change rather than around the running total.
+  // The two cross in the month a holding is cashed in — the run that grew more
+  // has more to sell, so its drop is the deeper one — and the ribbon pinches
+  // there. That is the reading, not a fault in the drawing.
   const bands = specs.map((spec) => (ranged && BAND_KEYS.has(spec.key) ? {
-    low: seriesOf(lower, spec.key),
-    high: seriesOf(upper, spec.key),
+    low: readingOf(lower, spec.key),
+    high: readingOf(upper, spec.key),
     lowLabel: t('chart.bandLow'),
     highLabel: t('chart.bandHigh'),
   } : null));
 
   // A band that ran off the plot would be worse than no band, so the scale
   // counts its edges as points of their own.
-  const references = specs.map((spec) => (spec.reference ? seriesOf(projection, spec.reference) : null));
+  const references = specs.map((spec) => (spec.reference ? readingOf(projection, spec.reference) : null));
   const spanOf = (index) => [
     series[index],
     ...(bands[index] ? [bands[index].low, bands[index].high] : []),
     ...(references[index] ? [references[index]] : []),
   ];
-  const shared = extentOf(specs.flatMap((spec, index) => (spec.ownScale ? [] : spanOf(index))));
+  const shared = extentOf(specs.flatMap((spec, index) => (ownScaleOf(spec) ? [] : spanOf(index))));
   // One geometry for all three cards: the widest end-label decides the gutter,
   // so the small multiples are drawn to the same pixel scale and can be
   // compared by eye, not just by their axes.
@@ -1367,6 +1453,13 @@ function render() {
   ui.windowNote.hidden = !projection.fields.some(
     (field) => field.startMonth || field.endMonth,
   );
+  ui.viewTotal.setAttribute('aria-pressed', monthly ? 'false' : 'true');
+  ui.viewMonthly.setAttribute('aria-pressed', monthly ? 'true' : 'false');
+  // The key is moved, not just the text: `applyLanguage` relabels by whatever
+  // `data-i18n` says, so a node whose key has moved comes back in the other
+  // language already saying the right thing, with nothing here to remember.
+  sayInstead(ui.chartsHeading, monthly ? 'charts.monthlyHeading' : 'charts.heading');
+  sayInstead(ui.chartsScaleNote, monthly ? 'charts.monthlyNote' : 'charts.scaleNote');
   ui.charts.dataset.count = String(specs.length);
   // What went in, what it became, and what is left of the difference after
   // tax — the three figures that answer "is this actually working?".
@@ -1408,14 +1501,14 @@ function render() {
       series: [
         {
           id: chart.key,
-          label: t(`chart.${chart.key}.series`),
+          label: chartWord(chart.key, 'series'),
           color: `var(${chart.colorVar})`,
           points: series[index],
           band: bands[index],
         },
         ...(references[index] ? [{
           id: chart.reference,
-          label: t(`chart.${chart.reference}.series`),
+          label: chartWord(chart.reference, 'series'),
           // Neutral on purpose: a reference is not a category, so it takes no
           // slot in a palette that has none left to give.
           color: 'var(--text-muted)',
@@ -1423,7 +1516,7 @@ function render() {
           dashed: true,
         }] : []),
       ],
-      domain: specs[index].ownScale ? extentOf(spanOf(index)) : shared,
+      domain: ownScaleOf(specs[index]) ? extentOf(spanOf(index)) : shared,
       months: projection.months,
       labelPad,
       isEmpty: !hasInput,
@@ -1574,10 +1667,12 @@ function renderAbout() {
  */
 function resetToDefaults() {
   Object.assign(state, defaultState());
-  // Which column the comparison shows is module state rather than stored
-  // state, so it survived the reset: the button promises to land you exactly
-  // where a new reader lands, and a first load has picked nothing.
+  // Which column the comparison shows, and which of the two readings the cards
+  // are in, are module state rather than stored state, so both survived the
+  // reset: the button promises to land you exactly where a new reader lands,
+  // and a first load has picked neither.
   metricChosen = false;
+  monthly = false;
   fillControls();
   save();
   render();
@@ -1981,6 +2076,11 @@ function adoptPlan(plan, { replacing } = {}) {
   // so it would otherwise survive into somebody else's plan and pick a metric
   // they never chose.
   metricChosen = false;
+  // The reading deliberately does not reset with it, and the asymmetry is the
+  // point: a chosen metric is a claim about what a plan contains, and the
+  // arriving plan may not contain it, whereas both readings exist for every
+  // plan there is. Someone who switched to the per-month view in order to look
+  // at a link is looking that way at the link too.
   fillControls();
   save();
   render();

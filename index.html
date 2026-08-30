@@ -169,8 +169,17 @@
       <p class="section-note" id="charts-note" data-i18n="charts.notePrompt" aria-live="polite">
         Give a field an amount to project the months ahead.
       </p>
+      <!-- Two readings of the same five cards, not a sixth card: the palette
+           has five series colours and they are all spoken for. Deliberately
+           without a `data-months` attribute — that is what marks a horizon
+           preset, and `applyLanguage` relabels every one of those with a
+           length in years. -->
+      <div class="presets" role="group" id="chart-views" data-i18n-aria="charts.viewAria">
+        <button type="button" class="preset" id="view-total" aria-pressed="true" data-i18n="charts.view.total">Running total</button>
+        <button type="button" class="preset" id="view-monthly" aria-pressed="false" data-i18n="charts.view.monthly">Each month</button>
+      </div>
       <div class="chart-grid" id="charts"></div>
-      <p class="scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
+      <p class="scale-note" id="charts-scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
     </section>
 
     <section class="charts-section" id="sankey" aria-labelledby="sankey-heading" hidden>
