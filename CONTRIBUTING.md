@@ -82,6 +82,7 @@ assets/js/projection.js      fields + horizon → the cumulative series
 assets/js/field-list.js      the editable list of fields
 assets/js/milestones.js      targets, and the month each one is met
 assets/js/milestone-list.js  the editable list of targets
+assets/js/solve.js           a target read backwards: what one figure must be
 assets/js/strategy-bar.js    the tabs that name, switch and add strategies
 assets/js/chart.js           the SVG line chart, one or many series
 assets/js/sankey.js          the flow diagram: in, pooled, out

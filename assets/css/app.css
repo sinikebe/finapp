@@ -1428,6 +1428,44 @@ main > section,
   font-variant-numeric: tabular-nums;
 }
 
+/* The same question asked backwards, which only a target the plan misses grows.
+   Left as a block rather than made a flex column: the answer under it is a live
+   region and so has to stay in the page whether it holds anything yet or not,
+   and a flex gap would hold six pixels open under every unanswered ask. Its own
+   margin does the spacing instead, and an empty answer gives that up. */
+.milestone-ask {
+  min-width: 0;
+  margin-top: 2px;
+}
+
+/* Wraps as a group, the way the boxes above it do: on a phone the picker takes
+   the line and the button drops under it rather than both being squeezed. */
+.milestone-asking {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Wide, because an option names a field *and* which of its figures — "The
+   house — the amount" is most of a line before the reader has renamed
+   anything. */
+.milestone-choice { flex: 1 1 240px; max-width: 400px; }
+
+/* The one thing on the row the reader asked for outright, so it is in the
+   reading ink rather than the derived grey the line above it wears. */
+.milestone-answer {
+  margin: 6px 0 0;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+/* Still in the page, so that filling it is a change to a live region a screen
+   reader is already watching — but taking up none of it. */
+.milestone-answer:empty { margin-top: 0; }
+
 /* ----------------------------------------------------------- footer/toast */
 
 .app-footer {

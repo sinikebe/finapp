@@ -30,6 +30,7 @@ import {
   addMilestone, updateMilestone, removeMilestone, defaultMilestones,
   neighbourOf as milestoneNeighbourOf, normalizeMilestones, whenMet,
 } from './milestones.js';
+import { candidatesOf, solveFor } from './solve.js';
 import { createStrategyBar, createStrategyJump } from './strategy-bar.js';
 import {
   updateStrategy, duplicateStrategy, removeStrategy,
@@ -98,6 +99,7 @@ const ui = {
   milestones: $('milestones'),
   milestoneMount: $('milestone-mount'),
   addMilestone: $('add-milestone'),
+  goalCaveat: $('goal-caveat'),
   months: $('months'),
   monthsReadout: $('months-readout'),
   // Selected by what makes one a horizon preset — the months it sets — not by
@@ -1273,7 +1275,132 @@ function milestoneRules(projection) {
   return [...months].map((month) => ({ month }));
 }
 
+/* ------------------------------------------------------- the same, backwards */
+
+/*
+ * A target the plan never reaches is where the question turns round: the
+ * destination is known and the figure is not. So the ask is a verb on that
+ * answer rather than a control of its own — no dialog, and no fourth button on
+ * every field row in the app — and it needs no second vocabulary, because the
+ * quantity and the figure are the ones already in the boxes above it.
+ *
+ * `solve.js` does the searching and the refusing. What is here is the wiring:
+ * which target is holding an answer, and whether it is still the answer to the
+ * question that was asked.
+ */
+
+/** Whether a target is one the plan misses — the whole of what the ask is for. */
+function unreached(projection, milestone) {
+  const reading = whenMet(projection, milestone, toNumber);
+  return Boolean(reading) && reading.month === null;
+}
+
+/**
+ * The one answer the app is holding, and everything it was worked out from.
+ *
+ * Kept the way a ranking is kept, and for the same reason: it costs several
+ * dozen projections and `render()` runs on every keystroke, so an answer is
+ * shown back only where nothing it depended on has moved. Anything that would
+ * change it — the fields, the horizon, the money, the target itself — instead
+ * takes it off the screen, because an answer to a question nobody is asking any
+ * more is worse than no answer at all.
+ *
+ * What is kept is the *finding* rather than the sentence. The language is not
+ * part of the question — a figure is the same figure in French — so an answer
+ * worded once would sit there in English after the reader switched, which is
+ * the one thing on the page that would not have followed them.
+ */
+let asked = { id: '', key: '', question: '', result: null };
+
+/** Everything an answer depends on, written down. */
+function goalQuestion(projection, milestone, key) {
+  return JSON.stringify([
+    projection.fields, projection.months, projection.taxRate,
+    state.realMoney, state.inflation, milestone.metric, milestone.amount, key,
+  ]);
+}
+
+/** Emptied when the plans it was an answer about are thrown away. */
+function forgetAsked() {
+  asked = { id: '', key: '', question: '', result: null };
+}
+
+/**
+ * A solved figure, written the way the box it belongs in writes one.
+ *
+ * A rate goes through `formatTyped` rather than `formatRate`, which is what
+ * every rate on screen otherwise uses: `formatRate` floors at nothing, because
+ * the rates it writes are ones a reader typed and a box that shows a negative
+ * one has been misread. A solved rate genuinely can be negative — "the living
+ * costs would have to climb by -9% a year or less" is a real answer to a real
+ * target — and it is a figure to be typed back into a box, so it takes the
+ * reader's own decimal separator and no grouping.
+ */
+function goalFigure(knob, value) {
+  return knob === 'annualRate' ? t('goal.rate', formatTyped(value)) : formatAmount(value);
+}
+
+/** What one candidate is called: a field, and which of its two figures. */
+function goalName(candidate) {
+  // The same fallback the ranking uses, for the same reason: a field nobody has
+  // named still has to be pickable out of a list of its neighbours.
+  return t('goal.candidate', labelOf(candidate.field, t) || t('sankey.unnamed'), t(`goal.knob.${candidate.knob}`));
+}
+
+/**
+ * The answer in words — or the refusal, which gets exactly as many of them.
+ *
+ * A refusal is not an error message and is not written like one. It is the app
+ * saying which of four different things it found, and each of the four sends a
+ * reader somewhere else in their plan.
+ */
+function goalSaid(candidate, result) {
+  if (!result) return '';
+  const name = labelOf(candidate.field, t) || t('sankey.unnamed');
+  const figure = t(`goal.knob.${candidate.knob}`);
+  if (result.refusal) return t(`goal.refusal.${result.refusal}`, name, figure);
+  return t(
+    `goal.said.${result.bound}`,
+    name, figure, goalFigure(candidate.knob, result.answer), result.month,
+  );
+}
+
+/** Work one target backwards, and remember the answer against its question. */
+function askGoal(id, key) {
+  const projection = projectionFor(fields());
+  const milestone = state.milestones.find((entry) => entry.id === id);
+  const candidate = candidatesOf(projection.fields).find((entry) => entry.key === key);
+  // Nothing to ask about leaves nothing standing: the answer on screen was to
+  // some other question, and it is not made truer by this one failing.
+  if (!milestone || !candidate) {
+    forgetAsked();
+    return;
+  }
+  const result = solveFor({
+    fields: projection.fields,
+    fieldId: candidate.field.id,
+    knob: candidate.knob,
+    milestone,
+    // The same run every other reading on the page is made with, so an answer
+    // is in the money the page is being read in rather than in the model's.
+    run: projectionFor,
+    read: toNumber,
+  });
+  asked = { id, key, question: goalQuestion(projection, milestone, key), result };
+}
+
 function milestoneLabels(projection) {
+  const offered = candidatesOf(projection.fields);
+  // Only one target holds an answer at a time, so whether that answer is still
+  // an answer to the question it was given is settled once here rather than
+  // re-derived on every row — and it is put into words here too, on the render
+  // that shows it, so that it is in the language the page is in now.
+  const holder = state.milestones.find((milestone) => milestone.id === asked.id);
+  const standing = Boolean(asked.result) && Boolean(holder)
+    && goalQuestion(projection, holder, asked.key) === asked.question;
+  const candidate = standing ? offered.find((entry) => entry.key === asked.key) : null;
+  const answer = candidate ? goalSaid(candidate, asked.result) : '';
+
   return {
     add: t('milestone.add'),
     what: t('milestone.what'),
@@ -1287,12 +1414,26 @@ function milestoneLabels(projection) {
     // Worded here rather than in the view, because the month is a read over a
     // projection and the view has never seen one.
     said: (milestone) => milestoneSaid(projection, milestone),
+    ask: t('goal.ask'),
+    askNamed: (metric) => t('goal.askNamed', metric),
+    choose: t('goal.choose'),
+    chooseNamed: (metric) => t('goal.chooseNamed', metric),
+    // Every figure in the plan that can be asked backwards about, named. The
+    // list is the same on every row — it is a property of the plan rather than
+    // of the target — so it is built once a render rather than once a row.
+    candidates: offered.map((entry) => ({ key: entry.key, name: goalName(entry) })),
+    canAsk: (milestone) => unreached(projection, milestone),
+    asked: (milestone) => (milestone.id === asked.id ? answer : ''),
   };
 }
 
 function renderMilestones(projection) {
   const marked = state.milestones.length > 0;
   ui.milestones.hidden = !marked;
+  // What the ask can do and what it refuses to, shown where the ask is: on a
+  // page where every target is met it would be a caveat about a control the
+  // reader has never been offered.
+  ui.goalCaveat.hidden = !state.milestones.some((milestone) => unreached(projection, milestone));
   // One affordance in. The button under the cards is the whole of the feature
   // until there is something to show, and it goes the moment the section it
   // opens can speak for itself — two ways to add the first target, one of them
@@ -1339,6 +1480,16 @@ function runMilestoneCommand(command) {
       milestoneList.focus(created ? created.id : null);
       return;
     }
+
+    case 'ask':
+      // Worked out here rather than in the view for the reason the month under
+      // each row is: it is a read over projections the view has never seen. It
+      // is also the one command in this list that changes no state a plan
+      // carries — the answer is said, and nothing is written into the plan —
+      // so it neither persists nor checkpoints anything.
+      askGoal(command.id, command.key);
+      render();
+      return;
 
     case 'remove': {
       const neighbour = milestoneNeighbourOf(state.milestones, command.id);
@@ -2006,6 +2157,9 @@ function resetToDefaults() {
   monthly = false;
   // And the ranking is an answer about plans that are about to stop existing.
   forgetRanking();
+  // As is the answer to "what would it take?", which was worked out about a
+  // target that is about to stop existing too.
+  forgetAsked();
   fillControls();
   save();
   render();
@@ -2430,8 +2584,10 @@ function adoptPlan(plan, { replacing } = {}) {
   // at a link is looking that way at the link too.
   //
   // The ranking is neither of those things: it is an answer about the fields
-  // that were here, and after this the plan on screen is somebody else's.
+  // that were here, and after this the plan on screen is somebody else's. The
+  // same goes for anything the solver was asked about them.
   forgetRanking();
+  forgetAsked();
   fillControls();
   save();
   render();

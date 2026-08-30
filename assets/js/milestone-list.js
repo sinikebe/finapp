@@ -11,6 +11,14 @@
  * month is a read over a projection this module has never seen, and putting the
  * dictionary in here would give the app two places that say when a plan gets
  * somewhere.
+ *
+ * A target the plan never reaches grows one thing more: the same question asked
+ * backwards. It sits on that row rather than anywhere else in the app because
+ * that row is where a reader is already looking at a destination they have not
+ * got to, and because it needs no second vocabulary — the metric and the figure
+ * are the ones already in the boxes above it. What can be asked about, and what
+ * the answer is, both arrive worded from the caller for the same reason the
+ * month does.
  */
 
 import { actionIcon } from './field-list.js';
@@ -78,7 +86,35 @@ export function createMilestoneList(options) {
     // reader their own half-typed figure back at them.
     const said = html('p', 'milestone-said', element);
 
-    const row = { element, metric, metricLabel, metricOptions, amount, amountLabel, said, remove };
+    // ...and, where the plan never gets there, the same question turned round.
+    // Built once with the row and hidden rather than made and unmade as the
+    // reader types: a control that comes and goes takes whatever focus was in
+    // it with it, and a figure one keystroke away from being reached would have
+    // this appearing and disappearing under the caret.
+    const ask = html('div', 'milestone-ask', element);
+    const asking = html('div', 'milestone-asking', ask);
+    const chooseLabel = html('label', 'sr-only', asking);
+    const choose = html('select', 'milestone-choice', asking);
+    choose.id = `milestone-${milestone.id}-choice`;
+    chooseLabel.htmlFor = choose.id;
+    const askButton = html('button', 'ghost-button milestone-solve', asking);
+    askButton.type = 'button';
+
+    // The answer, inside the ask rather than beside it — so that a live region
+    // is only ever in the page while the button that fills it is too, and an
+    // empty one is never left behind holding a row open.
+    //
+    // And this one *is* live, where `said` above it deliberately is not: it
+    // changes only because the reader pressed the button next to it, so
+    // announcing it reads them the answer to something they just asked rather
+    // than their own half-typed figure.
+    const answer = html('p', 'milestone-answer', ask);
+    answer.setAttribute('role', 'status');
+
+    const row = {
+      element, metric, metricLabel, metricOptions, amount, amountLabel, said, remove,
+      ask, choose, chooseLabel, askButton, answer, offered: '',
+    };
 
     const id = milestone.id;
     metric.addEventListener('change', () => onCommand({ type: 'update', id, patch: { metric: metric.value } }));
@@ -87,6 +123,7 @@ export function createMilestoneList(options) {
     // reader's own separators — the same settle every amount in the app makes.
     amount.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { amount: amount.value } }));
     remove.addEventListener('click', () => onCommand({ type: 'remove', id }));
+    askButton.addEventListener('click', () => onCommand({ type: 'ask', id, key: choose.value }));
 
     return row;
   }
@@ -111,6 +148,45 @@ export function createMilestoneList(options) {
     row.remove.setAttribute('aria-label', labels.removeNamed(named));
 
     row.said.textContent = labels.said(milestone);
+    syncAsk(row, milestone, named);
+  }
+
+  /**
+   * The backwards question, which is only there for a target the plan misses.
+   *
+   * The options are rebuilt only when the plan's own list of figures actually
+   * changed — every render otherwise — because replacing them puts the select
+   * back to its first entry, and a reader who chose one and reached for the
+   * button would find the app had chosen something else for them. Their names
+   * are written every time regardless: those follow the language and whatever
+   * the reader has since called the field.
+   */
+  function syncAsk(row, milestone, named) {
+    row.ask.hidden = !labels.canAsk(milestone);
+    row.chooseLabel.textContent = labels.choose;
+    row.choose.setAttribute('aria-label', labels.chooseNamed(named));
+    row.askButton.textContent = labels.ask;
+    row.askButton.setAttribute('aria-label', labels.askNamed(named));
+
+    const { candidates } = labels;
+    const offered = candidates.map((candidate) => candidate.key).join('\n');
+    if (row.offered !== offered) {
+      row.offered = offered;
+      const chosen = row.choose.value;
+      row.choose.textContent = '';
+      for (const candidate of candidates) {
+        const option = html('option', null, row.choose);
+        option.value = candidate.key;
+      }
+      // Kept where the figure it names is still in the plan; otherwise the
+      // select falls to its first entry, which is what a fresh row does too.
+      if (candidates.some((candidate) => candidate.key === chosen)) row.choose.value = chosen;
+    }
+    candidates.forEach((candidate, index) => {
+      row.choose.options[index].textContent = candidate.name;
+    });
+
+    row.answer.textContent = labels.asked(milestone);
   }
 
   return {

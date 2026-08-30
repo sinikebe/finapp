@@ -248,6 +248,45 @@ const STRINGS = {
     'milestone.said.met': (month, value) => `First true at month ${month}, at ${value}.`,
     'milestone.said.never': (horizon, value) => `Not within ${horizon} — the projection ends at ${value}.`,
 
+    /*
+     * A target that is never met is where the question turns round: the
+     * destination is known and the figure is not. So the ask lives on that
+     * answer rather than on a control of its own, and it borrows the target's
+     * metric and figure rather than asking for them a second time.
+     */
+    'goal.ask': 'What would it take?',
+    'goal.askNamed': (metric) => `What would it take to meet the target on ${metric}?`,
+    'goal.choose': 'The figure to work back from',
+    'goal.chooseNamed': (metric) => `The figure to work back from, for the target on ${metric}`,
+    // A field and one of its two figures, which is the whole of what can be
+    // asked backwards about.
+    'goal.candidate': (name, figure) => `${name} — ${figure}`,
+    'goal.knob.amount': 'the amount',
+    'goal.knob.annualRate': 'the rate',
+    'goal.rate': (rate) => `${rate}% a year`,
+    // "Or more", never "is": the figure is rounded away from the goal, so it
+    // clears the target rather than landing exactly on it, and saying so is
+    // what makes the rounding honest rather than sloppy.
+    'goal.said.least': (name, figure, amount, month) =>
+      `${name}: ${figure} would have to be ${amount} or more — the target is then met in month ${month}.`,
+    'goal.said.most': (name, figure, amount, month) =>
+      `${name}: ${figure} would have to be ${amount} or less — the target is then met in month ${month}.`,
+    /*
+     * Four ways to have no answer, and every one of them is a better thing to
+     * read than a figure the search is not entitled to. They are told apart
+     * because they send a reader to four different next moves.
+     */
+    'goal.refusal.unmoved': (name, figure) =>
+      `${name}: ${figure} leaves this target in the same place at both ends of what the app will hold. It is not what decides this one.`,
+    'goal.refusal.unreachable': (name, figure) =>
+      `${name}: ${figure} does not get there, at any value the app will hold.`,
+    'goal.refusal.reversal': (name, figure) =>
+      `${name}: more of ${figure} helps and then stops helping, so there is no one figure to name. The app will not pick a crossing and call it the answer.`,
+    'goal.refusal.unproven': (name, figure) =>
+      `${name}: the value the search settled on for ${figure} does not reach the target once it is put back into the plan, so there is nothing to name.`,
+    // What the ask can do and what it will not, said where the ask appears.
+    'goal.caveat': 'Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.',
+
     'summary.heading': 'Projected totals',
     'summary.heroLabel': (months) => `Net after ${months} ${plural(months, 'month', 'months')}`,
     'summary.totalIncome': 'Total income',
@@ -584,6 +623,28 @@ const STRINGS = {
     'milestone.said.always': (value) => `Vrai dès le mois 0, à ${value}.`,
     'milestone.said.met': (month, value) => `Vrai pour la première fois au mois ${month}, à ${value}.`,
     'milestone.said.never': (horizon, value) => `Pas avant ${horizon} — la projection se termine à ${value}.`,
+
+    'goal.ask': 'Que faudrait-il\u00a0?',
+    'goal.askNamed': (metric) => `Que faudrait-il pour atteindre l’objectif sur ${metric}\u00a0?`,
+    'goal.choose': 'Le chiffre à faire varier',
+    'goal.chooseNamed': (metric) => `Le chiffre à faire varier, pour l’objectif sur ${metric}`,
+    'goal.candidate': (name, figure) => `${name} — ${figure}`,
+    'goal.knob.amount': 'le montant',
+    'goal.knob.annualRate': 'le taux',
+    'goal.rate': (rate) => `${rate}\u00a0% par an`,
+    'goal.said.least': (name, figure, amount, month) =>
+      `${name}\u00a0: ${figure} devrait être de ${amount} ou plus — l’objectif est alors atteint au mois ${month}.`,
+    'goal.said.most': (name, figure, amount, month) =>
+      `${name}\u00a0: ${figure} devrait être de ${amount} ou moins — l’objectif est alors atteint au mois ${month}.`,
+    'goal.refusal.unmoved': (name, figure) =>
+      `${name}\u00a0: ${figure} laisse cet objectif au même endroit aux deux extrémités de ce que l’application accepte. Ce n’est pas lui qui décide de celui-ci.`,
+    'goal.refusal.unreachable': (name, figure) =>
+      `${name}\u00a0: ${figure} n’y arrive pas, quelle que soit la valeur que l’application accepte.`,
+    'goal.refusal.reversal': (name, figure) =>
+      `${name}\u00a0: augmenter ${figure} aide, puis cesse d’aider\u00a0; il n’y a donc pas de chiffre unique à donner. L’application ne choisira pas un passage pour en faire la réponse.`,
+    'goal.refusal.unproven': (name, figure) =>
+      `${name}\u00a0: la valeur trouvée pour ${figure} n’atteint pas l’objectif une fois replacée dans le plan\u00a0; il n’y a donc rien à annoncer.`,
+    'goal.caveat': 'Deux chiffres seulement peuvent être calculés à rebours\u00a0: un montant et un taux. Augmenter l’un ou l’autre emmène la réponse dans un sens et continue de l’y emmener, ce qui permet à une recherche de l’encadrer puis de resserrer par moitiés. Le mois où un placement est vendu n’a pas cette propriété — le déplacer change à la fois ce que le placement a rapporté et ce que l’argent a permis d’acheter — ni la durée d’un emprunt\u00a0; ni l’un ni l’autre n’est donc proposé. Ce qui ressort est replacé dans le plan et reprojeté avant d’être affiché, et si l’objectif n’est pas atteint l’application le dit plutôt que d’annoncer un chiffre. Rien de tout cela n’est jamais écrit dans votre plan.',
 
     'summary.heading': 'Totaux projetés',
     'summary.heroLabel': (months) => `Solde net après ${months} mois`,
