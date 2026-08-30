@@ -13,7 +13,7 @@
 import { labelOf, MAX_FIELDS, PERIODS, KINDS } from './fields.js';
 import { toNumber } from './projection.js';
 import { formatTyped } from './format.js';
-import { html, svgEl } from './dom.js';
+import { html, setVisible, svgEl, syncValue } from './dom.js';
 
 const ACTION_ICONS = {
   // Two links of a chain: the field is joined to its counterparts elsewhere.
@@ -29,17 +29,6 @@ export function actionIcon(name, parent) {
   }, parent);
   for (const d of ACTION_ICONS[name]) svgEl('path', { d }, node);
   return node;
-}
-
-/** Show or hide a control and the label that names it. */
-function setVisible(control, label, visible) {
-  control.hidden = !visible;
-  label.hidden = !visible;
-}
-
-/** Write a value into a control the reader is not currently editing. */
-function syncValue(control, value) {
-  if (control.value !== value && document.activeElement !== control) control.value = value;
 }
 
 /**

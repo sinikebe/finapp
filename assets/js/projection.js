@@ -7,7 +7,7 @@
  * cadence, a growth rate): the loop below is the only place that has to change.
  */
 
-import { normalizeFields, DEFAULT_PERIOD } from './fields.js';
+import { normalizeFields, raiseAmount, DEFAULT_PERIOD } from './fields.js';
 
 /** Hard limits, so a pasted value or a hand-edited store can't ask for a million points. */
 export const MIN_MONTHS = 1;
@@ -741,6 +741,94 @@ export function hasOwned(projection) {
 /** Extract one cumulative series from a projection. */
 export function seriesOf(projection, key) {
   return projection.points.map((p) => ({ month: p.month, value: p[key] }));
+}
+
+/**
+ * The same series read a month at a time: what moved *during* each month,
+ * rather than everything that has moved since month 0.
+ *
+ * A first difference of what `project()` already returns, and that is the whole
+ * of it — the model is asked for nothing new and nothing extra is stored, so
+ * every rule the loop above follows (a yearly bill landing at month 12, a
+ * one-off, a window that closes) is already in the answer. It is the only
+ * reading that can say whether there is a month where more goes out than comes
+ * in: a cumulative net is a running total and hides that inside itself.
+ *
+ * It works on a balance as readily as on a flow. The difference between two
+ * months of `worth` is how much better off that month left you, which is a
+ * real quantity even though it is not money moving.
+ *
+ * Month 0 is nought, deliberately. It has no month before it, so nothing can
+ * have moved during it — and the alternative, letting it carry the opening
+ * balance through, would put the house you already own into a card headed
+ * "each month" and read as a month's income.
+ */
+export function monthlyOf(projection, key) {
+  const { points } = projection;
+  return points.map((point, index) => ({
+    month: point.month,
+    // Rounded rather than taken as it comes: both figures are exact to the
+    // cent, but the difference of two doubles is not, and a card reading
+    // "each month" is exactly where a stray 0.009999999999 would show.
+    value: index === 0 ? 0 : roundMoney(point[key] - points[index - 1][key]),
+  }));
+}
+
+/**
+ * How far an amount is moved to find out what it is worth: a tenth of itself,
+ * each way. Big enough that the answer is not rounding, small enough that it is
+ * still a question about the plan the reader wrote rather than about a
+ * different one.
+ */
+export const SWING = 0.1;
+
+/**
+ * Which of a plan's figures actually decide where it lands.
+ *
+ * A plan can hold a hundred fields and nothing in the app says which two of
+ * them settle the answer — which is the question underneath most of the
+ * others. Somebody weighing up three ways to buy a house is asking what the
+ * outcome is sensitive to, and until this the only way to find out was to edit
+ * a figure, look at what happened, and edit it back. So every amount is moved
+ * a tenth up and a tenth down in turn, everything else left exactly where it
+ * is, and the distance between those two runs is that field's weight.
+ *
+ * `project()` being pure and cheap is what makes it affordable: a hundred
+ * fields is two hundred projections, and the app already runs several per
+ * keystroke for the range band.
+ *
+ * **The swings add up.** The model is separable by construction — every field's
+ * contribution is worked out on its own and only then summed — so moving two
+ * amounts moves the figure by both swings, to the cent. That is also the limit
+ * of the reading rather than a flaw in it: the list will rank a mortgage and
+ * the house it bought one above the other and can never say that they were one
+ * decision. `profit` is the one exception, because the tax falls on the gain as
+ * a whole rather than on each part of it, so a field that tips that whole
+ * across zero changes what every other field is worth.
+ *
+ * @param {object} projection the plan as it stands
+ * @param {string} key which of the totals to watch
+ * @param {(fields: Array<object>) => object} run how to project a list of
+ *   fields. Handed in because which money the figures are read in — restated or
+ *   not, at what inflation, taxed at what rate — is the reader's business and
+ *   not the model's, and the swings have to be in the same money as the page
+ *   they are shown on.
+ * @returns {Array<{field: object, swing: number}>} largest swing first
+ */
+export function swingsOf(projection, key, run) {
+  return projection.fields
+    // An amount that was never entered moves nothing, and a row saying so for
+    // every half-filled field would bury the answer under the question.
+    .filter((field) => toAmount(field.amount) > 0)
+    .map((field) => {
+      const at = (fraction) => run(
+        raiseAmount(projection.fields, field.id, fraction, toAmount),
+      ).totals[key];
+      // Signed, because which way the figure goes when there is more of this is
+      // half of what the reader came for. Only the size decides the order.
+      return { field, swing: roundMoney(at(SWING) - at(-SWING)) };
+    })
+    .sort((a, b) => Math.abs(b.swing) - Math.abs(a.swing));
 }
 
 /** Smallest and largest value across several series — the shared chart domain. */

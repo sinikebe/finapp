@@ -144,6 +144,11 @@ export function createLineChart(options) {
   // the paint order right however many series arrive: grid, fills, lines, then
   // everything that has to stay readable on top.
   const gridLayer = svgEl('g', { class: 'layer-grid' }, svg);
+  // Where a reader's own target is met. Painted with the grid rather than among
+  // the marks because that is what it is: a rule marks a month, and says
+  // nothing whatever about the curve it happens to cross. The series reads over
+  // it, the way it reads over a gridline.
+  const rulesLayer = svgEl('g', { class: 'layer-rules' }, svg);
   // Beneath everything: a band is context for its line, never a mark in its
   // own right, so it is painted first and the line goes over the top of it.
   const bandGroup = svgEl('g', { class: 'layer-bands' }, svg);
@@ -240,7 +245,7 @@ export function createLineChart(options) {
   }
 
   let state = {
-    series: [], domain: { min: 0, max: 1 }, months: 1, isEmpty: true, labelPad: 0,
+    series: [], domain: { min: 0, max: 1 }, months: 1, isEmpty: true, labelPad: 0, rules: [],
   };
   let geometry = null;
   let activeIndex = null;
@@ -311,9 +316,27 @@ export function createLineChart(options) {
       label.textContent = formatTick(tick);
     }
 
+    // --- the reader's own marks ----------------------------------------------
+    // Rebuilt rather than reconciled, exactly as the gridlines above are: there
+    // is nothing here to focus and nothing carrying state, so replacing the lot
+    // costs less than keeping a pool of them in step.
+    rulesLayer.textContent = '';
+    for (const rule of state.rules) {
+      // A month outside the horizon has no x to be drawn at. It can happen
+      // between an update and a resize — the slider moves, the rules follow one
+      // frame later — and a line pinned to the axis would be a target claiming
+      // to be met at the end of the projection.
+      if (!Number.isFinite(rule.month) || rule.month < 0 || rule.month > months) continue;
+      const x = xOf(rule.month);
+      svgEl('line', {
+        class: 'milestone-rule', x1: x, x2: x, y1: TOP_PAD, y2: TOP_PAD + PLOT_HEIGHT,
+      }, rulesLayer);
+    }
+
     // --- axes ----------------------------------------------------------------
-    // An empty card is just its message: no axis, no grid, no ticks to read.
-    for (const node of [gridLayer, xLabels, xAxisLine]) {
+    // An empty card is just its message: no axis, no grid, no ticks to read —
+    // and no rules either, since there is no curve for a month to be read off.
+    for (const node of [gridLayer, rulesLayer, xLabels, xAxisLine]) {
       node.style.display = hasSeries ? '' : 'none';
     }
 
@@ -624,14 +647,19 @@ export function createLineChart(options) {
      * @param {{
      *   series: Array<{id: string, label: string, color: string, points: Array<{month: number, value: number}>}>,
      *   domain: {min: number, max: number}, months: number,
+     *   rules?: Array<{month: number}>,
      *   labelPad?: number, isEmpty?: boolean, emptyMessage?: string
      * }} next
+     *   `rules` are months to mark with a vertical line — a reader's target
+     *   being met, say. They carry no value and no label: a rule is x-only, and
+     *   whatever it means is said in words beside the chart rather than in it.
      */
     update(next) {
       state = {
         series: next.series,
         domain: next.domain,
         months: next.months,
+        rules: next.rules || [],
         isEmpty: Boolean(next.isEmpty),
         labelPad: next.labelPad || 0,
       };

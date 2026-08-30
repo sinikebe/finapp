@@ -9,10 +9,10 @@
  */
 
 import {
-  project, inTodaysMoney, shiftReturns, seriesOf, extentOf,
+  project, inTodaysMoney, shiftReturns, seriesOf, monthlyOf, extentOf,
   hasAmounts, hasDebt, hasOwned,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
-  fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf,
+  fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf, swingsOf,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
@@ -25,6 +25,12 @@ import { html } from './dom.js';
 import { createLineChart, endLabelPad } from './chart.js';
 import { createSankey } from './sankey.js';
 import { createFieldList } from './field-list.js';
+import { createMilestoneList } from './milestone-list.js';
+import {
+  addMilestone, updateMilestone, removeMilestone, defaultMilestones,
+  neighbourOf as milestoneNeighbourOf, normalizeMilestones, whenMet,
+} from './milestones.js';
+import { candidatesOf, solveFor } from './solve.js';
 import { createStrategyBar, createStrategyJump } from './strategy-bar.js';
 import {
   updateStrategy, duplicateStrategy, removeStrategy,
@@ -33,6 +39,7 @@ import {
   migrateFields, defaultStrategies, markShared, MAX_STRATEGIES,
 } from './strategies.js';
 import { decodePlan, linkFor, planInHash } from './share.js';
+import { remember, takeBack, nextBack } from './history.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
 import { BUILD } from './version.js';
 import { RELEASES } from './changelog.js';
@@ -58,10 +65,24 @@ const DEFAULT_TAX = '30';
 /** The series a return can move. The flows are fixed amounts, so a range on
  *  them would be a range around nothing. */
 const BAND_KEYS = new Set(['invested', 'worth']);
+/**
+ * The quantities a reader can ask about by name: the columns the comparison
+ * offers, and the quantities a target can be set on. One list, because two
+ * would be two spellings of the same eight things — and they are named through
+ * `compare.metric.*` wherever either of them shows a name.
+ *
+ * Up here with the constants rather than beside the comparison that reads it
+ * most, because the stored state is read before any of the drawing is: a target
+ * arriving out of a store or a link is checked against this list, and that
+ * happens on the first line of `loadState`.
+ */
+const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'profit', 'owned', 'debt'];
 
 const $ = (id) => document.getElementById(id);
 
 const ui = {
+  undo: $('undo'),
+  undoSaid: $('undo-said'),
   fields: $('fields'),
   strategies: $('strategies'),
   strategyJump: $('strategy-jump'),
@@ -74,6 +95,14 @@ const ui = {
   compareCaption: $('compare-table-caption'),
   compareHead: $('compare-head'),
   compareBody: $('compare-body'),
+  rank: $('rank'),
+  rankNote: $('rank-note'),
+  rankList: $('rank-list'),
+  rankSaid: $('rank-said'),
+  milestones: $('milestones'),
+  milestoneMount: $('milestone-mount'),
+  addMilestone: $('add-milestone'),
+  goalCaveat: $('goal-caveat'),
   months: $('months'),
   monthsReadout: $('months-readout'),
   // Selected by what makes one a horizon preset — the months it sets — not by
@@ -114,6 +143,10 @@ const ui = {
   worthLabel: $('worth-label'),
   worthValue: $('worth-value'),
   chartsNote: $('charts-note'),
+  chartsHeading: $('charts-heading'),
+  chartsScaleNote: $('charts-scale-note'),
+  viewTotal: $('view-total'),
+  viewMonthly: $('view-monthly'),
   periodNote: $('period-note'),
   charts: $('charts'),
   summary: document.querySelector('.summary'),
@@ -205,12 +238,13 @@ function toRateText(value, fallback = DEFAULT_INFLATION) {
 
 /**
  * The stored shape is `{ strategies, activeId, months, inflation, realMoney,
- * spread, showRange, tax }`. Everything after the horizon arrived later and is
- * simply absent from an older store, which reads as the defaults — no
- * migration, because nothing changed shape. Two older shapes are carried over
- * once and retired, so nobody loses what they had entered: a bare list of
- * fields from before strategies, and before that a single income and a single
- * rent.
+ * spread, showRange, tax, milestones }`. Everything after the horizon arrived
+ * later and is simply absent from an older store, which reads as the defaults —
+ * no migration, because nothing changed shape. A store written before targets
+ * existed has none, and reads as a plan with nothing marked on it, which is
+ * exactly what it was. Two older shapes are carried over once and retired, so
+ * nobody loses what they had entered: a bare list of fields from before
+ * strategies, and before that a single income and a single rent.
  */
 function loadState() {
   const saved = readStore(STATE_KEY, null);
@@ -225,6 +259,7 @@ function loadState() {
       spread: toRateText(saved.spread, DEFAULT_SPREAD),
       showRange: saved.showRange === true,
       tax: toRateText(saved.tax, DEFAULT_TAX),
+      milestones: normalizeMilestones(saved.milestones, METRICS),
     };
   }
 
@@ -264,6 +299,10 @@ function defaultState() {
     spread: DEFAULT_SPREAD,
     showRange: false,
     tax: DEFAULT_TAX,
+    // One target, asked on the reader's behalf: the three plans below are three
+    // answers to when a 100,000 house is yours, and this is what makes the app
+    // say the month rather than only know it.
+    milestones: normalizeMilestones(defaultMilestones(), METRICS),
   };
 }
 
@@ -282,6 +321,9 @@ function adopt(strategies, months, oldKey) {
     spread: DEFAULT_SPREAD,
     showRange: false,
     tax: DEFAULT_TAX,
+    // Nothing marked: an older store predates targets, and inventing one on
+    // somebody's own figures would be the app putting a question in their mouth.
+    milestones: [],
   };
   if (writeStore(STATE_KEY, next)) dropStore(oldKey);
   return next;
@@ -323,6 +365,7 @@ function save() {
     spread: state.spread,
     showRange: state.showRange,
     tax: state.tax,
+    milestones: state.milestones,
   });
 }
 
@@ -347,12 +390,25 @@ window.addEventListener('storage', (event) => {
   if (event.key !== STATE_KEY || !event.newValue) return;
   // Never pull the rug out from under someone typing here, and leave the tab
   // in the foreground alone — it is the one the reader is working in.
-  // The assumptions belong in this list too: the horizon slider and the three
-  // rate boxes live in the filter row, outside both of the others, and were
-  // written into unconditionally — so a figure being typed here was replaced
-  // under the caret by whatever another window had just saved.
+  //
+  // The selector is a list of every region an adoption would write into while
+  // somebody is in it, and each entry earned its place separately:
+  //   `.field-list`    — the rows themselves, the reason the guard exists.
+  //   `.strategy-bar`  — the name box, which is a text field like any other.
+  //   `.filter-row`    — the horizon slider and the three rate boxes. These
+  //                      live outside both of the others and were written into
+  //                      unconditionally, so a figure being typed here was
+  //                      replaced under the caret by whatever another window
+  //                      had just saved.
+  //   `.milestone-list` — the targets. A figure being watched for is a figure
+  //                      being typed like any other, and the whole list is
+  //                      written below, so a half-entered target would be
+  //                      replaced by another window's.
+  // Anything else that grows an editable control and gets adopted below belongs
+  // on this list too; nothing owns it, so it is only ever as complete as the
+  // last person to add to the block of assignments underneath.
   const editingHere = document.activeElement instanceof Element
-    && document.activeElement.closest('.field-list, .strategy-bar, .filter-row');
+    && document.activeElement.closest('.field-list, .strategy-bar, .filter-row, .milestone-list');
   if (editingHere) return;
   // And an edit of our own still inside the debounce is an edit: adopting now
   // would discard it before it was ever written.
@@ -369,15 +425,163 @@ window.addEventListener('storage', (event) => {
     state.spread = toRateText(incoming.spread, DEFAULT_SPREAD);
     state.showRange = incoming.showRange === true;
     state.tax = toRateText(incoming.tax, DEFAULT_TAX);
+    state.milestones = normalizeMilestones(incoming.milestones, METRICS);
     ui.months.value = String(state.months);
     ui.inflation.value = state.inflation;
     ui.spread.value = state.spread;
     ui.tax.value = state.tax;
+    // The single most important line in the undo feature, and it is here rather
+    // than anywhere near it. Every snapshot this tab is holding is a photograph
+    // of plans the *other* window has since replaced; keeping them would leave a
+    // backgrounded tab one press of Undo away from writing its stale plans
+    // straight over the work being done in the window the reader is actually
+    // in. The adoption is the moment those snapshots stop being about anything,
+    // so it is the moment they go — before the redraw that would otherwise put
+    // the button back on screen offering them.
+    forgetUndo();
     render();
   } catch {
     /* another tab wrote something unreadable — keep what we have */
   }
 });
+
+/* --------------------------------------------------------------------- undo */
+
+/**
+ * The last few plans, and the way back to them.
+ *
+ * Every branch below that throws work away photographs the plan first, which
+ * costs one JSON round trip of something the app already serialises several
+ * times a minute. What is deliberately *not* here is a push per keystroke: undo
+ * steps back to "before I deleted that" rather than to "before I typed the 4",
+ * and the way that is arranged is that the snapshot is taken by the command
+ * rather than by the input event — the commands being, already, the only place
+ * a removal can happen at all.
+ */
+let undoStack = [];
+
+/**
+ * Which of the five the last press put back, or '' while there is nothing to
+ * say.
+ *
+ * The case rather than the sentence, for the reason a solved figure is kept as
+ * a finding rather than as words: the wording follows the language and the case
+ * does not, so a reader who switches language with the line on screen gets it
+ * in the other one instead of a phrase left standing in English.
+ */
+let undone = '';
+let undoSaidTimer = 0;
+
+/**
+ * How long the receipt stays in the app bar.
+ *
+ * Long enough to read a sentence, short enough that the header is not still
+ * explaining something from a minute ago. It is a `role="status"`, so it has
+ * been announced by the time it goes — what is being timed out is the line on
+ * screen, not the announcement.
+ */
+const UNDO_SAID_MS = 6000;
+
+/** Take the receipt down, whether it has timed out or been overtaken. */
+function clearUndoSaid() {
+  window.clearTimeout(undoSaidTimer);
+  undoSaidTimer = 0;
+  undone = '';
+  ui.undoSaid.hidden = true;
+  ui.undoSaid.textContent = '';
+}
+
+/** Photograph the plan, before the caller takes a piece of it away. */
+function checkpoint(what) {
+  undoStack = remember(undoStack, what, state);
+  // Something new to take back makes the last receipt out of date: it is still
+  // true that the field came back, and it is no longer what just happened.
+  clearUndoSaid();
+}
+
+/**
+ * Throw the whole stack away.
+ *
+ * One caller, and it is the reason this is a function rather than a line: the
+ * cross-tab listener above, where the plans these snapshots are of have stopped
+ * being this tab's business.
+ */
+function forgetUndo() {
+  undoStack = [];
+  clearUndoSaid();
+}
+
+/**
+ * Take the last destructive move back.
+ *
+ * The whole plan goes back, `activeId` with it — which is the answer to the one
+ * question the feature was filed unsure about. Undoing an edit made in a plan
+ * you are no longer looking at is disorienting, so the snapshot carries which
+ * plan was on screen and the app switches back to it on the way past.
+ *
+ * What does *not* come back is the way the reader was looking at the plan. The
+ * column the comparison shows and the reading the cards are in were never in
+ * the snapshot, because they are not parts of a plan — undo takes back the
+ * move, not the afternoon.
+ *
+ * Saved at once rather than through the debounce, for the reason "Start again"
+ * is: a tab closed a quarter of a second later must not leave the thrown-away
+ * plans in the store and the restored ones on screen.
+ */
+function undo() {
+  const taken = takeBack(undoStack);
+  if (!taken) return;
+  // Asked before the redraw, because the redraw is what takes the button away.
+  const held = document.activeElement === ui.undo;
+  undoStack = taken.rest;
+  Object.assign(state, taken.snapshot.plan);
+  // The kept ranking and the kept answer are both about the plan that was on
+  // screen a moment ago. Each is held against a question it can be checked
+  // against, so a stale one would only ever be recomputed rather than shown —
+  // but the plan has just been replaced wholesale, and there is nothing to be
+  // gained by carrying an answer to a question nobody is asking any more.
+  forgetRanking();
+  forgetAsked();
+  window.clearTimeout(undoSaidTimer);
+  undone = taken.snapshot.what;
+  undoSaidTimer = window.setTimeout(clearUndoSaid, UNDO_SAID_MS);
+  fillControls();
+  save();
+  render();
+  // Taking back the last move hides the button that took it, and setting
+  // `hidden` on the focused element drops focus to the document — which would
+  // leave a keyboard reader tabbing from the top of the page to find out what
+  // happened. So it lands on the line that replaced it, which is the line
+  // saying what came back. A screen reader hears that twice, once as a live
+  // region and once on the focus; twice is the smaller of the two costs.
+  if (held && ui.undo.hidden) ui.undoSaid.focus();
+}
+
+/**
+ * The control, drawn from the top of the stack.
+ *
+ * Gone entirely while there is nothing to take back, rather than sitting there
+ * greyed: a permanently disabled button is a promise the app is not keeping,
+ * and this one has nothing to say for itself between removals.
+ */
+function renderUndo() {
+  const next = nextBack(undoStack);
+  ui.undo.hidden = !next;
+  // The word on the button is "Undo" in every case; which of the five it would
+  // reverse is in the accessible name, where a reader who cannot see what just
+  // happened to the page is the one who needs it.
+  if (next) ui.undo.setAttribute('aria-label', t(`undo.aria.${next.what}`));
+  ui.undoSaid.hidden = !undone;
+  // Written only when it has actually moved, which matters here and nowhere
+  // else on the page: this is a live region, `render()` runs on every keystroke,
+  // and writing the same sentence back into it is still a DOM change — so a
+  // reader who undid something and then carried on typing would have had it
+  // read out at them again on every letter.
+  const said = undone ? t(`undo.said.${undone}`) : '';
+  if (ui.undoSaid.textContent !== said) ui.undoSaid.textContent = said;
+}
+
+ui.undo.addEventListener('click', undo);
 
 /* ------------------------------------------------------------------- charts */
 
@@ -427,20 +631,71 @@ const CHARTS = [
 
 let charts = [];
 
+/**
+ * Whether the cards are read a month at a time rather than as running totals.
+ *
+ * Module state, not stored state: it is a way of looking at a plan rather than
+ * anything about the plan, so it never goes in the store, never travels in a
+ * shared link, and a reload opens on the running total the heading names.
+ */
+let monthly = false;
+
+/**
+ * Say something else on a node the language loop also writes to.
+ *
+ * The key moves with the text. `applyLanguage` relabels every `[data-i18n]`
+ * node from whatever the attribute says, so a node whose key has moved is
+ * carried into the other language on its own — where writing only the text
+ * would leave the loop putting the phrase for the other reading back.
+ */
+function sayInstead(node, key) {
+  node.dataset.i18n = key;
+  node.textContent = t(key);
+}
+
+/**
+ * Whether a card is drawn to a scale of its own.
+ *
+ * `spec.ownScale` says the card's quantity cannot be compared with the flows:
+ * a balance either dwarfs a cumulative flow or is dwarfed by it, and put on the
+ * shared scale it reads as a flat line along the axis. Read a month at a time
+ * nothing on the page is a balance any more — every card shows what moved
+ * during one month, which is the same kind of figure everywhere — so the
+ * exception lapses with the reading.
+ *
+ * Asked here rather than at both call sites, because the shared extent and a
+ * card's own domain have to give the same answer: disagree and a card is drawn
+ * to one scale while its axis describes another.
+ */
+function ownScaleOf(spec) {
+  return Boolean(spec.ownScale) && !monthly;
+}
+
 function activeCharts(projection) {
   return CHARTS.filter((spec) => !spec.when || spec.when(projection));
 }
 
-/** Every word a card owns, in the language of the moment. */
+/**
+ * One of a card's phrases, in the reading on screen.
+ *
+ * The per-month wording lives under the card's own key rather than in a
+ * dictionary of its own, so a card that learns a new word learns it for both
+ * readings in one place, and the key set says outright which cards have two.
+ */
+function chartWord(key, part) {
+  return t(monthly ? `chart.${key}.monthly.${part}` : `chart.${key}.${part}`);
+}
+
+/** Every word a card owns, in the language and the reading of the moment. */
 function chartWords(spec) {
-  const title = t(`chart.${spec.key}.title`);
+  const title = chartWord(spec.key, 'title');
   return {
     title,
-    description: t(`chart.${spec.key}.description`),
+    description: chartWord(spec.key, 'description'),
     labels: {
       showTable: t('chart.showTable'),
       hideTable: t('chart.hideTable'),
-      tableCaption: t('chart.tableCaption', title),
+      tableCaption: t(monthly ? 'chart.monthlyCaption' : 'chart.tableCaption', title),
       monthColumn: t('chart.monthColumn'),
       ariaLabel: (months, endValue, count) => t('chart.aria', title, months, endValue, count),
       reading: (month, value) => t('chart.reading', month, value),
@@ -484,8 +739,15 @@ function syncCharts(specs) {
   for (const chart of charts) ui.charts.appendChild(chart.instance.element);
 }
 
-/** Re-word every standing card, for a language change. Rebuilding them would
- *  say the same thing and shut every open table doing it. */
+/** Which reading the standing cards are worded for. A card built while the
+ *  per-month view is on is worded for it at birth, so this only has to catch
+ *  the cards that were already there when the reader pressed the chip. */
+let wordedMonthly = monthly;
+
+/** Re-word every standing card, for a language change or a change of reading.
+ *  Rebuilding them would say the same thing and shut every open table doing
+ *  it — and `setLabels` redraws, so this is not something to do per keystroke:
+ *  `render` asks only when the reading has actually moved. */
 function relabelCharts() {
   for (const chart of charts) {
     const words = chartWords(chart);
@@ -496,12 +758,21 @@ function relabelCharts() {
     });
     chart.instance.setLabels(words.labels);
   }
+  wordedMonthly = monthly;
+}
+
+// One chip per reading rather than one that flips: both readings are named, so
+// nobody has to press a button to find out what it does. The guard keeps a
+// second press of the chip already showing from redrawing five cards.
+for (const [button, wanted] of [[ui.viewTotal, false], [ui.viewMonthly, true]]) {
+  button.addEventListener('click', () => {
+    if (monthly === wanted) return;
+    monthly = wanted;
+    render();
+  });
 }
 
 /* --------------------------------------------------------------- comparing */
-
-/** Which quantity the comparison chart is showing. */
-const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'profit', 'owned', 'debt'];
 
 /** Metrics that say nothing until the thing they measure exists. */
 const CONDITIONAL_METRICS = {
@@ -511,6 +782,24 @@ const CONDITIONAL_METRICS = {
   owned: (projections) => projections.some((p) => hasOwned(p)),
   debt: (projections) => projections.some((p) => hasDebt(p)),
 };
+
+/**
+ * Which quantity a reading falls back to when nobody has picked one: the total
+ * wherever the comparison offers it, and the net wherever it does not — which
+ * is exactly where the two are the same figure, because worth only parts from
+ * net once something is invested, owed or owned.
+ *
+ * Four places needed that answer and each had written it out in its own words:
+ * the two fallbacks in `renderMetrics`, the gap column's heading, and the note
+ * under the chart. They have to agree — a table headed "Total vs the first"
+ * sitting under a chart titled Net is the bug that kept coming back — so the
+ * question gets asked in one place now, and whatever comes to need it next asks
+ * the same one rather than writing a fifth copy.
+ */
+function preferredMetric(projections) {
+  return CONDITIONAL_METRICS.worth(projections) ? 'worth' : 'net';
+}
+
 let metric = 'net';
 /** Whether the reader has picked a column themselves; until then it follows. */
 let metricChosen = false;
@@ -563,12 +852,12 @@ function renderMetrics(projections) {
   // Until the reader picks a column, show the one the note and the gap are
   // judged on. Otherwise a strategy that invests everything is announced as
   // coming out ahead directly above a chart showing its net far behind.
-  if (!metricChosen) metric = wanted.includes('worth') ? 'worth' : 'net';
+  if (!metricChosen) metric = preferredMetric(projections);
   // The same preference when a chosen column disappears, rather than dropping
   // to Net for good: the note and the gap column are judged on the total, so
   // falling past it left the chart titled Net under a table headed "Total vs
   // the first" and a note quoting a total.
-  if (!wanted.includes(metric)) metric = wanted.includes('worth') ? 'worth' : 'net';
+  if (!wanted.includes(metric)) metric = preferredMetric(projections);
 
   let cursor = ui.compareMetrics.firstChild;
   for (const key of wanted) {
@@ -630,7 +919,7 @@ function renderCompareTable(projections) {
   }
   const deltaHead = html('th', 'num', ui.compareHead);
   deltaHead.scope = 'col';
-  deltaHead.textContent = t('compare.deltaColumn', t(`compare.metric.${shows('worth') ? 'worth' : 'net'}`));
+  deltaHead.textContent = t('compare.deltaColumn', t(`compare.metric.${preferredMetric(projections)}`));
 
   // Judged on the total, not the net: a strategy that puts everything into an
   // investment keeps less cash and would read as "behind" while being ahead.
@@ -932,10 +1221,8 @@ function renderComparison(projections) {
     // question the section answers. But it has to say so: read out above a
     // chart of Profit, an unqualified "comes out ahead" named the plan with the
     // lowest profit of the three, and quoted a figure that was nowhere on it.
-    // Named as Total where the comparison offers it, and as Net where it does
-    // not — which is exactly where the two are the same figure, because worth
-    // only parts from net once something is invested, owed or owned.
-    const judged = CONDITIONAL_METRICS.worth(projections) ? 'worth' : 'net';
+    // So it names the quantity, and names it the way the gap column does.
+    const judged = preferredMetric(projections);
     ui.compareNote.textContent = t(
       'compare.note',
       nameOf(best.strategy, best.index, t),
@@ -947,6 +1234,438 @@ function renderComparison(projections) {
 }
 
 let compareNoteTimer = 0;
+
+/* ---------------------------------------------------------------- ranking */
+
+/**
+ * The last ranking worked out, kept beside the exact question it answers.
+ *
+ * Ranking a plan is two projections per field, and `render()` runs on every
+ * keystroke — including the ones in a name box, which move no figure at all.
+ * So the answer is kept with everything it was worked out from, and any render
+ * that did not change the question gets it back for nothing.
+ */
+let ranked = { question: '', rows: [] };
+
+/** Worked out once the typing settles rather than on every keystroke: this is
+ *  the one reading in the app that a hundred fields could make genuinely
+ *  expensive, and half a second of the previous answer is the same bargain the
+ *  notes under the charts and the comparison already strike. */
+let rankTimer = 0;
+
+/**
+ * Everything a ranking depends on, written down. The fields carry their own
+ * amounts and windows, and the rest of it is the horizon, the money the figures
+ * are read in, and the column they are judged on — nothing else reaches the
+ * swings, so two renders agreeing on this agree on the answer.
+ */
+function rankingQuestion(projection, key) {
+  return JSON.stringify([
+    projection.fields, projection.months, projection.taxRate,
+    state.realMoney, state.inflation, key,
+  ]);
+}
+
+/** Emptied when the plans themselves are thrown away, rather than left holding
+ *  a ranking of something that is no longer on the device. */
+function forgetRanking() {
+  ranked = { question: '', rows: [] };
+}
+
+/** The rows, and the line saying what they are. Split out from the deciding
+ *  above it because the same rows are painted whether they were just worked
+ *  out or came back out of the last answer. */
+function paintRanking(projection, key) {
+  ui.rankNote.textContent = t('rank.note', t(`compare.metric.${key}`), projection.months);
+  // The largest swing is the first, so it is what every bar is drawn against.
+  const widest = ranked.rows.length ? Math.abs(ranked.rows[0].swing) : 0;
+  // A plan can hold nothing at all that touches the column being read — every
+  // plan the app opens with is like that on Profit inside twenty years, because
+  // the fund only starts once the housing is paid for. There is no order to put
+  // those fields in, so the fact is said once instead of on every line.
+  ui.rankList.hidden = !widest;
+  ui.rankSaid.hidden = Boolean(widest);
+
+  // Rebuilt rather than reconciled, the way the comparison table is: there is
+  // nothing here to focus and so nothing to lose by replacing it.
+  ui.rankList.textContent = '';
+  if (!widest) {
+    ui.rankSaid.textContent = t('rank.said.nothing', t(`compare.metric.${key}`));
+    return;
+  }
+  for (const row of ranked.rows) {
+    const item = html('li', 'rank-row', ui.rankList);
+    const name = html('span', 'rank-name', item);
+    name.textContent = labelOf(row.field, t) || t('sankey.unnamed');
+
+    const track = html('span', 'rank-track', item);
+    // The drawing says nothing the line beside it does not, so it is chrome.
+    track.setAttribute('aria-hidden', 'true');
+    const bar = html('span', 'rank-bar', track);
+    // Every swing that exists gets a visible sliver — the rule the flow diagram
+    // gives every ribbon, and for the same reason — while a field that really
+    // does move nothing gets no bar at all rather than one saying otherwise.
+    bar.style.width = row.swing
+      ? `max(2px, ${((Math.abs(row.swing) / widest) * 100).toFixed(2)}%)`
+      : '0';
+
+    const value = html('span', 'rank-value', item);
+    // The sign is the comparison's, spelled once. A swing is ahead or behind in
+    // exactly the way a strategy is, and a second spelling would be a second
+    // typographic minus sign waiting to disagree with the first.
+    value.textContent = row.swing
+      ? t(row.swing > 0 ? 'compare.ahead' : 'compare.behind', formatAmount(Math.abs(row.swing)))
+      : t('rank.nothing');
+  }
+}
+
+/**
+ * Which of the reader's figures actually decide where this plan lands.
+ *
+ * **Called after `renderComparison`, and not by accident.** The column the list
+ * is judged on is the one the comparison is showing, and `renderMetrics` is
+ * what settles that for this frame — it may have just moved, because a metric
+ * whose subject has left the plan falls back to the preferred one. Called
+ * first, this would rank against the column that was on screen a moment ago.
+ * Nothing in the code below says so, which is why it is said here.
+ */
+function renderRanking(projection, projections) {
+  // Two amounts is the least that can be put in an order; one field ranked
+  // against nothing is a single line announcing that it matters most.
+  const rankable = projection.fields.filter((field) => toAmount(field.amount) > 0).length > 1;
+  ui.rank.hidden = !rankable;
+  window.clearTimeout(rankTimer);
+  if (!rankable) {
+    // Dropped rather than kept: a plan emptied and filled again would otherwise
+    // put the old ranking back on screen while the new one is being worked out.
+    forgetRanking();
+    return;
+  }
+
+  // The comparison's own column wherever there is a comparison — a reader who
+  // switched those chips to Profit is asking about profit, and a list ranked on
+  // something else directly underneath would answer a question nobody put. With
+  // one plan there are no chips, so it falls back to the same preference the
+  // comparison itself would have opened on.
+  const key = projections.length > 1 ? metric : preferredMetric(projections);
+  const question = rankingQuestion(projection, key);
+  const answer = () => {
+    if (question !== ranked.question) {
+      ranked = { question, rows: swingsOf(projection, key, projectionFor) };
+    }
+    paintRanking(projection, key);
+  };
+
+  // Already answered, or nothing on screen yet that waiting could keep honest:
+  // either way there is nothing to be gained by making the reader wait for it.
+  if (question === ranked.question || !ranked.rows.length) answer();
+  else rankTimer = window.setTimeout(answer, 500);
+}
+
+/* -------------------------------------------------------------- milestones */
+
+/*
+ * The app's largest declared limitation is that nothing in the model is
+ * conditional — the months the renters buy were worked out by hand and written
+ * into `strategies.js`, because "as soon as savings reach 100,000" is not a
+ * rule a projection can obey. Nothing here changes that. It does not have to:
+ * "the first month savings reach 100,000" is a read over the answer, and the
+ * answer is already in `projection.points`. So this section runs no model of
+ * its own and adds no pass over the fields — it looks at what has already been
+ * computed and says which month it crossed.
+ */
+
+/**
+ * Which column a new target opens on.
+ *
+ * Module state for the same reason `metric` is: it is settled by a render and
+ * read by a command that happens between two of them. Without it, adding a
+ * target would have to run every projection again purely to find out what the
+ * page is currently being judged on.
+ */
+let preferred = 'net';
+
+/**
+ * When a target is met, in words.
+ *
+ * Three answers, and the third is one: a target the plan never reaches says so
+ * where the month would have been, rather than being left to fall off the end
+ * of a chart with nothing to explain the absence.
+ */
+function milestoneSaid(projection, milestone) {
+  const reading = whenMet(projection, milestone, toNumber);
+  if (!reading) return t('milestone.said.pending');
+  if (reading.month === null) {
+    return t('milestone.said.never', formatHorizon(projection.months, t), formatAmount(reading.value));
+  }
+  // Month 0 is not a month the plan arrives at, it is where the plan starts.
+  // "First true at month 0" would offer a date for something that was never
+  // not the case — the house the borrower's plan opens owning, for instance.
+  if (reading.month === 0) return t('milestone.said.always', formatAmount(reading.value));
+  return t('milestone.said.met', reading.month, formatAmount(reading.value));
+}
+
+/**
+ * The months to rule on the cards: every target this plan actually meets.
+ *
+ * Read against the plan on screen, and drawn only on that plan's cards. The
+ * comparison chart deliberately gets none: it holds four plans at once, and a
+ * month read off one of them ruled across all four would be a claim about
+ * plans it was never read from.
+ *
+ * Months are pooled rather than listed, so two targets met in the same month
+ * are one line instead of two drawn exactly on top of each other.
+ */
+function milestoneRules(projection) {
+  const months = new Set();
+  for (const milestone of state.milestones) {
+    const reading = whenMet(projection, milestone, toNumber);
+    if (reading && reading.month !== null) months.add(reading.month);
+  }
+  return [...months].map((month) => ({ month }));
+}
+
+/* ------------------------------------------------------- the same, backwards */
+
+/*
+ * A target the plan never reaches is where the question turns round: the
+ * destination is known and the figure is not. So the ask is a verb on that
+ * answer rather than a control of its own — no dialog, and no fourth button on
+ * every field row in the app — and it needs no second vocabulary, because the
+ * quantity and the figure are the ones already in the boxes above it.
+ *
+ * `solve.js` does the searching and the refusing. What is here is the wiring:
+ * which target is holding an answer, and whether it is still the answer to the
+ * question that was asked.
+ */
+
+/** Whether a target is one the plan misses — the whole of what the ask is for. */
+function unreached(projection, milestone) {
+  const reading = whenMet(projection, milestone, toNumber);
+  return Boolean(reading) && reading.month === null;
+}
+
+/**
+ * The one answer the app is holding, and everything it was worked out from.
+ *
+ * Kept the way a ranking is kept, and for the same reason: it costs several
+ * dozen projections and `render()` runs on every keystroke, so an answer is
+ * shown back only where nothing it depended on has moved. Anything that would
+ * change it — the fields, the horizon, the money, the target itself — instead
+ * takes it off the screen, because an answer to a question nobody is asking any
+ * more is worse than no answer at all.
+ *
+ * What is kept is the *finding* rather than the sentence. The language is not
+ * part of the question — a figure is the same figure in French — so an answer
+ * worded once would sit there in English after the reader switched, which is
+ * the one thing on the page that would not have followed them.
+ */
+let asked = { id: '', key: '', question: '', result: null };
+
+/** Everything an answer depends on, written down. */
+function goalQuestion(projection, milestone, key) {
+  return JSON.stringify([
+    projection.fields, projection.months, projection.taxRate,
+    state.realMoney, state.inflation, milestone.metric, milestone.amount, key,
+  ]);
+}
+
+/** Emptied when the plans it was an answer about are thrown away. */
+function forgetAsked() {
+  asked = { id: '', key: '', question: '', result: null };
+}
+
+/**
+ * A solved figure, written the way the box it belongs in writes one.
+ *
+ * A rate goes through `formatTyped` rather than `formatRate`, which is what
+ * every rate on screen otherwise uses: `formatRate` floors at nothing, because
+ * the rates it writes are ones a reader typed and a box that shows a negative
+ * one has been misread. A solved rate genuinely can be negative — "the living
+ * costs would have to climb by -9% a year or less" is a real answer to a real
+ * target — and it is a figure to be typed back into a box, so it takes the
+ * reader's own decimal separator and no grouping.
+ */
+function goalFigure(knob, value) {
+  return knob === 'annualRate' ? t('goal.rate', formatTyped(value)) : formatAmount(value);
+}
+
+/** What one candidate is called: a field, and which of its two figures. */
+function goalName(candidate) {
+  // The same fallback the ranking uses, for the same reason: a field nobody has
+  // named still has to be pickable out of a list of its neighbours.
+  return t('goal.candidate', labelOf(candidate.field, t) || t('sankey.unnamed'), t(`goal.knob.${candidate.knob}`));
+}
+
+/**
+ * The answer in words — or the refusal, which gets exactly as many of them.
+ *
+ * A refusal is not an error message and is not written like one. It is the app
+ * saying which of four different things it found, and each of the four sends a
+ * reader somewhere else in their plan.
+ */
+function goalSaid(candidate, result) {
+  if (!result) return '';
+  const name = labelOf(candidate.field, t) || t('sankey.unnamed');
+  const figure = t(`goal.knob.${candidate.knob}`);
+  if (result.refusal) return t(`goal.refusal.${result.refusal}`, name, figure);
+  return t(
+    `goal.said.${result.bound}`,
+    name, figure, goalFigure(candidate.knob, result.answer), result.month,
+  );
+}
+
+/** Work one target backwards, and remember the answer against its question. */
+function askGoal(id, key) {
+  const projection = projectionFor(fields());
+  const milestone = state.milestones.find((entry) => entry.id === id);
+  const candidate = candidatesOf(projection.fields).find((entry) => entry.key === key);
+  // Nothing to ask about leaves nothing standing: the answer on screen was to
+  // some other question, and it is not made truer by this one failing.
+  if (!milestone || !candidate) {
+    forgetAsked();
+    return;
+  }
+  const result = solveFor({
+    fields: projection.fields,
+    fieldId: candidate.field.id,
+    knob: candidate.knob,
+    milestone,
+    // The same run every other reading on the page is made with, so an answer
+    // is in the money the page is being read in rather than in the model's.
+    run: projectionFor,
+    read: toNumber,
+  });
+  asked = { id, key, question: goalQuestion(projection, milestone, key), result };
+}
+
+function milestoneLabels(projection) {
+  const offered = candidatesOf(projection.fields);
+  // Only one target holds an answer at a time, so whether that answer is still
+  // an answer to the question it was given is settled once here rather than
+  // re-derived on every row — and it is put into words here too, on the render
+  // that shows it, so that it is in the language the page is in now.
+  const holder = state.milestones.find((milestone) => milestone.id === asked.id);
+  const standing = Boolean(asked.result) && Boolean(holder)
+    && goalQuestion(projection, holder, asked.key) === asked.question;
+  const candidate = standing ? offered.find((entry) => entry.key === asked.key) : null;
+  const answer = candidate ? goalSaid(candidate, asked.result) : '';
+
+  return {
+    add: t('milestone.add'),
+    what: t('milestone.what'),
+    figure: t('milestone.figure'),
+    figureNamed: (metric) => t('milestone.figureNamed', metric),
+    removeNamed: (metric) => t('milestone.removeNamed', metric),
+    // The comparison's own names, never a second spelling of the same eight
+    // quantities: "Total" reading one way in a chip and another in a target is
+    // two words for one thing on one page.
+    metricName: (key) => t(`compare.metric.${key}`),
+    // Worded here rather than in the view, because the month is a read over a
+    // projection and the view has never seen one.
+    said: (milestone) => milestoneSaid(projection, milestone),
+    ask: t('goal.ask'),
+    askNamed: (metric) => t('goal.askNamed', metric),
+    choose: t('goal.choose'),
+    chooseNamed: (metric) => t('goal.chooseNamed', metric),
+    // Every figure in the plan that can be asked backwards about, named. The
+    // list is the same on every row — it is a property of the plan rather than
+    // of the target — so it is built once a render rather than once a row.
+    candidates: offered.map((entry) => ({ key: entry.key, name: goalName(entry) })),
+    canAsk: (milestone) => unreached(projection, milestone),
+    asked: (milestone) => (milestone.id === asked.id ? answer : ''),
+  };
+}
+
+function renderMilestones(projection) {
+  const marked = state.milestones.length > 0;
+  ui.milestones.hidden = !marked;
+  // What the ask can do and what it refuses to, shown where the ask is: on a
+  // page where every target is met it would be a caveat about a control the
+  // reader has never been offered.
+  ui.goalCaveat.hidden = !state.milestones.some((milestone) => unreached(projection, milestone));
+  // One affordance in. The button under the cards is the whole of the feature
+  // until there is something to show, and it goes the moment the section it
+  // opens can speak for itself — two ways to add the first target, one of them
+  // permanently visible, is an empty state wearing a button.
+  ui.addMilestone.hidden = marked;
+  // Written even when there is nothing to write. Skipping it while the section
+  // is hidden would leave the row of a removed target standing inside it,
+  // invisible and out of date, waiting to be shown again by the next target
+  // somebody adds.
+  milestoneList.update(state.milestones, milestoneLabels(projection));
+}
+
+/** Every edit the target list can ask for. */
+function runMilestoneCommand(command) {
+  switch (command.type) {
+    case 'update':
+      state.milestones = updateMilestone(state.milestones, command.id, command.patch, METRICS);
+      break;
+
+    case 'settle': {
+      // The reader left the box: show the figure the read will actually use, in
+      // their own decimal separator. Unlike a field's amount this keeps its
+      // sign — a field's direction carries the sign so the box never needs one,
+      // and a target has no direction: "net reaches −5,000" is a perfectly fair
+      // thing to want the month of.
+      const patch = { ...command.patch };
+      const figure = toNumber(patch.amount);
+      patch.amount = Number.isFinite(figure) ? formatTyped(roundToCent(figure)) : '';
+      state.milestones = updateMilestone(state.milestones, command.id, patch, METRICS);
+      break;
+    }
+
+    case 'add': {
+      const before = new Set(state.milestones.map((milestone) => milestone.id));
+      // Opened on whatever the page is being judged on, so the reader's first
+      // move is to type a figure rather than to go looking for a column.
+      state.milestones = addMilestone(state.milestones, METRICS, { metric: preferred });
+      const created = state.milestones.find((milestone) => !before.has(milestone.id));
+      persist();
+      render();
+      // Adding the first target hides the button that was just pressed, and
+      // setting `hidden` on the focused element drops focus to the document —
+      // so it is put on the box the reader now has to fill in.
+      milestoneList.focus(created ? created.id : null);
+      return;
+    }
+
+    case 'ask':
+      // Worked out here rather than in the view for the reason the month under
+      // each row is: it is a read over projections the view has never seen. It
+      // is also the one command in this list that changes no state a plan
+      // carries — the answer is said, and nothing is written into the plan —
+      // so it neither persists nor checkpoints anything.
+      askGoal(command.id, command.key);
+      render();
+      return;
+
+    case 'remove': {
+      // The fifth undoable move, and the one the gap was filed without: a
+      // target is a figure somebody typed, and the button that removes it is
+      // the same button that removes a field.
+      checkpoint('milestone');
+      const neighbour = milestoneNeighbourOf(state.milestones, command.id);
+      state.milestones = removeMilestone(state.milestones, command.id);
+      persist();
+      render();
+      // Removing the last one hides the section this button lived in, which
+      // takes focus with it: land it on the way back in.
+      if (state.milestones.length) milestoneList.focus(neighbour);
+      else ui.addMilestone.focus();
+      return;
+    }
+
+    default:
+      return;
+  }
+
+  persist();
+  render();
+}
+
+ui.addMilestone.addEventListener('click', () => runMilestoneCommand({ type: 'add' }));
 
 /* --------------------------------------------------------------- field list */
 
@@ -1118,6 +1837,9 @@ function runStrategyCommand(command) {
     }
 
     case 'remove': {
+      // A whole plan, which is the largest thing one press can throw away short
+      // of starting again.
+      checkpoint('strategy');
       const neighbour = strategyNeighbourOf(state.strategies, state.activeId);
       state.strategies = removeStrategy(state.strategies, state.activeId);
       state.activeId = activeIdOf(state.strategies, neighbour);
@@ -1207,6 +1929,10 @@ function runCommand(command) {
     }
 
     case 'remove': {
+      // First, before anything is taken away — and a synced field is removed
+      // from every plan at once, so what has to be photographed is the whole
+      // state rather than the list on screen.
+      checkpoint('field');
       const neighbour = neighbourOf(fields(), command.id);
       const field = fieldById(command.id);
       // A synced field is one field. Removing it here removes it, full stop —
@@ -1273,13 +1999,24 @@ function render() {
   );
   const projection = projections[activeIndex()];
   const hasInput = hasAmounts(projection);
+  // Settled once a frame so that a command landing between two renders — adding
+  // a target, say — can ask what the page is being judged on without running
+  // every projection a second time to find out.
+  preferred = preferredMetric(projections);
 
   // The conditional cards come and go with the fields, so they are rebuilt
   // only when the set actually changes rather than on every keystroke.
   const wantsInvestments = investsInside(projection);
   const specs = activeCharts(projection);
   syncCharts(specs);
-  const series = specs.map((spec) => seriesOf(projection, spec.key));
+  // A card built just now was worded for the reading on screen; one that was
+  // already standing was not, and `setLabels` redraws it — so this is asked
+  // only when the reading has moved, never on a keystroke.
+  if (wordedMonthly !== monthly) relabelCharts();
+  // Every series on the page comes through here, so the two readings can never
+  // end up drawn from different runs of the model.
+  const readingOf = (run, key) => (monthly ? monthlyOf(run, key) : seriesOf(run, key));
+  const series = specs.map((spec) => readingOf(projection, spec.key));
 
   // The two runs behind a band: the same plan with every return moved down and
   // up. Only worth computing when something actually depends on a return.
@@ -1288,22 +2025,27 @@ function render() {
     && (investsInside(projection) || hasOwned(projection));
   const lower = ranged ? projectionFor(shiftReturns(projection.fields, -spread)) : null;
   const upper = ranged ? projectionFor(shiftReturns(projection.fields, spread)) : null;
+  // The bounds are differenced with the series they bound, so the ribbon is
+  // the range around the month's change rather than around the running total.
+  // The two cross in the month a holding is cashed in — the run that grew more
+  // has more to sell, so its drop is the deeper one — and the ribbon pinches
+  // there. That is the reading, not a fault in the drawing.
   const bands = specs.map((spec) => (ranged && BAND_KEYS.has(spec.key) ? {
-    low: seriesOf(lower, spec.key),
-    high: seriesOf(upper, spec.key),
+    low: readingOf(lower, spec.key),
+    high: readingOf(upper, spec.key),
     lowLabel: t('chart.bandLow'),
     highLabel: t('chart.bandHigh'),
   } : null));
 
   // A band that ran off the plot would be worse than no band, so the scale
   // counts its edges as points of their own.
-  const references = specs.map((spec) => (spec.reference ? seriesOf(projection, spec.reference) : null));
+  const references = specs.map((spec) => (spec.reference ? readingOf(projection, spec.reference) : null));
   const spanOf = (index) => [
     series[index],
     ...(bands[index] ? [bands[index].low, bands[index].high] : []),
     ...(references[index] ? [references[index]] : []),
   ];
-  const shared = extentOf(specs.flatMap((spec, index) => (spec.ownScale ? [] : spanOf(index))));
+  const shared = extentOf(specs.flatMap((spec, index) => (ownScaleOf(spec) ? [] : spanOf(index))));
   // One geometry for all three cards: the widest end-label decides the gutter,
   // so the small multiples are drawn to the same pixel scale and can be
   // compared by eye, not just by their axes.
@@ -1342,6 +2084,13 @@ function render() {
   ui.windowNote.hidden = !projection.fields.some(
     (field) => field.startMonth || field.endMonth,
   );
+  ui.viewTotal.setAttribute('aria-pressed', monthly ? 'false' : 'true');
+  ui.viewMonthly.setAttribute('aria-pressed', monthly ? 'true' : 'false');
+  // The key is moved, not just the text: `applyLanguage` relabels by whatever
+  // `data-i18n` says, so a node whose key has moved comes back in the other
+  // language already saying the right thing, with nothing here to remember.
+  sayInstead(ui.chartsHeading, monthly ? 'charts.monthlyHeading' : 'charts.heading');
+  sayInstead(ui.chartsScaleNote, monthly ? 'charts.monthlyNote' : 'charts.scaleNote');
   ui.charts.dataset.count = String(specs.length);
   // What went in, what it became, and what is left of the difference after
   // tax — the three figures that answer "is this actually working?".
@@ -1378,19 +2127,24 @@ function render() {
   ui.worthLabel.textContent = t('summary.worth', projection.months);
   ui.worthValue.textContent = hasInput ? formatAmount(projection.totals.worth) : '—';
 
+  // Worked out before the cards are drawn, because the rules go on them. It is
+  // one pass over points that already exist: the model is not run again, and
+  // could not be — a milestone is a read over its answer, never a rule in it.
+  const rules = milestoneRules(projection);
+
   charts.forEach((chart, index) => {
     chart.instance.update({
       series: [
         {
           id: chart.key,
-          label: t(`chart.${chart.key}.series`),
+          label: chartWord(chart.key, 'series'),
           color: `var(${chart.colorVar})`,
           points: series[index],
           band: bands[index],
         },
         ...(references[index] ? [{
           id: chart.reference,
-          label: t(`chart.${chart.reference}.series`),
+          label: chartWord(chart.reference, 'series'),
           // Neutral on purpose: a reference is not a category, so it takes no
           // slot in a palette that has none left to give.
           color: 'var(--text-muted)',
@@ -1398,16 +2152,23 @@ function render() {
           dashed: true,
         }] : []),
       ],
-      domain: specs[index].ownScale ? extentOf(spanOf(index)) : shared,
+      domain: ownScaleOf(specs[index]) ? extentOf(spanOf(index)) : shared,
       months: projection.months,
+      // The same months on every card, in both readings: a month is a month
+      // whether the card is showing a running total or what moved during it.
+      rules,
       labelPad,
       isEmpty: !hasInput,
       emptyMessage: t('charts.empty'),
     });
   });
 
+  renderMilestones(projection);
   renderSankey(projection);
   renderComparison(projections);
+  // After the comparison, always: that call is what settles the column the
+  // ranking is judged on. `renderRanking` says why at length.
+  renderRanking(projection, projections);
 
   // Under a year the horizon restates the month count ("1 month · 1 mo"), so it
   // is only worth spelling out once there are years to spell out.
@@ -1422,6 +2183,10 @@ function render() {
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   }
 
+  // Here rather than at the five places that push a snapshot, so that the
+  // control cannot get out of step with the stack: a render is what draws the
+  // page from the state, and whether there is a way back is part of the state.
+  renderUndo();
   renderSummary(projection, hasInput);
 }
 
@@ -1548,11 +2313,22 @@ function renderAbout() {
  * the store and the new ones on screen.
  */
 function resetToDefaults() {
+  // Before the assignment, because after it there is nothing left to photograph.
+  // The confirm stays: undo is a way back while this tab is open and not after,
+  // which is a smaller promise than the one that would let the question go.
+  checkpoint('reset');
   Object.assign(state, defaultState());
-  // Which column the comparison shows is module state rather than stored
-  // state, so it survived the reset: the button promises to land you exactly
-  // where a new reader lands, and a first load has picked nothing.
+  // Which column the comparison shows, and which of the two readings the cards
+  // are in, are module state rather than stored state, so both survived the
+  // reset: the button promises to land you exactly where a new reader lands,
+  // and a first load has picked neither.
   metricChosen = false;
+  monthly = false;
+  // And the ranking is an answer about plans that are about to stop existing.
+  forgetRanking();
+  // As is the answer to "what would it take?", which was worked out about a
+  // target that is about to stop existing too.
+  forgetAsked();
   fillControls();
   save();
   render();
@@ -1640,6 +2416,15 @@ const list = createFieldList({
   labels: fieldLabels(),
   t,
   onCommand: runCommand,
+});
+
+// The eight quantities are handed in rather than looked up: which of them a
+// target may watch is the app's decision, and there is one list of them.
+const milestoneList = createMilestoneList({
+  mount: ui.milestoneMount,
+  metrics: METRICS,
+  labels: milestoneLabels(projectionFor(fields())),
+  onCommand: runMilestoneCommand,
 });
 
 function applyLanguage(next) {
@@ -1933,6 +2718,12 @@ function roomForShared() {
  * through the debounce, for the reason "Start again" is.
  */
 function adoptPlan(plan, { replacing } = {}) {
+  // On every adoption, not only the one with no room. Adding somebody's plans
+  // beside your own throws nothing away, but it does change the horizon, the
+  // assumptions and every target on the page — and a reader who opened a link
+  // to look at it should be able to put the page back the way it was without
+  // having to remember what their own numbers were.
+  checkpoint('shared');
   // Stamped as shared here rather than where the link is unpacked: what a plan
   // was to whoever sent it is their business, and to whoever opens it, it
   // arrived from outside.
@@ -1951,11 +2742,27 @@ function adoptPlan(plan, { replacing } = {}) {
     spread: toRateText(plan.spread, DEFAULT_SPREAD),
     showRange: plan.showRange === true,
     tax: toRateText(plan.tax, DEFAULT_TAX),
+    // The targets come with the plan for the reason the horizon does. They are
+    // asked of every strategy at once, so there is one set of them however many
+    // plans are on the device — and they are part of what somebody is sending:
+    // "here is how I would buy it" usually means "and here is when it happens".
+    milestones: normalizeMilestones(plan.milestones, METRICS),
   });
   // Which column the comparison shows is module state rather than stored state,
   // so it would otherwise survive into somebody else's plan and pick a metric
   // they never chose.
   metricChosen = false;
+  // The reading deliberately does not reset with it, and the asymmetry is the
+  // point: a chosen metric is a claim about what a plan contains, and the
+  // arriving plan may not contain it, whereas both readings exist for every
+  // plan there is. Someone who switched to the per-month view in order to look
+  // at a link is looking that way at the link too.
+  //
+  // The ranking is neither of those things: it is an answer about the fields
+  // that were here, and after this the plan on screen is somebody else's. The
+  // same goes for anything the solver was asked about them.
+  forgetRanking();
+  forgetAsked();
   fillControls();
   save();
   render();

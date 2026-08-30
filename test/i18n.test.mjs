@@ -70,6 +70,38 @@ test('every phrase the page asks for by name is one the dictionary has', async (
   }
 });
 
+test('the English written into the markup is the English the dictionary has', async () => {
+  // Every `data-i18n` element carries its phrase inline as well as by key, and
+  // nothing held the two together: the inline copy is what shows for the
+  // instant before `applyLanguage` runs, and what anyone reading index.html
+  // takes the app to say. Seven of them had drifted without a reader ever
+  // seeing it — the hint under the fields still described the app as it was
+  // before loans and investments existed, the scale note still promised three
+  // charts on one scale, three rate labels had lost ", as a percentage", one
+  // apostrophe was straight where the dictionary's is typographic, and the
+  // button on a shared plan still offered to "Open the shared plan" after that
+  // choice became "Add to my plans". Invisible drift is the kind that lasts.
+  const { readFile } = await import('node:fs/promises');
+  const markup = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const elements = [...markup.matchAll(/<(\w+)\b[^>]*\bdata-i18n="([^"]+)"[^>]*>([\s\S]*?)<\/\1>/g)];
+  // An element this cannot read would be one it silently never checked, so the
+  // count is held to the attributes rather than merely to "more than a few".
+  const named = markup.match(/\bdata-i18n="/g).length;
+  assert.equal(elements.length, named, 'every data-i18n element was read back out of the markup');
+  for (const [, , key, inner] of elements) {
+    // HTML collapses runs of the four space characters, so a phrase wrapped
+    // across lines in the source is still the same phrase. `\s` is the wrong
+    // class here: it would eat the no-break spaces French sets, and those are
+    // exactly the characters the dictionary is careful about.
+    const written = inner.replace(/[\t\n\f\r ]+/g, ' ').trim();
+    // An element the app fills in ships empty on purpose, so that it never
+    // flashes a phrase it is about to replace; and a phrase that takes
+    // parameters has no single spelling to write into the markup at all.
+    if (!written || typeof STRINGS.en[key] === 'function') continue;
+    assert.equal(written, STRINGS.en[key], `index.html spells ${key} differently from the dictionary`);
+  }
+});
+
 test('an unknown key degrades to English, then to the key itself', () => {
   const fr = makeTranslator('fr');
   assert.equal(fr('nope.not.here'), 'nope.not.here');

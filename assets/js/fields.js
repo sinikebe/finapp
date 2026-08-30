@@ -282,6 +282,42 @@ export function duplicateField(fields, id, nameCopy, t) {
   return [...list.slice(0, index + 1), copy, ...list.slice(index + 1)];
 }
 
+/**
+ * The same list with one field's amount moved by a fraction of itself: `0.1`
+ * for a tenth more, `-0.1` for a tenth less.
+ *
+ * It exists so a plan can be asked what one of its figures is actually worth
+ * to it — move an amount, run the projection again, and the distance between
+ * the two answers is that field's weight. Which makes it an operation over a
+ * field list like any other, and it belongs here beside them rather than in
+ * the model that will run it.
+ *
+ * How to read an amount is handed in rather than settled here, for the reason
+ * `duplicateField` takes its own naming: an amount is kept exactly as the
+ * reader typed it, in their own separators, and this file has no business
+ * knowing that twelve-fifty can be written `12,50`. The caller passes the same
+ * reader the projection uses, so the figure that moves is the figure the
+ * projection saw.
+ *
+ * A field with nothing in it comes back exactly as it stands. A tenth of
+ * nothing is nothing, and writing a `0` into an empty box would turn a
+ * question about the plan into an edit of it.
+ *
+ * @param {(amount: string) => number} read how to make a figure out of an
+ *   amount as it was written down
+ */
+export function raiseAmount(fields, id, fraction, read) {
+  const list = normalizeFields(fields);
+  const by = 1 + Number(fraction);
+  if (!Number.isFinite(by)) return list;
+  return list.map((field) => {
+    if (field.id !== id) return field;
+    const amount = read(field.amount);
+    if (!(amount > 0)) return field;
+    return normalizeField({ ...field, amount: String(amount * by) });
+  });
+}
+
 export function removeField(fields, id) {
   return normalizeFields(fields).filter((field) => field.id !== id);
 }

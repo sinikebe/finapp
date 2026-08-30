@@ -21,6 +21,7 @@
 
 import { FIELD_SHAPE, newId, normalizeFields } from './fields.js';
 import { MAX_STRATEGIES, normalizeStrategies } from './strategies.js';
+import { MAX_MILESTONES } from './milestones.js';
 
 /** What the fragment calls it: `#plan=…`. */
 export const PLAN_KEY = 'plan';
@@ -140,6 +141,16 @@ export function encodePlan(state) {
   // plan's saving and matches how a field omits its defaults.
   if (state.realMoney) plan.r = 1;
   if (state.showRange) plan.b = 1;
+  // The targets, if there are any. They go because they are part of what is
+  // being asked rather than part of the answer — somebody sending "here is how
+  // I would buy it" is usually sending "and here is when it happens" with it.
+  // Each travels as `[metric, amount]`, and that pair is a wire format like
+  // every other list here: append to it, never insert.
+  if (Array.isArray(state.milestones) && state.milestones.length) {
+    plan.ms = state.milestones.slice(0, MAX_MILESTONES).map(
+      (milestone) => [milestone.metric, milestone.amount],
+    );
+  }
 
   try {
     return toBase64Url(JSON.stringify(plan));
@@ -197,6 +208,16 @@ export function decodePlan(text) {
     tax: plan.tx,
     realMoney: plan.r === 1,
     showRange: plan.b === 1,
+    // Shaped but not judged, the way the scalars above are. Which quantities
+    // may be targeted is the app's list rather than the format's, so the caller
+    // — which holds that list — is what turns these into targets it will accept.
+    milestones: (Array.isArray(plan.ms) ? plan.ms : [])
+      .slice(0, MAX_MILESTONES)
+      .filter(Array.isArray)
+      .map(([metric, amount]) => ({
+        metric: typeof metric === 'string' ? metric : '',
+        amount: typeof amount === 'number' || typeof amount === 'string' ? String(amount) : '',
+      })),
   };
 }
 

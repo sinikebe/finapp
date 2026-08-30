@@ -231,7 +231,21 @@ button, input, output { font: inherit; color: inherit; }
 }
 .brand-mark circle { fill: var(--accent); stroke: none; }
 
-.app-bar-actions { display: flex; gap: 8px; }
+/* Wrapping, because the row grew a sixth button. Undo appears at the moment
+   something has just been thrown away, which is the worst moment for the page
+   to start scrolling sideways — and it does: at 320px the sixth button pushed
+   the document 34px wider in English and 76px in French, where every one of
+   the labels is longer. */
+.app-bar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* The receipt for a press of Undo. It takes the whole line under the buttons
+   rather than a place among them: it is a sentence and they are words, and a
+   sentence in that row would be the thing that broke it. */
+.undo-said {
+  flex-basis: 100%;
+  min-width: 0;
+  text-align: right;
+}
 
 .ghost-button {
   min-height: 36px;
@@ -1266,6 +1280,205 @@ main > section,
   color: var(--text-secondary);
 }
 .data-table .num { text-align: right; }
+
+/* --------------------------------------------------------------- ranking */
+
+/*
+ * A ranked list rather than a chart, which is the whole reason this reading is
+ * affordable: five series colours is the ceiling and every one of them is
+ * spoken for, so a sixth quantity had to be drawn in something the palette does
+ * not have to give. Neutral, dashed and muted chrome is free.
+ */
+.rank-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* Name, bar, figure. The name is capped rather than given a share of the row:
+   these are short labels, and a proportional column would push the bars into
+   the right-hand third of a wide screen, where the one thing they are for —
+   being compared with each other — is hardest to do. Both flexible tracks floor
+   at nothing rather than at their own content, since a grid item's default
+   `min-width: auto` is what pushes a page sideways. */
+.rank-row {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 13.5px;
+}
+
+/* One line, ellipsed: a field can be named up to sixty characters and the
+   figure beside it is the thing being read. */
+.rank-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.rank-track {
+  min-width: 0;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+/* Deliberately not `--accent`: that colour means focus, a link, the brand, and
+   lending it a quantitative encoding is how a palette starts drifting. A swing
+   is a size, not a category, so it is drawn in the same ink as the muted text
+   around it. */
+.rank-bar {
+  /* Blockified on purpose: width does not apply to an inline box, so without
+     this every bar in the list is drawn at nothing wide. */
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--text-muted) 80%, transparent);
+}
+
+.rank-value {
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A 320px screen has no room for three columns: the name takes its own line and
+   the bar and the figure share the next, which keeps the bars comparable to
+   each other — the only thing they are for. */
+@media (max-width: 420px) {
+  .rank-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+  .rank-name { grid-column: 1 / -1; }
+}
+
+/* ------------------------------------------------------------ milestones */
+
+/*
+ * A target is a rule and a label, not a series — which is the whole reason it
+ * costs nothing. Five series colours and four strategy colours is the ceiling
+ * and every one of them is spoken for, so this is drawn in the same neutral,
+ * dashed chrome the "paid in" reference line wears, and for the same reason: a
+ * reference is not a category.
+ *
+ * It is also dashed rather than solid because it is not a reading of anything.
+ * A solid vertical line at 1px reads as part of the plot; a dashed one in the
+ * muted ink reads as an annotation over it, which is what it is.
+ */
+.milestone-rule {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  shape-rendering: crispEdges;
+}
+
+.milestone-list { display: grid; gap: 14px; min-width: 0; }
+.milestone-rows { display: grid; gap: 10px; min-width: 0; }
+
+/* The question on one line, its answer under it — the shape a field row takes
+   for what a loan works out to, because it is the same relationship. */
+.milestone-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Wraps as a group, so a narrow screen breaks the row rather than squeezing
+   the two boxes into nothing. */
+.milestone-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.milestone-row input,
+.milestone-row select {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+}
+.milestone-row input:hover,
+.milestone-row select:hover { border-color: var(--text-muted); }
+
+/* Wide enough for the longest of the eight names in either language without
+   the select silently truncating its own label. */
+.milestone-metric { flex: 1 1 180px; max-width: 280px; }
+
+.milestone-amount {
+  flex: 1 1 120px;
+  max-width: 220px;
+  /* The value is right-aligned, so its left padding is decoration — trimming
+     it is what lets a seven-digit target fit on a phone. */
+  padding-left: 8px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.milestone-actions { flex: 0 0 auto; display: flex; gap: 2px; }
+
+/* The answer, in the same ink and the same size as everything else the app
+   derives rather than asks for. */
+.milestone-said {
+  margin: 0;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The same question asked backwards, which only a target the plan misses grows.
+   Left as a block rather than made a flex column: the answer under it is a live
+   region and so has to stay in the page whether it holds anything yet or not,
+   and a flex gap would hold six pixels open under every unanswered ask. Its own
+   margin does the spacing instead, and an empty answer gives that up. */
+.milestone-ask {
+  min-width: 0;
+  margin-top: 2px;
+}
+
+/* Wraps as a group, the way the boxes above it do: on a phone the picker takes
+   the line and the button drops under it rather than both being squeezed. */
+.milestone-asking {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Wide, because an option names a field *and* which of its figures — "The
+   house — the amount" is most of a line before the reader has renamed
+   anything. */
+.milestone-choice { flex: 1 1 240px; max-width: 400px; }
+
+/* The one thing on the row the reader asked for outright, so it is in the
+   reading ink rather than the derived grey the line above it wears. */
+.milestone-answer {
+  margin: 6px 0 0;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+/* Still in the page, so that filling it is a change to a live region a screen
+   reader is already watching — but taking up none of it. */
+.milestone-answer:empty { margin-top: 0; }
 
 /* ----------------------------------------------------------- footer/toast */
 

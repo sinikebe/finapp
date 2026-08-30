@@ -29,6 +29,13 @@
       <span>Finapp</span>
     </p>
     <div class="app-bar-actions">
+      <!-- First, and hidden until there is something to take back. Beside the
+           name rather than out at the end with the theme and the language,
+           because it is not chrome: it is about the move the reader just made,
+           and it goes again the moment that move has been undone. Its
+           accessible name says which of the five it would reverse; the button
+           itself has room for one word. -->
+      <button id="undo" class="ghost-button" type="button" data-i18n="undo.label" hidden>Undo</button>
       <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
       <button id="share-open" class="ghost-button" type="button" data-i18n="action.share">Share</button>
       <button id="about-open" class="ghost-button" type="button" data-i18n="about.open">About</button>
@@ -39,6 +46,13 @@
         <span id="theme-label" aria-hidden="true">Auto</span>
       </button>
     </div>
+    <!-- What an undo put back, on its own line under the buttons. A sentence
+         squeezed in beside six of them would push the last one off a narrow
+         screen, and it is only ever there for a few seconds.
+
+         Focusable only from script: the last press of Undo takes the button
+         away with it, and this is what is left where the reader was. -->
+    <p class="hint undo-said" id="undo-said" role="status" tabindex="-1" hidden></p>
   </header>
 
   <!-- Filled in and revealed only once the strategy bar in the form has
@@ -49,7 +63,7 @@
     <section class="panel" aria-labelledby="inputs-heading">
       <h2 id="inputs-heading" data-i18n="inputs.heading">What comes in and goes out</h2>
       <div id="strategies"></div>
-      <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, and set what it repeats every month.</p>
+      <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.</p>
       <div id="fields"></div>
       <p class="hint" id="sync-hint" data-i18n="inputs.syncHint" hidden></p>
     <p class="hint" id="debt-hint" data-i18n="inputs.debtHint" hidden></p>
@@ -135,10 +149,10 @@
 
     <div class="filter-row money-row">
       <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
-        <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today's money</button>
+        <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today’s money</button>
       </div>
       <div class="filter money-filter" id="inflation-filter" hidden>
-        <label for="inflation" data-i18n="filter.inflation">Inflation a year</label>
+        <label for="inflation" data-i18n="filter.inflation">Inflation a year, as a percentage</label>
         <div class="range-line">
           <input id="inflation" type="text" inputmode="decimal" autocomplete="off">
           <span class="rate-unit" aria-hidden="true">%</span>
@@ -148,14 +162,14 @@
         <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
       </div>
       <div class="filter money-filter" id="tax-filter" hidden>
-        <label for="tax" data-i18n="filter.tax">Tax on gains</label>
+        <label for="tax" data-i18n="filter.tax">Tax on gains, as a percentage</label>
         <div class="range-line">
           <input id="tax" type="text" inputmode="decimal" autocomplete="off">
           <span class="rate-unit" aria-hidden="true">%</span>
         </div>
       </div>
       <div class="filter money-filter" id="spread-filter" hidden>
-        <label for="spread" data-i18n="filter.spread">Returns, give or take</label>
+        <label for="spread" data-i18n="filter.spread">Returns, give or take, as a percentage</label>
         <div class="range-line">
           <input id="spread" type="text" inputmode="decimal" autocomplete="off">
           <span class="rate-unit" aria-hidden="true">%</span>
@@ -169,8 +183,34 @@
       <p class="section-note" id="charts-note" data-i18n="charts.notePrompt" aria-live="polite">
         Give a field an amount to project the months ahead.
       </p>
+      <!-- Two readings of the same five cards, not a sixth card: the palette
+           has five series colours and they are all spoken for. Deliberately
+           without a `data-months` attribute — that is what marks a horizon
+           preset, and `applyLanguage` relabels every one of those with a
+           length in years. -->
+      <div class="presets" role="group" id="chart-views" data-i18n-aria="charts.viewAria">
+        <button type="button" class="preset" id="view-total" aria-pressed="true" data-i18n="charts.view.total">Running total</button>
+        <button type="button" class="preset" id="view-monthly" aria-pressed="false" data-i18n="charts.view.monthly">Each month</button>
+      </div>
       <div class="chart-grid" id="charts"></div>
-      <p class="scale-note" data-i18n="charts.scaleNote">All three charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid.</p>
+      <p class="scale-note" id="charts-scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
+      <!-- The one way in while there is no target. It sits under the cards
+           because a target is drawn on them, and it is the only thing the
+           feature shows of itself until somebody asks for it: the section
+           below ships hidden rather than standing there empty explaining
+           what it would do. -->
+      <button type="button" class="add-field" id="add-milestone" data-i18n="milestone.add">Mark a target</button>
+    </section>
+
+    <!-- Hidden until there is a target, the way the flow diagram and the
+         comparison are. The rules it draws land on the cards above, so it sits
+         directly under them. -->
+    <section class="charts-section" id="milestones" aria-labelledby="milestones-heading" hidden>
+      <h2 id="milestones-heading" data-i18n="milestone.heading">When does that happen?</h2>
+      <p class="section-note" data-i18n="milestone.note">A target is a figure to watch for, not a rule the plan obeys: the projection runs as it always has and the app reads off the first month the plan you are looking at is there. Switch plans and every answer is worked out again.</p>
+      <div id="milestone-mount"></div>
+      <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
+      <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.</p>
     </section>
 
     <section class="charts-section" id="sankey" aria-labelledby="sankey-heading" hidden>
@@ -193,6 +233,20 @@
           <tbody id="compare-body"></tbody>
         </table>
       </div>
+    </section>
+
+    <!-- Under the comparison because it borrows its column: the list is judged
+         on whatever the chips above are showing, so a reader who switched them
+         to Profit gets a ranking on profit. Hidden until there are two amounts
+         to put in an order — one field ranked against nothing is not a
+         ranking. -->
+    <section class="charts-section" id="rank" aria-labelledby="rank-heading" hidden>
+      <h2 id="rank-heading" data-i18n="rank.heading">What moves the needle</h2>
+      <p class="section-note" id="rank-note"></p>
+      <ol class="rank-list" id="rank-list"></ol>
+      <p class="hint" id="rank-said" hidden></p>
+      <p class="scale-note" data-i18n="rank.caveat.horizon">This is what your plan is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three plans the app opens with swap theirs somewhere between twenty years and forty.</p>
+      <p class="scale-note" data-i18n="rank.caveat.parts">The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.</p>
     </section>
   </main>
 
@@ -282,7 +336,7 @@
     <p id="shared-room"></p>
     <p class="hint" id="shared-ask" data-i18n="share.receivedAsk"></p>
     <div class="about-confirm-actions">
-      <button id="shared-open" class="ghost-button is-grave" type="button" aria-describedby="shared-ask" data-i18n="share.receivedYes">Open the shared plan</button>
+      <button id="shared-open" class="ghost-button is-grave" type="button" aria-describedby="shared-ask" data-i18n="share.receivedYes">Add to my plans</button>
       <button id="shared-keep" class="ghost-button" type="button" aria-describedby="shared-ask" data-i18n="share.receivedNo">Keep my own</button>
     </div>
   </dialog>

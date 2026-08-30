@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 
 import {
   project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax,
-  seriesOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
+  seriesOf, monthlyOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
   flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf, lastLandingOf,
   grownBy, yearsRunning, fieldTotalOf, loanPartsOf, shareOut,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate,
   toAmount, toMonths, toNumber, roundMoney, MAX_MONTHS, MAX_AMOUNT,
+  swingsOf, SWING,
 } from '../assets/js/projection.js';
-import { createField, normalizeFields } from '../assets/js/fields.js';
+import { createField, normalizeFields, raiseAmount } from '../assets/js/fields.js';
 
 const income = (amount) => createField({ direction: 'income', amount });
 const expense = (amount) => createField({ direction: 'expense', amount });
@@ -341,6 +342,62 @@ test('seriesOf pulls one key out as {month, value}', () => {
   assert.deepEqual(seriesOf(result, 'expenses'), [
     { month: 0, value: 0 }, { month: 1, value: 40 }, { month: 2, value: 80 },
   ]);
+});
+
+test('monthlyOf says what moved in each month, and nothing in month 0', () => {
+  const result = project({ fields: [income(100), expense(40)], months: 3 });
+  assert.deepEqual(monthlyOf(result, 'expenses'), [
+    { month: 0, value: 0 }, { month: 1, value: 40 }, { month: 2, value: 40 }, { month: 3, value: 40 },
+  ]);
+  // Month 0 has no month before it, so nothing can have moved during it. What
+  // it must not do is carry the opening balance through: the house is owned
+  // from the first month, and read a month at a time that is not a month's
+  // gain — it was already there.
+  const owner = project({
+    fields: [createField({ kind: 'asset', amount: 100000 })],
+    months: 2,
+  });
+  assert.equal(seriesOf(owner, 'owned')[0].value, 100000, 'owned outright from the start');
+  assert.equal(monthlyOf(owner, 'owned')[0].value, 0, 'and nothing of it moved in month 0');
+});
+
+test('the months add back up to the total they were taken from', () => {
+  // The whole claim of the per-month reading is that it is the same figures
+  // seen differently, so a first difference that did not telescope back to the
+  // running total would be a second, disagreeing model.
+  //
+  // It adds up to what the horizon *moved*, which is the closing figure less
+  // the opening one — and for a balance sheet those differ: the house here is
+  // owned from month 0, so the months have to come to the total less the house,
+  // not to the total. That is the same rule the card follows.
+  const fields = [
+    income(2200),
+    expense(1000),
+    createField({ direction: 'expense', amount: 800, periodMonths: 12 }),
+    createField({ kind: 'investment', amount: 300, annualRate: '6' }),
+    createField({ kind: 'asset', amount: 90000, annualRate: '1.5' }),
+  ];
+  const result = project({ fields, months: 40 });
+  for (const key of ['income', 'expenses', 'net', 'invested', 'owned', 'worth']) {
+    const moved = monthlyOf(result, key).reduce((sum, point) => sum + point.value, 0);
+    const opening = result.points[0][key];
+    assert.equal(roundMoney(moved), roundMoney(result.totals[key] - opening), `${key} adds back up`);
+  }
+  assert.equal(result.points[0].owned, 90000, 'the house was there before the first month');
+});
+
+test('a month where more goes out than comes in is visible in the per-month net', () => {
+  // The question the running total cannot answer, and the reason this reading
+  // exists: a plan can be comfortably ahead over its whole horizon and still
+  // have one month where the yearly bill lands on top of everything else.
+  const bill = createField({ direction: 'expense', amount: 1200, periodMonths: 12 });
+  const result = project({ fields: [income(1000), expense(400), bill], months: 24 });
+  assert.ok(seriesOf(result, 'net').every((point) => point.value >= 0), 'never behind, cumulatively');
+
+  const each = monthlyOf(result, 'net');
+  assert.equal(each[11].value, 600, 'an ordinary month keeps 600');
+  assert.equal(each[12].value, -600, 'the month the yearly bill lands does not');
+  assert.deepEqual(each.filter((point) => point.value < 0).map((point) => point.month), [12, 24]);
 });
 
 test('extentOf spans every series and always includes zero', () => {
@@ -1234,4 +1291,112 @@ test('apportioning nothing, or to nothing, is not a crash', () => {
 test('shares of a hundred come to a hundred', () => {
   const shares = shareOut(100, [162000, 57600, 72000, 19897.44, 192502.56]);
   assert.equal(roundMoney(shares.reduce((a, b) => a + b, 0)), 100);
+});
+
+/* ------------------------------------------------------ what moves the needle */
+
+/** A plan with one of everything, so a ranking has something to rank. */
+const mixed = () => [
+  createField({ direction: 'income', amount: '2200' }),
+  createField({ direction: 'expense', amount: '1000' }),
+  createField({ kind: 'asset', amount: '100000', annualRate: '1.5' }),
+  createField({ kind: 'loan', direction: 'expense', amount: '100000', annualRate: '3', termMonths: 240, startMonth: 1 }),
+  createField({ kind: 'investment', amount: '250', annualRate: '6' }),
+  createField({ direction: 'expense', amount: '800', periodMonths: 12, startMonth: 6 }),
+];
+
+/** How the ranking is asked for: a runner that projects a list of fields the
+ *  way the page would, since which money the figures are in is the reader's. */
+const runner = (months, taxRate) => (fields) => project({ fields, months, taxRate });
+
+/** The same move, made to every amount at once — which is what the swings are
+ *  claimed to add up to. */
+const together = (fields, key, run) => {
+  const all = (fraction) => run(
+    fields.reduce((list, field) => raiseAmount(list, field.id, fraction, toAmount), fields),
+  ).totals[key];
+  return roundMoney(all(SWING) - all(-SWING));
+};
+
+test('the ranking says which figures decide where a plan lands, largest first', () => {
+  const run = runner(12, '30');
+  const rows = swingsOf(run(mixed()), 'worth', run);
+  const sizes = rows.map((row) => Math.abs(row.swing));
+  assert.deepEqual(sizes, [...sizes].sort((a, b) => b - a), 'ordered by size alone');
+  // Over a year the mortgage and the house it bought are the two figures that
+  // decide this plan, and the fund the reader is putting 250 a month into is
+  // nowhere near them. That is the whole point of the reading.
+  assert.deepEqual(rows.slice(0, 2).map((row) => row.field.kind).sort(), ['asset', 'loan']);
+  // Signed, because which way it goes is half of what the reader came for:
+  // more salary is more worth, more spending is less of it.
+  assert.ok(rows.find((row) => row.field.direction === 'income').swing > 0);
+  assert.ok(rows.find((row) => row.field.amount === '1000').swing < 0);
+});
+
+test('a field with no amount in it is not ranked at all', () => {
+  const run = runner(12, '0');
+  const fields = [...mixed(), createField({ direction: 'expense' })];
+  assert.equal(swingsOf(run(fields), 'worth', run).length, mixed().length);
+});
+
+test('the swings add up, because the model is separable', () => {
+  // The obvious caveat to put on this list would be that the parts do not sum
+  // to the whole. They do: every field's contribution is worked out on its own
+  // and only then summed, so moving two amounts moves the figure by both swings
+  // — to the cent, rounding and amortisation and compounding included.
+  //
+  // Which is exactly why the honest caveat is the other one. The list can rank
+  // a mortgage and the house it bought one above the other and will never be
+  // able to say that they were one decision.
+  const run = runner(120, '30');
+  const fields = mixed();
+  for (const key of ['worth', 'net', 'income', 'expenses', 'invested', 'owned', 'debt']) {
+    const rows = swingsOf(run(fields), key, run);
+    const parts = roundMoney(rows.reduce((sum, row) => sum + row.swing, 0));
+    assert.equal(parts, together(fields, key, run), `${key} adds up`);
+  }
+});
+
+test('profit is the exception, because the tax falls on the gain as a whole', () => {
+  // One holding gaining and one losing, with the two so close that a tenth
+  // either way tips the whole across zero — and `afterTax` takes 30% of a gain
+  // while leaving a loss as it stands. So what one field is worth depends on
+  // what the other is doing, which is the one place the model stops being
+  // separable, and the one place the caveat above has to make an exception.
+  const run = runner(12, '30');
+  const fields = [
+    createField({ kind: 'investment', amount: '1000', annualRate: '50' }),
+    createField({ kind: 'investment', amount: '1250', annualRate: '-50' }),
+  ];
+  const rows = swingsOf(run(fields), 'profit', run);
+  const parts = roundMoney(rows.reduce((sum, row) => sum + row.swing, 0));
+  const whole = together(fields, 'profit', run);
+  assert.ok(Math.abs(parts - whole) > 1, `${parts} is not ${whole}, and not by a rounding`);
+
+  // And with the whole comfortably a gain, the tax is a flat share of it and
+  // profit adds up like everything else, to within the cent `afterTax` rounds
+  // to. So this is a real edge rather than a permanent disclaimer over the
+  // column — which is why the caveat on the card names it as the exception.
+  const gaining = [
+    createField({ kind: 'investment', amount: '1000', annualRate: '50' }),
+    createField({ kind: 'investment', amount: '200', annualRate: '-50' }),
+  ];
+  const safe = swingsOf(run(gaining), 'profit', run);
+  const safeParts = roundMoney(safe.reduce((sum, row) => sum + row.swing, 0));
+  assert.ok(Math.abs(safeParts - together(gaining, 'profit', run)) <= 0.01);
+});
+
+test('a ranking is read in whatever money the page is in', () => {
+  // The runner is handed in rather than assumed, so restating in today's money
+  // restates the swings with everything else: the same order, smaller figures.
+  const months = 120;
+  const nominal = (fields) => project({ fields, months, taxRate: '30' });
+  const real = (fields) => inTodaysMoney(nominal(fields), '2');
+  const fields = mixed();
+  const here = swingsOf(nominal(fields), 'worth', nominal);
+  const now = swingsOf(real(fields), 'worth', real);
+  assert.deepEqual(now.map((row) => row.field.id), here.map((row) => row.field.id));
+  for (let index = 0; index < here.length; index += 1) {
+    assert.ok(Math.abs(now[index].swing) < Math.abs(here[index].swing) || here[index].swing === 0);
+  }
 });

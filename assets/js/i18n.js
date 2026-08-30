@@ -38,7 +38,11 @@ const STRINGS = {
     'about.changes': 'What changed',
     'about.reset': 'Start again',
     'about.resetNote': 'Replaces your plans with the three the app opens with. Your language and theme are left alone.',
-    'about.resetAsk': 'This replaces every plan and every figure you have entered, on this device. There is no undo.',
+    // "There is no undo" was true when it was written and undo made it false.
+    // What replaced it is narrower rather than softer — a way back while this
+    // tab is open, and none once it is closed — which is exactly why the
+    // question and the grave colour on its answer both stay.
+    'about.resetAsk': 'This replaces every plan and every figure you have entered, on this device. Undo can put them back while this tab is open, and not after.',
     'about.resetYes': 'Replace everything',
     'about.resetNo': 'Keep what I have',
     'about.unreleased': 'commit not recorded',
@@ -50,6 +54,31 @@ const STRINGS = {
     'theme.aria.dark': 'Dark — colour theme: dark',
     'lang.label': 'EN',
     'lang.aria': 'EN — language: English. Switch to French',
+
+    /*
+     * Undo, which appears in the bar only once there is something to take back.
+     *
+     * The button says one word, because the app bar has room for one and five
+     * other buttons are already in it. Which move it would reverse is in its
+     * accessible name instead — a reader looking at the page can see what just
+     * happened to it, and a reader who cannot is exactly the one who needs the
+     * button to say which of the five it is offering to undo.
+     */
+    'undo.label': 'Undo',
+    'undo.aria.field': 'Undo removing a field',
+    'undo.aria.strategy': 'Undo removing a plan',
+    'undo.aria.milestone': 'Undo removing a target',
+    'undo.aria.reset': 'Undo starting again',
+    'undo.aria.shared': 'Undo opening a shared plan',
+    // What came back, said once and briefly. The real answer to a press of Undo
+    // is the page itself, changed; this is here for the reader whose eyes were
+    // not on the part of it that changed — a removed target restores a row four
+    // sections down from the button that restored it.
+    'undo.said.field': 'The field is back, with everything that was in it.',
+    'undo.said.strategy': 'The plan is back, with every field that was in it.',
+    'undo.said.milestone': 'The target is back.',
+    'undo.said.reset': 'Your plans are back, exactly as they were.',
+    'undo.said.shared': 'Your own plans are back, and the shared one is gone.',
 
     'inputs.heading': 'What comes in and goes out',
     'inputs.hint': 'Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.',
@@ -205,6 +234,88 @@ const STRINGS = {
       `${count} strategies compared over ${months} ${months === 1 ? 'month' : 'months'}. `
       + 'Use the table below this chart for every value.',
 
+    'rank.heading': 'What moves the needle',
+    // "What follows" rather than "beside each name", because what follows is
+    // sometimes one sentence saying nothing here moves this column at all.
+    'rank.note': (metric, months) =>
+      `Every amount in the plan was moved a tenth up and a tenth down on its own, with the rest of it left exactly where it is; what follows is how far that carries ${metric} at month ${months}.`,
+    // A field can be in the plan and still be outside the horizon — the fund
+    // that only starts once the mortgage ends is in every plan the app opens
+    // with — and that it moves nothing yet is worth saying rather than showing
+    // as a bar too short to see.
+    'rank.nothing': 'moves nothing',
+    // And where that is true of every one of them there is no order to show, so
+    // the same fact is said once rather than on six lines that all say it.
+    'rank.said.nothing': (metric) => `Nothing you have entered moves ${metric} over this horizon.`,
+    'rank.caveat.horizon': 'This is what your plan is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three plans the app opens with swap theirs somewhere between twenty years and forty.',
+    // The obvious caveat to write here would be that the parts do not sum to
+    // the whole. They do — see `swingsOf` — and saying otherwise would excuse
+    // the list from the thing it genuinely cannot do.
+    'rank.caveat.parts': 'The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.',
+
+    'milestone.heading': 'When does that happen?',
+    // The distinction the whole feature rests on, said where a reader meets it:
+    // the model is not conditional and this does not make it so. The projection
+    // is run exactly as it always was and then read.
+    'milestone.note': 'A target is a figure to watch for, not a rule the plan obeys: the projection runs as it always has and the app reads off the first month the plan you are looking at is there. Switch plans and every answer is worked out again.',
+    // A target has no metric vocabulary of its own — these are the same eight
+    // the comparison offers, named by `compare.metric.*`. Two spellings of
+    // "Total" on one page would be one page too many.
+    'milestone.add': 'Mark a target',
+    'milestone.what': 'What to watch',
+    'milestone.figure': 'The figure to reach',
+    'milestone.figureNamed': (metric) => `The figure to reach on ${metric}`,
+    'milestone.removeNamed': (metric) => `Remove the target on ${metric}`,
+    // What a rule is, said once rather than on every card it appears on — and
+    // what it is not, which is the part a reader would otherwise have to guess.
+    'milestone.caveat': 'A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.',
+    'milestone.said.pending': 'Give this target a figure.',
+    // Three answers, and the third is an answer: a target the plan never
+    // reaches has to say so where it would have been marked, rather than
+    // quietly falling off the end of the chart.
+    'milestone.said.always': (value) => `True from month 0, at ${value}.`,
+    'milestone.said.met': (month, value) => `First true at month ${month}, at ${value}.`,
+    'milestone.said.never': (horizon, value) => `Not within ${horizon} — the projection ends at ${value}.`,
+
+    /*
+     * A target that is never met is where the question turns round: the
+     * destination is known and the figure is not. So the ask lives on that
+     * answer rather than on a control of its own, and it borrows the target's
+     * metric and figure rather than asking for them a second time.
+     */
+    'goal.ask': 'What would it take?',
+    'goal.askNamed': (metric) => `What would it take to meet the target on ${metric}?`,
+    'goal.choose': 'The figure to work back from',
+    'goal.chooseNamed': (metric) => `The figure to work back from, for the target on ${metric}`,
+    // A field and one of its two figures, which is the whole of what can be
+    // asked backwards about.
+    'goal.candidate': (name, figure) => `${name} — ${figure}`,
+    'goal.knob.amount': 'the amount',
+    'goal.knob.annualRate': 'the rate',
+    'goal.rate': (rate) => `${rate}% a year`,
+    // "Or more", never "is": the figure is rounded away from the goal, so it
+    // clears the target rather than landing exactly on it, and saying so is
+    // what makes the rounding honest rather than sloppy.
+    'goal.said.least': (name, figure, amount, month) =>
+      `${name}: ${figure} would have to be ${amount} or more — the target is then met in month ${month}.`,
+    'goal.said.most': (name, figure, amount, month) =>
+      `${name}: ${figure} would have to be ${amount} or less — the target is then met in month ${month}.`,
+    /*
+     * Four ways to have no answer, and every one of them is a better thing to
+     * read than a figure the search is not entitled to. They are told apart
+     * because they send a reader to four different next moves.
+     */
+    'goal.refusal.unmoved': (name, figure) =>
+      `${name}: ${figure} leaves this target in the same place at both ends of what the app will hold. It is not what decides this one.`,
+    'goal.refusal.unreachable': (name, figure) =>
+      `${name}: ${figure} does not get there, at any value the app will hold.`,
+    'goal.refusal.reversal': (name, figure) =>
+      `${name}: more of ${figure} helps and then stops helping, so there is no one figure to name. The app will not pick a crossing and call it the answer.`,
+    'goal.refusal.unproven': (name, figure) =>
+      `${name}: the value the search settled on for ${figure} does not reach the target once it is put back into the plan, so there is nothing to name.`,
+    // What the ask can do and what it will not, said where the ask appears.
+    'goal.caveat': 'Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.',
+
     'summary.heading': 'Projected totals',
     'summary.heroLabel': (months) => `Net after ${months} ${plural(months, 'month', 'months')}`,
     'summary.totalIncome': 'Total income',
@@ -242,33 +353,60 @@ const STRINGS = {
     'filter.preset': (years) => (years === 1 ? '1 yr' : `${years} yr`),
 
     'charts.heading': 'Cumulative over time',
+    // The section says which of the two readings is on screen, because the
+    // heading is a claim about what the cards show and it stops being true the
+    // moment the reader asks for the other one.
+    'charts.monthlyHeading': 'Month by month',
+    'charts.view.total': 'Running total',
+    'charts.view.monthly': 'Each month',
+    'charts.viewAria': 'How to read the cards',
     'charts.notePrompt': 'Give a field an amount to project the months ahead.',
     'charts.noteFilled': (horizon, income, expenses, net) =>
       `Over ${horizon}: ${income} in, ${expenses} out, ${net} left over.`,
     'charts.scaleNote': 'The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.',
+    'charts.monthlyNote': 'Every card is showing what moved during that month on its own, so they all share one vertical scale: read this way a balance is a change, which is the same kind of figure as a flow. Month 0 has no month before it, so nothing moved in it. And a plan comfortably ahead over the whole horizon can still have a month where the yearly bills and a one-off land together — this is the reading that shows it.',
     'charts.empty': 'Give a field an amount above.',
 
     'chart.income.title': 'Cumulative income',
     'chart.income.description': 'Everything earned since month 0, added up.',
     'chart.income.series': 'Income to date',
+    'chart.income.monthly.title': 'Income each month',
+    'chart.income.monthly.description': 'What came in during each month on its own.',
+    'chart.income.monthly.series': 'Income that month',
     'chart.expenses.title': 'Cumulative expenses',
     'chart.expenses.description': 'Everything paid out since month 0, added up.',
     'chart.expenses.series': 'Expenses to date',
+    'chart.expenses.monthly.title': 'Expenses each month',
+    'chart.expenses.monthly.description': 'What went out during each month on its own — a yearly bill lands on one month, not on twelve.',
+    'chart.expenses.monthly.series': 'Expenses that month',
     'chart.invested.title': 'Investment value',
     'chart.invested.description': 'What the money you invested is worth, growth included.',
     'chart.invested.series': 'Value to date',
+    'chart.invested.monthly.title': 'Change in investment value',
+    'chart.invested.monthly.description': 'What the investments gained or lost each month, the month’s contribution included.',
+    'chart.invested.monthly.series': 'Change that month',
     'chart.contributed.series': 'Paid in',
+    'chart.contributed.monthly.series': 'Paid in that month',
     'chart.net.title': 'Cumulative net',
     'chart.net.description': 'What is left once expenses come out of income.',
     'chart.net.series': 'Net to date',
+    'chart.net.monthly.title': 'Net each month',
+    'chart.net.monthly.description': 'What each month left over — below the line is a month where more went out than came in.',
+    'chart.net.monthly.series': 'Net that month',
     'chart.worth.title': 'Total worth',
     'chart.worth.description': 'Cash kept, investments and what you own, less what you still owe.',
     'chart.worth.series': 'Total to date',
+    'chart.worth.monthly.title': 'Change in total worth',
+    'chart.worth.monthly.description': 'How much better or worse off each month left you.',
+    'chart.worth.monthly.series': 'Change that month',
     'chart.bandLow': 'If lower',
     'chart.bandHigh': 'If higher',
     'chart.showTable': 'Show table',
     'chart.hideTable': 'Hide table',
     'chart.tableCaption': (title) => `${title} — every month`,
+    // The title already says "each month" in this reading, so the caption says
+    // what it is for instead of saying that twice.
+    'chart.monthlyCaption': (title) => `${title} — every figure`,
     'chart.monthColumn': 'Month',
     'chart.aria': (title, months, endValue) =>
       `${title}. Line chart over ${months} ${plural(months, 'month', 'months')}, `
@@ -310,7 +448,7 @@ const STRINGS = {
     'share.receivedSome': (fitting, sent, most) =>
       `${most} plans is the most the app can chart, so ${plural(fitting, `the first of the ${sent}`, `the first ${fitting} of ${sent}`)} will be added beside your own.`,
     'share.receivedNoRoom': (most) =>
-      `You already have ${most} plans, which is the most the app can chart. Opening these means replacing yours — there is no undo.`,
+      `You already have ${most} plans, which is the most the app can chart. Opening these means replacing yours — undo can put them back while this tab is open, and not after.`,
     'share.receivedYes': 'Add to my plans',
     'share.receivedReplace': 'Replace my plans',
     'share.receivedNo': 'Keep my own',
@@ -337,7 +475,7 @@ const STRINGS = {
     'about.changes': 'Ce qui a changé',
     'about.reset': 'Recommencer',
     'about.resetNote': 'Remplace vos plans par les trois plans d’origine. Votre langue et votre thème ne changent pas.',
-    'about.resetAsk': 'Cela remplace tous vos plans et tous les montants saisis sur cet appareil. Il n’y a pas de retour en arrière.',
+    'about.resetAsk': 'Cela remplace tous vos plans et tous les montants saisis sur cet appareil. Annuler peut les rétablir tant que cet onglet reste ouvert, mais pas après.',
     'about.resetYes': 'Tout remplacer',
     'about.resetNo': 'Garder mes plans',
     'about.unreleased': 'commit non enregistré',
@@ -349,6 +487,21 @@ const STRINGS = {
     'theme.aria.dark': 'Sombre — thème : sombre',
     'lang.label': 'FR',
     'lang.aria': 'FR — langue : français. Passer à l’anglais',
+
+    'undo.label': 'Annuler',
+    'undo.aria.field': 'Annuler la suppression d’un poste',
+    'undo.aria.strategy': 'Annuler la suppression d’un plan',
+    'undo.aria.milestone': 'Annuler la suppression d’un objectif',
+    // Named rather than described: the button it takes back is called
+    // « Recommencer », and inventing a second word for the same move would
+    // leave the app with two of them.
+    'undo.aria.reset': 'Annuler «\u00a0Recommencer\u00a0»',
+    'undo.aria.shared': 'Annuler l’ouverture d’un plan partagé',
+    'undo.said.field': 'Le poste est de retour, avec tout ce qu’il contenait.',
+    'undo.said.strategy': 'Le plan est de retour, avec tous les postes qu’il contenait.',
+    'undo.said.milestone': 'L’objectif est de retour.',
+    'undo.said.reset': 'Vos plans sont de retour, exactement comme ils étaient.',
+    'undo.said.shared': 'Vos plans sont de retour, et le plan partagé a disparu.',
 
     'inputs.heading': 'Ce qui entre et ce qui sort',
     'inputs.hint': 'Nommez chaque montant, indiquez s’il entre ou s’il sort, à quelle fréquence il tombe, et combien. Un emprunt calcule ses mensualités, un placement croît au taux que vous indiquez, et un bien que vous possédez garde simplement sa valeur. Donnez un taux à un montant et il augmente d’autant chaque année.',
@@ -494,6 +647,49 @@ const STRINGS = {
       `${count} stratégies comparées sur ${months} mois. `
       + 'Le tableau sous ce graphique donne toutes les valeurs.',
 
+    'rank.heading': 'Ce qui pèse vraiment',
+    'rank.note': (metric, months) =>
+      `Chaque montant du plan a été augmenté puis diminué d’un dixième, isolément, tout le reste restant en place\u00a0; ce qui suit est ce que cela déplace sur ${metric} au mois ${months}.`,
+    'rank.nothing': 'ne change rien',
+    'rank.said.nothing': (metric) => `Rien de ce que vous avez saisi ne déplace ${metric} sur cet horizon.`,
+    'rank.caveat.horizon': 'C’est ce à quoi votre plan est sensible sur la durée que vous lisez, pas une vérité générale sur l’argent. Allongez la projection et l’ordre change\u00a0: les trois plans avec lesquels l’application démarre inversent le leur entre vingt et quarante ans.',
+    'rank.caveat.parts': 'Les écarts s’additionnent bien. Chaque montant entre dans le modèle pour lui-même, si bien qu’en déplacer deux déplace le chiffre des deux, au centime près — et c’est là toute la limite de cette liste, non un défaut\u00a0: elle classera un emprunt et le logement qu’il a payé l’un au-dessus de l’autre sans jamais pouvoir dire qu’ils ne font qu’une seule décision. Le gain net fait exception, parce que l’impôt porte sur le gain d’ensemble et non sur chacune de ses parts.',
+
+    'milestone.heading': 'Quand cela arrive-t-il\u00a0?',
+    'milestone.note': 'Un objectif est un chiffre à surveiller, pas une règle que le plan applique\u00a0: la projection se déroule comme toujours et l’application y lit le premier mois où le plan que vous regardez y est. Changez de plan et chaque réponse est recalculée.',
+    'milestone.add': 'Marquer un objectif',
+    'milestone.what': 'Ce qu’il faut suivre',
+    'milestone.figure': 'Le chiffre à atteindre',
+    'milestone.figureNamed': (metric) => `Le chiffre à atteindre sur ${metric}`,
+    'milestone.removeNamed': (metric) => `Supprimer l’objectif sur ${metric}`,
+    'milestone.caveat': 'Un repère marque un mois, rien d’autre. Il est tracé au même endroit sur toutes les cartes, parce qu’un mois est un mois, et il ne dit rien de la courbe qu’il traverse. Un total qui dépasse son chiffre puis redescend est marqué une seule fois, là où il y est arrivé la première fois — les cartes montrent le reste.',
+    'milestone.said.pending': 'Donnez un chiffre à cet objectif.',
+    'milestone.said.always': (value) => `Vrai dès le mois 0, à ${value}.`,
+    'milestone.said.met': (month, value) => `Vrai pour la première fois au mois ${month}, à ${value}.`,
+    'milestone.said.never': (horizon, value) => `Pas avant ${horizon} — la projection se termine à ${value}.`,
+
+    'goal.ask': 'Que faudrait-il\u00a0?',
+    'goal.askNamed': (metric) => `Que faudrait-il pour atteindre l’objectif sur ${metric}\u00a0?`,
+    'goal.choose': 'Le chiffre à faire varier',
+    'goal.chooseNamed': (metric) => `Le chiffre à faire varier, pour l’objectif sur ${metric}`,
+    'goal.candidate': (name, figure) => `${name} — ${figure}`,
+    'goal.knob.amount': 'le montant',
+    'goal.knob.annualRate': 'le taux',
+    'goal.rate': (rate) => `${rate}\u00a0% par an`,
+    'goal.said.least': (name, figure, amount, month) =>
+      `${name}\u00a0: ${figure} devrait être de ${amount} ou plus — l’objectif est alors atteint au mois ${month}.`,
+    'goal.said.most': (name, figure, amount, month) =>
+      `${name}\u00a0: ${figure} devrait être de ${amount} ou moins — l’objectif est alors atteint au mois ${month}.`,
+    'goal.refusal.unmoved': (name, figure) =>
+      `${name}\u00a0: ${figure} laisse cet objectif au même endroit aux deux extrémités de ce que l’application accepte. Ce n’est pas lui qui décide de celui-ci.`,
+    'goal.refusal.unreachable': (name, figure) =>
+      `${name}\u00a0: ${figure} n’y arrive pas, quelle que soit la valeur que l’application accepte.`,
+    'goal.refusal.reversal': (name, figure) =>
+      `${name}\u00a0: augmenter ${figure} aide, puis cesse d’aider\u00a0; il n’y a donc pas de chiffre unique à donner. L’application ne choisira pas un passage pour en faire la réponse.`,
+    'goal.refusal.unproven': (name, figure) =>
+      `${name}\u00a0: la valeur trouvée pour ${figure} n’atteint pas l’objectif une fois replacée dans le plan\u00a0; il n’y a donc rien à annoncer.`,
+    'goal.caveat': 'Deux chiffres seulement peuvent être calculés à rebours\u00a0: un montant et un taux. Augmenter l’un ou l’autre emmène la réponse dans un sens et continue de l’y emmener, ce qui permet à une recherche de l’encadrer puis de resserrer par moitiés. Le mois où un placement est vendu n’a pas cette propriété — le déplacer change à la fois ce que le placement a rapporté et ce que l’argent a permis d’acheter — ni la durée d’un emprunt\u00a0; ni l’un ni l’autre n’est donc proposé. Ce qui ressort est replacé dans le plan et reprojeté avant d’être affiché, et si l’objectif n’est pas atteint l’application le dit plutôt que d’annoncer un chiffre. Rien de tout cela n’est jamais écrit dans votre plan.',
+
     'summary.heading': 'Totaux projetés',
     'summary.heroLabel': (months) => `Solde net après ${months} mois`,
     'summary.totalIncome': 'Revenus cumulés',
@@ -531,33 +727,55 @@ const STRINGS = {
     'filter.preset': (years) => (years === 1 ? '1 an' : `${years} ans`),
 
     'charts.heading': 'Cumul au fil du temps',
+    'charts.monthlyHeading': 'Mois par mois',
+    'charts.view.total': 'Cumul',
+    'charts.view.monthly': 'Chaque mois',
+    'charts.viewAria': 'Comment lire les cartes',
     'charts.notePrompt': 'Saisissez un montant dans un champ pour projeter les mois à venir.',
     'charts.noteFilled': (horizon, income, expenses, net) =>
       `Sur ${horizon} : ${income} encaissés, ${expenses} dépensés, ${net} restants.`,
     'charts.scaleNote': 'Les graphiques de flux partagent la même échelle verticale : ils se lisent les uns par rapport aux autres. Le mois 0, c’est aujourd’hui — rien de gagné, rien de payé, même si ce que vous possédez et ce que vous devez comptent dès le départ. Les sommes investies comptent comme payées ; leur valeur est un solde, pas un flux, et cette carte a donc sa propre échelle. Le total revient sur l’échelle commune : l’écart entre lui et le solde net, c’est tout ce que le patrimoine apporte.',
+    'charts.monthlyNote': 'Chaque carte montre ce qui a bougé pendant ce mois-là seulement, et toutes partagent donc la même échelle verticale\u00a0: lu ainsi, un solde est une variation, une grandeur de même nature qu’un flux. Le mois 0 n’a pas de mois avant lui\u00a0: rien n’y a bougé. Et un plan largement bénéficiaire sur tout l’horizon peut malgré tout connaître un mois où les factures annuelles et un achat ponctuel tombent ensemble — c’est cette lecture-là qui le montre.',
     'charts.empty': 'Saisissez un montant dans un champ ci-dessus.',
 
     'chart.income.title': 'Revenus cumulés',
     'chart.income.description': 'Tout ce qui a été gagné depuis le mois 0, additionné.',
     'chart.income.series': 'Revenus cumulés',
+    'chart.income.monthly.title': 'Revenus de chaque mois',
+    'chart.income.monthly.description': 'Ce qui est entré pendant chaque mois, pris isolément.',
+    'chart.income.monthly.series': 'Revenus du mois',
     'chart.expenses.title': 'Dépenses cumulées',
     'chart.expenses.description': 'Tout ce qui a été payé depuis le mois 0, additionné.',
     'chart.expenses.series': 'Dépenses cumulées',
+    'chart.expenses.monthly.title': 'Dépenses de chaque mois',
+    'chart.expenses.monthly.description': 'Ce qui est sorti pendant chaque mois, pris isolément — une facture annuelle tombe sur un mois, pas sur douze.',
+    'chart.expenses.monthly.series': 'Dépenses du mois',
     'chart.invested.title': 'Valeur des investissements',
     'chart.invested.description': 'Ce que valent les sommes investies, croissance comprise.',
     'chart.invested.series': 'Valeur à ce jour',
+    'chart.invested.monthly.title': 'Variation de la valeur investie',
+    'chart.invested.monthly.description': 'Ce que les placements ont gagné ou perdu chaque mois, versement du mois compris.',
+    'chart.invested.monthly.series': 'Variation du mois',
     'chart.contributed.series': 'Versé',
+    'chart.contributed.monthly.series': 'Versé ce mois-là',
     'chart.net.title': 'Solde net cumulé',
     'chart.net.description': 'Ce qu’il reste une fois les dépenses déduites des revenus.',
     'chart.net.series': 'Solde net cumulé',
+    'chart.net.monthly.title': 'Solde net de chaque mois',
+    'chart.net.monthly.description': 'Ce que chaque mois a laissé — sous la ligne, c’est un mois où il est sorti plus qu’il n’est entré.',
+    'chart.net.monthly.series': 'Solde net du mois',
     'chart.worth.title': 'Patrimoine total',
     'chart.worth.description': 'L’argent conservé, les placements et vos biens, moins ce qui reste dû.',
     'chart.worth.series': 'Total à ce jour',
+    'chart.worth.monthly.title': 'Variation du patrimoine',
+    'chart.worth.monthly.description': 'De combien chaque mois vous a laissé plus riche, ou plus pauvre.',
+    'chart.worth.monthly.series': 'Variation du mois',
     'chart.bandLow': 'Si plus bas',
     'chart.bandHigh': 'Si plus haut',
     'chart.showTable': 'Afficher le tableau',
     'chart.hideTable': 'Masquer le tableau',
     'chart.tableCaption': (title) => `${title} — mois par mois`,
+    'chart.monthlyCaption': (title) => `${title} — tous les chiffres`,
     'chart.monthColumn': 'Mois',
     'chart.aria': (title, months, endValue) =>
       `${title}. Graphique linéaire sur ${months} mois, se terminant à ${endValue}. `
@@ -596,7 +814,7 @@ const STRINGS = {
     'share.receivedSome': (fitting, sent, most) =>
       `L’application ne peut en représenter que ${most}, donc ${plural(fitting, `le premier des ${sent} sera ajouté`, `les ${fitting} premiers sur ${sent} seront ajoutés`)} à côté des vôtres.`,
     'share.receivedNoRoom': (most) =>
-      `Vous avez déjà ${most} plans, le maximum que l’application peut représenter. Ouvrir ceux-ci remplacera les vôtres : il n’y a pas de retour en arrière.`,
+      `Vous avez déjà ${most} plans, le maximum que l’application peut représenter. Ouvrir ceux-ci remplacera les vôtres : annuler peut les rétablir tant que cet onglet reste ouvert, mais pas après.`,
     'share.receivedYes': 'Ajouter à mes plans',
     'share.receivedReplace': 'Remplacer mes plans',
     'share.receivedNo': 'Garder les miens',
