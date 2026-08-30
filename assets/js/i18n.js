@@ -38,7 +38,11 @@ const STRINGS = {
     'about.changes': 'What changed',
     'about.reset': 'Start again',
     'about.resetNote': 'Replaces your plans with the three the app opens with. Your language and theme are left alone.',
-    'about.resetAsk': 'This replaces every plan and every figure you have entered, on this device. There is no undo.',
+    // "There is no undo" was true when it was written and undo made it false.
+    // What replaced it is narrower rather than softer — a way back while this
+    // tab is open, and none once it is closed — which is exactly why the
+    // question and the grave colour on its answer both stay.
+    'about.resetAsk': 'This replaces every plan and every figure you have entered, on this device. Undo can put them back while this tab is open, and not after.',
     'about.resetYes': 'Replace everything',
     'about.resetNo': 'Keep what I have',
     'about.unreleased': 'commit not recorded',
@@ -50,6 +54,31 @@ const STRINGS = {
     'theme.aria.dark': 'Dark — colour theme: dark',
     'lang.label': 'EN',
     'lang.aria': 'EN — language: English. Switch to French',
+
+    /*
+     * Undo, which appears in the bar only once there is something to take back.
+     *
+     * The button says one word, because the app bar has room for one and five
+     * other buttons are already in it. Which move it would reverse is in its
+     * accessible name instead — a reader looking at the page can see what just
+     * happened to it, and a reader who cannot is exactly the one who needs the
+     * button to say which of the five it is offering to undo.
+     */
+    'undo.label': 'Undo',
+    'undo.aria.field': 'Undo removing a field',
+    'undo.aria.strategy': 'Undo removing a plan',
+    'undo.aria.milestone': 'Undo removing a target',
+    'undo.aria.reset': 'Undo starting again',
+    'undo.aria.shared': 'Undo opening a shared plan',
+    // What came back, said once and briefly. The real answer to a press of Undo
+    // is the page itself, changed; this is here for the reader whose eyes were
+    // not on the part of it that changed — a removed target restores a row four
+    // sections down from the button that restored it.
+    'undo.said.field': 'The field is back, with everything that was in it.',
+    'undo.said.strategy': 'The plan is back, with every field that was in it.',
+    'undo.said.milestone': 'The target is back.',
+    'undo.said.reset': 'Your plans are back, exactly as they were.',
+    'undo.said.shared': 'Your own plans are back, and the shared one is gone.',
 
     'inputs.heading': 'What comes in and goes out',
     'inputs.hint': 'Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.',
@@ -419,7 +448,7 @@ const STRINGS = {
     'share.receivedSome': (fitting, sent, most) =>
       `${most} plans is the most the app can chart, so ${plural(fitting, `the first of the ${sent}`, `the first ${fitting} of ${sent}`)} will be added beside your own.`,
     'share.receivedNoRoom': (most) =>
-      `You already have ${most} plans, which is the most the app can chart. Opening these means replacing yours — there is no undo.`,
+      `You already have ${most} plans, which is the most the app can chart. Opening these means replacing yours — undo can put them back while this tab is open, and not after.`,
     'share.receivedYes': 'Add to my plans',
     'share.receivedReplace': 'Replace my plans',
     'share.receivedNo': 'Keep my own',
@@ -446,7 +475,7 @@ const STRINGS = {
     'about.changes': 'Ce qui a changé',
     'about.reset': 'Recommencer',
     'about.resetNote': 'Remplace vos plans par les trois plans d’origine. Votre langue et votre thème ne changent pas.',
-    'about.resetAsk': 'Cela remplace tous vos plans et tous les montants saisis sur cet appareil. Il n’y a pas de retour en arrière.',
+    'about.resetAsk': 'Cela remplace tous vos plans et tous les montants saisis sur cet appareil. Annuler peut les rétablir tant que cet onglet reste ouvert, mais pas après.',
     'about.resetYes': 'Tout remplacer',
     'about.resetNo': 'Garder mes plans',
     'about.unreleased': 'commit non enregistré',
@@ -458,6 +487,21 @@ const STRINGS = {
     'theme.aria.dark': 'Sombre — thème : sombre',
     'lang.label': 'FR',
     'lang.aria': 'FR — langue : français. Passer à l’anglais',
+
+    'undo.label': 'Annuler',
+    'undo.aria.field': 'Annuler la suppression d’un poste',
+    'undo.aria.strategy': 'Annuler la suppression d’un plan',
+    'undo.aria.milestone': 'Annuler la suppression d’un objectif',
+    // Named rather than described: the button it takes back is called
+    // « Recommencer », and inventing a second word for the same move would
+    // leave the app with two of them.
+    'undo.aria.reset': 'Annuler «\u00a0Recommencer\u00a0»',
+    'undo.aria.shared': 'Annuler l’ouverture d’un plan partagé',
+    'undo.said.field': 'Le poste est de retour, avec tout ce qu’il contenait.',
+    'undo.said.strategy': 'Le plan est de retour, avec tous les postes qu’il contenait.',
+    'undo.said.milestone': 'L’objectif est de retour.',
+    'undo.said.reset': 'Vos plans sont de retour, exactement comme ils étaient.',
+    'undo.said.shared': 'Vos plans sont de retour, et le plan partagé a disparu.',
 
     'inputs.heading': 'Ce qui entre et ce qui sort',
     'inputs.hint': 'Nommez chaque montant, indiquez s’il entre ou s’il sort, à quelle fréquence il tombe, et combien. Un emprunt calcule ses mensualités, un placement croît au taux que vous indiquez, et un bien que vous possédez garde simplement sa valeur. Donnez un taux à un montant et il augmente d’autant chaque année.',
@@ -770,7 +814,7 @@ const STRINGS = {
     'share.receivedSome': (fitting, sent, most) =>
       `L’application ne peut en représenter que ${most}, donc ${plural(fitting, `le premier des ${sent} sera ajouté`, `les ${fitting} premiers sur ${sent} seront ajoutés`)} à côté des vôtres.`,
     'share.receivedNoRoom': (most) =>
-      `Vous avez déjà ${most} plans, le maximum que l’application peut représenter. Ouvrir ceux-ci remplacera les vôtres : il n’y a pas de retour en arrière.`,
+      `Vous avez déjà ${most} plans, le maximum que l’application peut représenter. Ouvrir ceux-ci remplacera les vôtres : annuler peut les rétablir tant que cet onglet reste ouvert, mais pas après.`,
     'share.receivedYes': 'Ajouter à mes plans',
     'share.receivedReplace': 'Remplacer mes plans',
     'share.receivedNo': 'Garder les miens',

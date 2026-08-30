@@ -29,6 +29,13 @@
       <span>Finapp</span>
     </p>
     <div class="app-bar-actions">
+      <!-- First, and hidden until there is something to take back. Beside the
+           name rather than out at the end with the theme and the language,
+           because it is not chrome: it is about the move the reader just made,
+           and it goes again the moment that move has been undone. Its
+           accessible name says which of the five it would reverse; the button
+           itself has room for one word. -->
+      <button id="undo" class="ghost-button" type="button" data-i18n="undo.label" hidden>Undo</button>
       <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
       <button id="share-open" class="ghost-button" type="button" data-i18n="action.share">Share</button>
       <button id="about-open" class="ghost-button" type="button" data-i18n="about.open">About</button>
@@ -39,6 +46,13 @@
         <span id="theme-label" aria-hidden="true">Auto</span>
       </button>
     </div>
+    <!-- What an undo put back, on its own line under the buttons. A sentence
+         squeezed in beside six of them would push the last one off a narrow
+         screen, and it is only ever there for a few seconds.
+
+         Focusable only from script: the last press of Undo takes the button
+         away with it, and this is what is left where the reader was. -->
+    <p class="hint undo-said" id="undo-said" role="status" tabindex="-1" hidden></p>
   </header>
 
   <!-- Filled in and revealed only once the strategy bar in the form has

@@ -39,6 +39,7 @@ import {
   migrateFields, defaultStrategies, markShared, MAX_STRATEGIES,
 } from './strategies.js';
 import { decodePlan, linkFor, planInHash } from './share.js';
+import { remember, takeBack, nextBack } from './history.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
 import { BUILD } from './version.js';
 import { RELEASES } from './changelog.js';
@@ -80,6 +81,8 @@ const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'profit', 'ow
 const $ = (id) => document.getElementById(id);
 
 const ui = {
+  undo: $('undo'),
+  undoSaid: $('undo-said'),
   fields: $('fields'),
   strategies: $('strategies'),
   strategyJump: $('strategy-jump'),
@@ -427,11 +430,158 @@ window.addEventListener('storage', (event) => {
     ui.inflation.value = state.inflation;
     ui.spread.value = state.spread;
     ui.tax.value = state.tax;
+    // The single most important line in the undo feature, and it is here rather
+    // than anywhere near it. Every snapshot this tab is holding is a photograph
+    // of plans the *other* window has since replaced; keeping them would leave a
+    // backgrounded tab one press of Undo away from writing its stale plans
+    // straight over the work being done in the window the reader is actually
+    // in. The adoption is the moment those snapshots stop being about anything,
+    // so it is the moment they go — before the redraw that would otherwise put
+    // the button back on screen offering them.
+    forgetUndo();
     render();
   } catch {
     /* another tab wrote something unreadable — keep what we have */
   }
 });
+
+/* --------------------------------------------------------------------- undo */
+
+/**
+ * The last few plans, and the way back to them.
+ *
+ * Every branch below that throws work away photographs the plan first, which
+ * costs one JSON round trip of something the app already serialises several
+ * times a minute. What is deliberately *not* here is a push per keystroke: undo
+ * steps back to "before I deleted that" rather than to "before I typed the 4",
+ * and the way that is arranged is that the snapshot is taken by the command
+ * rather than by the input event — the commands being, already, the only place
+ * a removal can happen at all.
+ */
+let undoStack = [];
+
+/**
+ * Which of the five the last press put back, or '' while there is nothing to
+ * say.
+ *
+ * The case rather than the sentence, for the reason a solved figure is kept as
+ * a finding rather than as words: the wording follows the language and the case
+ * does not, so a reader who switches language with the line on screen gets it
+ * in the other one instead of a phrase left standing in English.
+ */
+let undone = '';
+let undoSaidTimer = 0;
+
+/**
+ * How long the receipt stays in the app bar.
+ *
+ * Long enough to read a sentence, short enough that the header is not still
+ * explaining something from a minute ago. It is a `role="status"`, so it has
+ * been announced by the time it goes — what is being timed out is the line on
+ * screen, not the announcement.
+ */
+const UNDO_SAID_MS = 6000;
+
+/** Take the receipt down, whether it has timed out or been overtaken. */
+function clearUndoSaid() {
+  window.clearTimeout(undoSaidTimer);
+  undoSaidTimer = 0;
+  undone = '';
+  ui.undoSaid.hidden = true;
+  ui.undoSaid.textContent = '';
+}
+
+/** Photograph the plan, before the caller takes a piece of it away. */
+function checkpoint(what) {
+  undoStack = remember(undoStack, what, state);
+  // Something new to take back makes the last receipt out of date: it is still
+  // true that the field came back, and it is no longer what just happened.
+  clearUndoSaid();
+}
+
+/**
+ * Throw the whole stack away.
+ *
+ * One caller, and it is the reason this is a function rather than a line: the
+ * cross-tab listener above, where the plans these snapshots are of have stopped
+ * being this tab's business.
+ */
+function forgetUndo() {
+  undoStack = [];
+  clearUndoSaid();
+}
+
+/**
+ * Take the last destructive move back.
+ *
+ * The whole plan goes back, `activeId` with it — which is the answer to the one
+ * question the feature was filed unsure about. Undoing an edit made in a plan
+ * you are no longer looking at is disorienting, so the snapshot carries which
+ * plan was on screen and the app switches back to it on the way past.
+ *
+ * What does *not* come back is the way the reader was looking at the plan. The
+ * column the comparison shows and the reading the cards are in were never in
+ * the snapshot, because they are not parts of a plan — undo takes back the
+ * move, not the afternoon.
+ *
+ * Saved at once rather than through the debounce, for the reason "Start again"
+ * is: a tab closed a quarter of a second later must not leave the thrown-away
+ * plans in the store and the restored ones on screen.
+ */
+function undo() {
+  const taken = takeBack(undoStack);
+  if (!taken) return;
+  // Asked before the redraw, because the redraw is what takes the button away.
+  const held = document.activeElement === ui.undo;
+  undoStack = taken.rest;
+  Object.assign(state, taken.snapshot.plan);
+  // The kept ranking and the kept answer are both about the plan that was on
+  // screen a moment ago. Each is held against a question it can be checked
+  // against, so a stale one would only ever be recomputed rather than shown —
+  // but the plan has just been replaced wholesale, and there is nothing to be
+  // gained by carrying an answer to a question nobody is asking any more.
+  forgetRanking();
+  forgetAsked();
+  window.clearTimeout(undoSaidTimer);
+  undone = taken.snapshot.what;
+  undoSaidTimer = window.setTimeout(clearUndoSaid, UNDO_SAID_MS);
+  fillControls();
+  save();
+  render();
+  // Taking back the last move hides the button that took it, and setting
+  // `hidden` on the focused element drops focus to the document — which would
+  // leave a keyboard reader tabbing from the top of the page to find out what
+  // happened. So it lands on the line that replaced it, which is the line
+  // saying what came back. A screen reader hears that twice, once as a live
+  // region and once on the focus; twice is the smaller of the two costs.
+  if (held && ui.undo.hidden) ui.undoSaid.focus();
+}
+
+/**
+ * The control, drawn from the top of the stack.
+ *
+ * Gone entirely while there is nothing to take back, rather than sitting there
+ * greyed: a permanently disabled button is a promise the app is not keeping,
+ * and this one has nothing to say for itself between removals.
+ */
+function renderUndo() {
+  const next = nextBack(undoStack);
+  ui.undo.hidden = !next;
+  // The word on the button is "Undo" in every case; which of the five it would
+  // reverse is in the accessible name, where a reader who cannot see what just
+  // happened to the page is the one who needs it.
+  if (next) ui.undo.setAttribute('aria-label', t(`undo.aria.${next.what}`));
+  ui.undoSaid.hidden = !undone;
+  // Written only when it has actually moved, which matters here and nowhere
+  // else on the page: this is a live region, `render()` runs on every keystroke,
+  // and writing the same sentence back into it is still a DOM change — so a
+  // reader who undid something and then carried on typing would have had it
+  // read out at them again on every letter.
+  const said = undone ? t(`undo.said.${undone}`) : '';
+  if (ui.undoSaid.textContent !== said) ui.undoSaid.textContent = said;
+}
+
+ui.undo.addEventListener('click', undo);
 
 /* ------------------------------------------------------------------- charts */
 
@@ -1492,6 +1642,10 @@ function runMilestoneCommand(command) {
       return;
 
     case 'remove': {
+      // The fifth undoable move, and the one the gap was filed without: a
+      // target is a figure somebody typed, and the button that removes it is
+      // the same button that removes a field.
+      checkpoint('milestone');
       const neighbour = milestoneNeighbourOf(state.milestones, command.id);
       state.milestones = removeMilestone(state.milestones, command.id);
       persist();
@@ -1683,6 +1837,9 @@ function runStrategyCommand(command) {
     }
 
     case 'remove': {
+      // A whole plan, which is the largest thing one press can throw away short
+      // of starting again.
+      checkpoint('strategy');
       const neighbour = strategyNeighbourOf(state.strategies, state.activeId);
       state.strategies = removeStrategy(state.strategies, state.activeId);
       state.activeId = activeIdOf(state.strategies, neighbour);
@@ -1772,6 +1929,10 @@ function runCommand(command) {
     }
 
     case 'remove': {
+      // First, before anything is taken away — and a synced field is removed
+      // from every plan at once, so what has to be photographed is the whole
+      // state rather than the list on screen.
+      checkpoint('field');
       const neighbour = neighbourOf(fields(), command.id);
       const field = fieldById(command.id);
       // A synced field is one field. Removing it here removes it, full stop —
@@ -2022,6 +2183,10 @@ function render() {
     button.setAttribute('aria-pressed', active ? 'true' : 'false');
   }
 
+  // Here rather than at the five places that push a snapshot, so that the
+  // control cannot get out of step with the stack: a render is what draws the
+  // page from the state, and whether there is a way back is part of the state.
+  renderUndo();
   renderSummary(projection, hasInput);
 }
 
@@ -2148,6 +2313,10 @@ function renderAbout() {
  * the store and the new ones on screen.
  */
 function resetToDefaults() {
+  // Before the assignment, because after it there is nothing left to photograph.
+  // The confirm stays: undo is a way back while this tab is open and not after,
+  // which is a smaller promise than the one that would let the question go.
+  checkpoint('reset');
   Object.assign(state, defaultState());
   // Which column the comparison shows, and which of the two readings the cards
   // are in, are module state rather than stored state, so both survived the
@@ -2549,6 +2718,12 @@ function roomForShared() {
  * through the debounce, for the reason "Start again" is.
  */
 function adoptPlan(plan, { replacing } = {}) {
+  // On every adoption, not only the one with no room. Adding somebody's plans
+  // beside your own throws nothing away, but it does change the horizon, the
+  // assumptions and every target on the page — and a reader who opened a link
+  // to look at it should be able to put the page back the way it was without
+  // having to remember what their own numbers were.
+  checkpoint('shared');
   // Stamped as shared here rather than where the link is unpacked: what a plan
   // was to whoever sent it is their business, and to whoever opens it, it
   // arrived from outside.
