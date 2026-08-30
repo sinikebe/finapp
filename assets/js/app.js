@@ -12,7 +12,7 @@ import {
   project, inTodaysMoney, shiftReturns, seriesOf, monthlyOf, extentOf,
   hasAmounts, hasDebt, hasOwned,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
-  fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf,
+  fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf, swingsOf,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
@@ -74,6 +74,10 @@ const ui = {
   compareCaption: $('compare-table-caption'),
   compareHead: $('compare-head'),
   compareBody: $('compare-body'),
+  rank: $('rank'),
+  rankNote: $('rank-note'),
+  rankList: $('rank-list'),
+  rankSaid: $('rank-said'),
   months: $('months'),
   monthsReadout: $('months-readout'),
   // Selected by what makes one a horizon preset — the months it sets — not by
@@ -1047,6 +1051,133 @@ function renderComparison(projections) {
 
 let compareNoteTimer = 0;
 
+/* ---------------------------------------------------------------- ranking */
+
+/**
+ * The last ranking worked out, kept beside the exact question it answers.
+ *
+ * Ranking a plan is two projections per field, and `render()` runs on every
+ * keystroke — including the ones in a name box, which move no figure at all.
+ * So the answer is kept with everything it was worked out from, and any render
+ * that did not change the question gets it back for nothing.
+ */
+let ranked = { question: '', rows: [] };
+
+/** Worked out once the typing settles rather than on every keystroke: this is
+ *  the one reading in the app that a hundred fields could make genuinely
+ *  expensive, and half a second of the previous answer is the same bargain the
+ *  notes under the charts and the comparison already strike. */
+let rankTimer = 0;
+
+/**
+ * Everything a ranking depends on, written down. The fields carry their own
+ * amounts and windows, and the rest of it is the horizon, the money the figures
+ * are read in, and the column they are judged on — nothing else reaches the
+ * swings, so two renders agreeing on this agree on the answer.
+ */
+function rankingQuestion(projection, key) {
+  return JSON.stringify([
+    projection.fields, projection.months, projection.taxRate,
+    state.realMoney, state.inflation, key,
+  ]);
+}
+
+/** Emptied when the plans themselves are thrown away, rather than left holding
+ *  a ranking of something that is no longer on the device. */
+function forgetRanking() {
+  ranked = { question: '', rows: [] };
+}
+
+/** The rows, and the line saying what they are. Split out from the deciding
+ *  above it because the same rows are painted whether they were just worked
+ *  out or came back out of the last answer. */
+function paintRanking(projection, key) {
+  ui.rankNote.textContent = t('rank.note', t(`compare.metric.${key}`), projection.months);
+  // The largest swing is the first, so it is what every bar is drawn against.
+  const widest = ranked.rows.length ? Math.abs(ranked.rows[0].swing) : 0;
+  // A plan can hold nothing at all that touches the column being read — every
+  // plan the app opens with is like that on Profit inside twenty years, because
+  // the fund only starts once the housing is paid for. There is no order to put
+  // those fields in, so the fact is said once instead of on every line.
+  ui.rankList.hidden = !widest;
+  ui.rankSaid.hidden = Boolean(widest);
+
+  // Rebuilt rather than reconciled, the way the comparison table is: there is
+  // nothing here to focus and so nothing to lose by replacing it.
+  ui.rankList.textContent = '';
+  if (!widest) {
+    ui.rankSaid.textContent = t('rank.said.nothing', t(`compare.metric.${key}`));
+    return;
+  }
+  for (const row of ranked.rows) {
+    const item = html('li', 'rank-row', ui.rankList);
+    const name = html('span', 'rank-name', item);
+    name.textContent = labelOf(row.field, t) || t('sankey.unnamed');
+
+    const track = html('span', 'rank-track', item);
+    // The drawing says nothing the line beside it does not, so it is chrome.
+    track.setAttribute('aria-hidden', 'true');
+    const bar = html('span', 'rank-bar', track);
+    // Every swing that exists gets a visible sliver — the rule the flow diagram
+    // gives every ribbon, and for the same reason — while a field that really
+    // does move nothing gets no bar at all rather than one saying otherwise.
+    bar.style.width = row.swing
+      ? `max(2px, ${((Math.abs(row.swing) / widest) * 100).toFixed(2)}%)`
+      : '0';
+
+    const value = html('span', 'rank-value', item);
+    // The sign is the comparison's, spelled once. A swing is ahead or behind in
+    // exactly the way a strategy is, and a second spelling would be a second
+    // typographic minus sign waiting to disagree with the first.
+    value.textContent = row.swing
+      ? t(row.swing > 0 ? 'compare.ahead' : 'compare.behind', formatAmount(Math.abs(row.swing)))
+      : t('rank.nothing');
+  }
+}
+
+/**
+ * Which of the reader's figures actually decide where this plan lands.
+ *
+ * **Called after `renderComparison`, and not by accident.** The column the list
+ * is judged on is the one the comparison is showing, and `renderMetrics` is
+ * what settles that for this frame — it may have just moved, because a metric
+ * whose subject has left the plan falls back to the preferred one. Called
+ * first, this would rank against the column that was on screen a moment ago.
+ * Nothing in the code below says so, which is why it is said here.
+ */
+function renderRanking(projection, projections) {
+  // Two amounts is the least that can be put in an order; one field ranked
+  // against nothing is a single line announcing that it matters most.
+  const rankable = projection.fields.filter((field) => toAmount(field.amount) > 0).length > 1;
+  ui.rank.hidden = !rankable;
+  window.clearTimeout(rankTimer);
+  if (!rankable) {
+    // Dropped rather than kept: a plan emptied and filled again would otherwise
+    // put the old ranking back on screen while the new one is being worked out.
+    forgetRanking();
+    return;
+  }
+
+  // The comparison's own column wherever there is a comparison — a reader who
+  // switched those chips to Profit is asking about profit, and a list ranked on
+  // something else directly underneath would answer a question nobody put. With
+  // one plan there are no chips, so it falls back to the same preference the
+  // comparison itself would have opened on.
+  const key = projections.length > 1 ? metric : preferredMetric(projections);
+  const question = rankingQuestion(projection, key);
+  const answer = () => {
+    if (question !== ranked.question) {
+      ranked = { question, rows: swingsOf(projection, key, projectionFor) };
+    }
+    paintRanking(projection, key);
+  };
+
+  // Already answered, or nothing on screen yet that waiting could keep honest:
+  // either way there is nothing to be gained by making the reader wait for it.
+  if (question === ranked.question || !ranked.rows.length) answer();
+  else rankTimer = window.setTimeout(answer, 500);
+}
+
 /* --------------------------------------------------------------- field list */
 
 function fieldLabels() {
@@ -1526,6 +1657,9 @@ function render() {
 
   renderSankey(projection);
   renderComparison(projections);
+  // After the comparison, always: that call is what settles the column the
+  // ranking is judged on. `renderRanking` says why at length.
+  renderRanking(projection, projections);
 
   // Under a year the horizon restates the month count ("1 month · 1 mo"), so it
   // is only worth spelling out once there are years to spell out.
@@ -1673,6 +1807,8 @@ function resetToDefaults() {
   // and a first load has picked neither.
   metricChosen = false;
   monthly = false;
+  // And the ranking is an answer about plans that are about to stop existing.
+  forgetRanking();
   fillControls();
   save();
   render();
@@ -2081,6 +2217,10 @@ function adoptPlan(plan, { replacing } = {}) {
   // arriving plan may not contain it, whereas both readings exist for every
   // plan there is. Someone who switched to the per-month view in order to look
   // at a link is looking that way at the link too.
+  //
+  // The ranking is neither of those things: it is an answer about the fields
+  // that were here, and after this the plan on screen is somebody else's.
+  forgetRanking();
   fillControls();
   save();
   render();

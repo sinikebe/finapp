@@ -203,6 +203,20 @@
         </table>
       </div>
     </section>
+
+    <!-- Under the comparison because it borrows its column: the list is judged
+         on whatever the chips above are showing, so a reader who switched them
+         to Profit gets a ranking on profit. Hidden until there are two amounts
+         to put in an order — one field ranked against nothing is not a
+         ranking. -->
+    <section class="charts-section" id="rank" aria-labelledby="rank-heading" hidden>
+      <h2 id="rank-heading" data-i18n="rank.heading">What moves the needle</h2>
+      <p class="section-note" id="rank-note"></p>
+      <ol class="rank-list" id="rank-list"></ol>
+      <p class="hint" id="rank-said" hidden></p>
+      <p class="scale-note" data-i18n="rank.caveat.horizon">This is what your plan is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three plans the app opens with swap theirs somewhere between twenty years and forty.</p>
+      <p class="scale-note" data-i18n="rank.caveat.parts">The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.</p>
+    </section>
   </main>
 
   <footer class="app-footer">

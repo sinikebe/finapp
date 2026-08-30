@@ -1267,6 +1267,85 @@ main > section,
 }
 .data-table .num { text-align: right; }
 
+/* --------------------------------------------------------------- ranking */
+
+/*
+ * A ranked list rather than a chart, which is the whole reason this reading is
+ * affordable: five series colours is the ceiling and every one of them is
+ * spoken for, so a sixth quantity had to be drawn in something the palette does
+ * not have to give. Neutral, dashed and muted chrome is free.
+ */
+.rank-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+/* Name, bar, figure. The name is capped rather than given a share of the row:
+   these are short labels, and a proportional column would push the bars into
+   the right-hand third of a wide screen, where the one thing they are for —
+   being compared with each other — is hardest to do. Both flexible tracks floor
+   at nothing rather than at their own content, since a grid item's default
+   `min-width: auto` is what pushes a page sideways. */
+.rank-row {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  font-size: 13.5px;
+}
+
+/* One line, ellipsed: a field can be named up to sixty characters and the
+   figure beside it is the thing being read. */
+.rank-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.rank-track {
+  min-width: 0;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+/* Deliberately not `--accent`: that colour means focus, a link, the brand, and
+   lending it a quantitative encoding is how a palette starts drifting. A swing
+   is a size, not a category, so it is drawn in the same ink as the muted text
+   around it. */
+.rank-bar {
+  /* Blockified on purpose: width does not apply to an inline box, so without
+     this every bar in the list is drawn at nothing wide. */
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--text-muted) 80%, transparent);
+}
+
+.rank-value {
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A 320px screen has no room for three columns: the name takes its own line and
+   the bar and the figure share the next, which keeps the bars comparable to
+   each other — the only thing they are for. */
+@media (max-width: 420px) {
+  .rank-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 2px;
+  }
+  .rank-name { grid-column: 1 / -1; }
+}
+
 /* ----------------------------------------------------------- footer/toast */
 
 .app-footer {

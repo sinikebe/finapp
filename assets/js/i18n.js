@@ -205,6 +205,25 @@ const STRINGS = {
       `${count} strategies compared over ${months} ${months === 1 ? 'month' : 'months'}. `
       + 'Use the table below this chart for every value.',
 
+    'rank.heading': 'What moves the needle',
+    // "What follows" rather than "beside each name", because what follows is
+    // sometimes one sentence saying nothing here moves this column at all.
+    'rank.note': (metric, months) =>
+      `Every amount in the plan was moved a tenth up and a tenth down on its own, with the rest of it left exactly where it is; what follows is how far that carries ${metric} at month ${months}.`,
+    // A field can be in the plan and still be outside the horizon — the fund
+    // that only starts once the mortgage ends is in every plan the app opens
+    // with — and that it moves nothing yet is worth saying rather than showing
+    // as a bar too short to see.
+    'rank.nothing': 'moves nothing',
+    // And where that is true of every one of them there is no order to show, so
+    // the same fact is said once rather than on six lines that all say it.
+    'rank.said.nothing': (metric) => `Nothing you have entered moves ${metric} over this horizon.`,
+    'rank.caveat.horizon': 'This is what your plan is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three plans the app opens with swap theirs somewhere between twenty years and forty.',
+    // The obvious caveat to write here would be that the parts do not sum to
+    // the whole. They do — see `swingsOf` — and saying otherwise would excuse
+    // the list from the thing it genuinely cannot do.
+    'rank.caveat.parts': 'The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.',
+
     'summary.heading': 'Projected totals',
     'summary.heroLabel': (months) => `Net after ${months} ${plural(months, 'month', 'months')}`,
     'summary.totalIncome': 'Total income',
@@ -520,6 +539,14 @@ const STRINGS = {
     'compare.aria': (months, count) =>
       `${count} stratégies comparées sur ${months} mois. `
       + 'Le tableau sous ce graphique donne toutes les valeurs.',
+
+    'rank.heading': 'Ce qui pèse vraiment',
+    'rank.note': (metric, months) =>
+      `Chaque montant du plan a été augmenté puis diminué d’un dixième, isolément, tout le reste restant en place\u00a0; ce qui suit est ce que cela déplace sur ${metric} au mois ${months}.`,
+    'rank.nothing': 'ne change rien',
+    'rank.said.nothing': (metric) => `Rien de ce que vous avez saisi ne déplace ${metric} sur cet horizon.`,
+    'rank.caveat.horizon': 'C’est ce à quoi votre plan est sensible sur la durée que vous lisez, pas une vérité générale sur l’argent. Allongez la projection et l’ordre change\u00a0: les trois plans avec lesquels l’application démarre inversent le leur entre vingt et quarante ans.',
+    'rank.caveat.parts': 'Les écarts s’additionnent bien. Chaque montant entre dans le modèle pour lui-même, si bien qu’en déplacer deux déplace le chiffre des deux, au centime près — et c’est là toute la limite de cette liste, non un défaut\u00a0: elle classera un emprunt et le logement qu’il a payé l’un au-dessus de l’autre sans jamais pouvoir dire qu’ils ne font qu’une seule décision. Le gain net fait exception, parce que l’impôt porte sur le gain d’ensemble et non sur chacune de ses parts.',
 
     'summary.heading': 'Totaux projetés',
     'summary.heroLabel': (months) => `Solde net après ${months} mois`,

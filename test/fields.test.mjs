@@ -5,10 +5,10 @@ import {
   DIRECTIONS, FIELD_SHAPE, FIELD_SCHEMA, MAX_FIELDS, MAX_LABEL_LENGTH,
   PERIODS, DEFAULT_PERIOD, KINDS, DEFAULT_TERM,
   createField, normalizeField, normalizeFields, labelOf,
-  addField, updateField, duplicateField, removeField, neighbourOf,
+  addField, updateField, duplicateField, removeField, neighbourOf, raiseAmount,
   defaultFields, migrateLegacyInputs,
 } from '../assets/js/fields.js';
-import { contributionOf } from '../assets/js/projection.js';
+import { contributionOf, toAmount } from '../assets/js/projection.js';
 
 const t = (key) => ({ 'field.default.income': 'Income', 'field.default.rent': 'Rent' }[key] || key);
 const copyName = (name) => `${name} (copy)`;
@@ -112,6 +112,36 @@ test('removing drops exactly one field', () => {
   assert.equal(removeField(list, list[0].id)[0].id, list[1].id);
 });
 
+test('an amount can be moved a fraction of itself, and nothing else moves with it', () => {
+  // This is what lets a plan be asked which of its figures actually decide the
+  // answer: move one amount, run the projection again, and the distance between
+  // the two runs is that field's weight. So it has to move exactly one field.
+  const list = [createField({ amount: '2200' }), createField({ amount: '1000' })];
+  const up = raiseAmount(list, list[0].id, 0.1, toAmount);
+  assert.equal(toAmount(up[0].amount), 2420);
+  assert.equal(up[1].amount, '1000', 'the field beside it is untouched');
+  assert.equal(toAmount(raiseAmount(list, list[0].id, -0.1, toAmount)[0].amount), 1980);
+  assert.equal(toAmount(raiseAmount(list, 'nope', 0.1, toAmount)[0].amount), 2200, 'an id nobody has moves nothing');
+});
+
+test('a figure is moved however it was written down', () => {
+  // The reader's own separators reach this: an amount is stored exactly as they
+  // typed it, and the caller hands in the same reader the projection uses so
+  // that the figure that moves is the figure the projection saw.
+  const french = [createField({ amount: '12,50' })];
+  assert.equal(toAmount(raiseAmount(french, french[0].id, 1, toAmount)[0].amount), 25);
+});
+
+test('a field with nothing in it is left exactly as it stands', () => {
+  // A tenth of nothing is nothing, and writing a 0 into an empty box would turn
+  // a question about the plan into an edit of it.
+  const empty = [createField({ label: 'Not filled in yet' })];
+  assert.equal(raiseAmount(empty, empty[0].id, 0.1, toAmount)[0].amount, '');
+  assert.equal(raiseAmount(empty, empty[0].id, 0.1, toAmount)[0].label, 'Not filled in yet');
+  const junk = [createField({ amount: '2200' })];
+  assert.equal(raiseAmount(junk, junk[0].id, NaN, toAmount)[0].amount, '2200', 'an unreadable move is no move');
+});
+
 test('focus goes to the next field, or the previous one at the end', () => {
   const list = [createField(), createField(), createField()];
   assert.equal(neighbourOf(list, list[0].id), list[1].id);
@@ -127,6 +157,7 @@ test('operations never mutate what they are given', () => {
   updateField(list, list[0].id, { amount: '999' });
   duplicateField(list, list[0].id, copyName, t);
   removeField(list, list[0].id);
+  raiseAmount(list, list[0].id, 0.1, toAmount);
   assert.equal(JSON.stringify(list), snapshot);
 });
 
