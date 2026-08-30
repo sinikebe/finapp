@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v49', date: '2026-08-29',
+    version: 'v50', date: '2026-08-30',
+    en: 'Five ways to ask more of a plan. The flow cards read a month at a time as well as cumulatively, so a month that costs more than it earns is visible instead of buried in a running total. A ranked list says which of your figures actually decide where the plan lands. A target says the month it is met and is marked on the cards; one that is never met can ask what it would take, and the answer is checked by running the plan again with it before it is shown. And Undo takes back a removed field, a removed plan, a removed target, Start again, or a shared plan opened over your own — for as long as the tab stays open.',
+    fr: 'Cinq façons d’en demander plus à un plan. Les cartes de flux se lisent mois par mois autant qu’en cumulé, si bien qu’un mois qui coûte plus qu’il ne rapporte se voit au lieu de se perdre dans un total. Une liste classée dit lesquels de vos montants décident vraiment où le plan aboutit. Un objectif indique le mois où il est atteint et se marque sur les cartes\u00a0; celui qui ne l’est jamais peut demander ce qu’il faudrait, et la réponse est vérifiée en rejouant le plan avec elle avant d’être affichée. Enfin, Annuler rend un poste supprimé, un plan supprimé, un objectif supprimé, un Recommencer, ou un plan partagé ouvert par-dessus les vôtres — tant que l’onglet reste ouvert.',
+  },
+  {
+    version: 'v49', date: '2026-08-29', commit: 'c151610',
     en: 'A shared plan is added beside your own now, rather than over them — comparing it against what you already have is the reason to open one. And every tab says where its plan came from: the worked example, one you made, one shared with you, and one shared with you that you have since changed.',
     fr: 'Un plan partagé s’ajoute désormais à côté des vôtres au lieu de les remplacer : le comparer à ce que vous avez déjà est la raison même de l’ouvrir. Et chaque onglet dit d’où vient son plan : l’exemple d’origine, un plan que vous avez créé, un plan partagé avec vous, et un plan partagé que vous avez modifié depuis.',
   },

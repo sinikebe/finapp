@@ -190,6 +190,14 @@ Line charts hand-drawn as SVG in [`assets/js/chart.js`](assets/js/chart.js).
 One component draws every chart in the app: it takes a list of series and lays
 out however many it is given.
 
+- **Two readings of the same cards.** *Running total* draws the curves that
+  climb. *Each month* draws what that month moved on its own — the one question
+  a running total cannot answer, because a curve that only ever climbs hides
+  every month it climbed by less than nothing. It is a first difference of the
+  series the model already produces, so nothing was added to the model to get
+  it, and the table under each card reads the same way the chart does. It is a
+  toggle on the cards rather than a sixth card: five series colours is the
+  ceiling, and a new card would need a colour that does not exist.
 - **One shared vertical scale** across the flow cards, so the curves can be
   read against each other — two y-scales on one plot would invent a correlation
   that isn't in the data. The investment-value card is the exception and says
@@ -244,17 +252,78 @@ house appreciates at 1.5%. Nothing in the model is conditional, so the months
 the renters buy were computed and hard-coded — and a test recomputes both and
 fails if a figure moves without them following.
 
-**Start again**, in the About panel, puts the defaults back. It is the one
-action in the app that throws something away, so it asks first and the second
-click is labelled *Replace everything* rather than *OK*. Your language and
-theme are left alone: they are preferences about reading the app, not part of
-the plan.
+**Start again**, in the About panel, puts the defaults back. It still asks
+first, and the second click is still labelled *Replace everything* rather than
+*OK*: Undo can take it back while the tab is open and not once it is closed,
+which is exactly the case a confirm is for. Your language and theme are left
+alone — they are preferences about reading the app, not part of the plan.
+
+## When does that happen?
+
+The model has no conditionals in it: *as soon as savings reach 100,000* is not a
+rule the projection can obey. **A target does not need one**, because it is a
+reading over the result rather than a rule inside it. Mark *worth reaches
+250,000*, or *debt clear*, or *the fund covers the house*, and the app scans the
+months for the first one where it is true and says so in words. The month is
+marked on the flow cards as a neutral dashed rule carrying its number — the same
+treatment the investment card's *paid in* line already gets, and for the same
+reason: a reference is not a category, so it takes no slot in a palette with
+none left to give. The rule is drawn in both readings, because it marks the
+month a target is met and is not a feature of the curve it is drawn over.
+
+A target that is never met **says so** rather than falling off the end of the
+chart — and then it can ask the other question. **What would it take?** takes
+one of your own figures and works backwards to the value that would meet the
+target, bracketing and halving over the projection itself. Two things make that
+answer trustworthy. It is **checked**: the winning figure is run back through
+the plan before it is shown, so the sentence is the app's own reading rather
+than the solver's arithmetic. And it **refuses** where the relationship is not
+monotonic — an amount and a rate are the only two figures it will solve for, and
+where a total climbs and falls again it says so instead of returning whichever
+crossing it found first. One of the app's own opening plans is a shape that
+wobbles, and a test holds it to refusing.
+
+The answer is shown, never applied: applying it would write over what you typed.
+
+## Which figures decide it
+
+A plan can hold a hundred fields, and nothing on the page said which two of them
+decide where it ends up. So a ranked list moves each amount on its own, runs the
+whole projection again, and orders the fields by how far the answer moved. It is
+a list rather than a chart, which is what keeps it out of the palette.
+
+Two things are said on the card rather than left to be discovered. It measures
+**this plan at this horizon**, not a general truth — the plans the app opens
+with reverse their order somewhere between year twenty and year forty. And the
+swings **do** add up, because the model is separable by construction, which is
+precisely why the list cannot tell you that a mortgage bought a house: it ranks
+the figures, not the reasons. Profit is the one exception, tax falling on the
+aggregate gain rather than on each part of it.
+
+## Taking something back
+
+Five things throw work away: removing a field, removing a strategy, removing a
+target, *Start again*, and opening a shared plan over your own. **Undo** takes
+back the last ten of them.
+
+It is cheap because the model operations were already pure and already returned
+new lists, so a snapshot is the plan exactly as the store would have written it,
+deep-copied through the same serialisation. It does not step back through your
+typing: the snapshot is taken by the command rather than the keystroke, so Undo
+means *before I deleted that* and not *before I typed the 4*.
+
+**It lasts as long as the tab.** Nothing is written down, so closing the tab is
+still what makes a change final — which is why the confirms stay. And when
+another window's changes arrive, this tab throws its stack away before adopting
+them: a snapshot of plans that window has since replaced would otherwise be one
+press away from overwriting somebody's work, from a window nobody is looking at.
 
 ## Handing a plan to somebody
 
 There is no account to share from and no copy on a server to link to, so **the
 link is the copy**. *Share* packs the whole configuration — every strategy,
-every field, the horizon and the assumptions — into the **fragment** of a URL,
+every field, any targets, the horizon and the assumptions — into the
+**fragment** of a URL,
 which is the one part of an address a browser never sends to a server. The plan
 travels wherever you paste it and nowhere else, which is the same promise the
 rest of the app makes, kept in the one place where it has to let go. Anyone who
@@ -303,7 +372,9 @@ app last looked for a new version under the fourth. Older stores are migrated on
 first load and retired only after the new one is written, so a failed write
 leaves what you had typed where it was. **Nothing about you is sent anywhere**:
 after the app has loaded its own files, the only request it ever makes is the
-one that asks whether a newer version exists.
+one that asks whether a newer version exists. The undo stack is deliberately
+**not** a fifth key: a list of your previous plans, left on disk, is something a
+shared device would still be holding tomorrow.
 
 `sw.js` treats its cache as one immutable generation: the page, the CSS and the
 JS are precached together and served together from that same generation, so you
