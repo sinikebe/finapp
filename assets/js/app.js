@@ -25,6 +25,11 @@ import { html } from './dom.js';
 import { createLineChart, endLabelPad } from './chart.js';
 import { createSankey } from './sankey.js';
 import { createFieldList } from './field-list.js';
+import { createMilestoneList } from './milestone-list.js';
+import {
+  addMilestone, updateMilestone, removeMilestone, defaultMilestones,
+  neighbourOf as milestoneNeighbourOf, normalizeMilestones, whenMet,
+} from './milestones.js';
 import { createStrategyBar, createStrategyJump } from './strategy-bar.js';
 import {
   updateStrategy, duplicateStrategy, removeStrategy,
@@ -58,6 +63,18 @@ const DEFAULT_TAX = '30';
 /** The series a return can move. The flows are fixed amounts, so a range on
  *  them would be a range around nothing. */
 const BAND_KEYS = new Set(['invested', 'worth']);
+/**
+ * The quantities a reader can ask about by name: the columns the comparison
+ * offers, and the quantities a target can be set on. One list, because two
+ * would be two spellings of the same eight things — and they are named through
+ * `compare.metric.*` wherever either of them shows a name.
+ *
+ * Up here with the constants rather than beside the comparison that reads it
+ * most, because the stored state is read before any of the drawing is: a target
+ * arriving out of a store or a link is checked against this list, and that
+ * happens on the first line of `loadState`.
+ */
+const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'profit', 'owned', 'debt'];
 
 const $ = (id) => document.getElementById(id);
 
@@ -78,6 +95,9 @@ const ui = {
   rankNote: $('rank-note'),
   rankList: $('rank-list'),
   rankSaid: $('rank-said'),
+  milestones: $('milestones'),
+  milestoneMount: $('milestone-mount'),
+  addMilestone: $('add-milestone'),
   months: $('months'),
   monthsReadout: $('months-readout'),
   // Selected by what makes one a horizon preset — the months it sets — not by
@@ -213,12 +233,13 @@ function toRateText(value, fallback = DEFAULT_INFLATION) {
 
 /**
  * The stored shape is `{ strategies, activeId, months, inflation, realMoney,
- * spread, showRange, tax }`. Everything after the horizon arrived later and is
- * simply absent from an older store, which reads as the defaults — no
- * migration, because nothing changed shape. Two older shapes are carried over
- * once and retired, so nobody loses what they had entered: a bare list of
- * fields from before strategies, and before that a single income and a single
- * rent.
+ * spread, showRange, tax, milestones }`. Everything after the horizon arrived
+ * later and is simply absent from an older store, which reads as the defaults —
+ * no migration, because nothing changed shape. A store written before targets
+ * existed has none, and reads as a plan with nothing marked on it, which is
+ * exactly what it was. Two older shapes are carried over once and retired, so
+ * nobody loses what they had entered: a bare list of fields from before
+ * strategies, and before that a single income and a single rent.
  */
 function loadState() {
   const saved = readStore(STATE_KEY, null);
@@ -233,6 +254,7 @@ function loadState() {
       spread: toRateText(saved.spread, DEFAULT_SPREAD),
       showRange: saved.showRange === true,
       tax: toRateText(saved.tax, DEFAULT_TAX),
+      milestones: normalizeMilestones(saved.milestones, METRICS),
     };
   }
 
@@ -272,6 +294,10 @@ function defaultState() {
     spread: DEFAULT_SPREAD,
     showRange: false,
     tax: DEFAULT_TAX,
+    // One target, asked on the reader's behalf: the three plans below are three
+    // answers to when a 100,000 house is yours, and this is what makes the app
+    // say the month rather than only know it.
+    milestones: normalizeMilestones(defaultMilestones(), METRICS),
   };
 }
 
@@ -290,6 +316,9 @@ function adopt(strategies, months, oldKey) {
     spread: DEFAULT_SPREAD,
     showRange: false,
     tax: DEFAULT_TAX,
+    // Nothing marked: an older store predates targets, and inventing one on
+    // somebody's own figures would be the app putting a question in their mouth.
+    milestones: [],
   };
   if (writeStore(STATE_KEY, next)) dropStore(oldKey);
   return next;
@@ -331,6 +360,7 @@ function save() {
     spread: state.spread,
     showRange: state.showRange,
     tax: state.tax,
+    milestones: state.milestones,
   });
 }
 
@@ -365,11 +395,15 @@ window.addEventListener('storage', (event) => {
   //                      unconditionally, so a figure being typed here was
   //                      replaced under the caret by whatever another window
   //                      had just saved.
+  //   `.milestone-list` — the targets. A figure being watched for is a figure
+  //                      being typed like any other, and the whole list is
+  //                      written below, so a half-entered target would be
+  //                      replaced by another window's.
   // Anything else that grows an editable control and gets adopted below belongs
   // on this list too; nothing owns it, so it is only ever as complete as the
   // last person to add to the block of assignments underneath.
   const editingHere = document.activeElement instanceof Element
-    && document.activeElement.closest('.field-list, .strategy-bar, .filter-row');
+    && document.activeElement.closest('.field-list, .strategy-bar, .filter-row, .milestone-list');
   if (editingHere) return;
   // And an edit of our own still inside the debounce is an edit: adopting now
   // would discard it before it was ever written.
@@ -386,6 +420,7 @@ window.addEventListener('storage', (event) => {
     state.spread = toRateText(incoming.spread, DEFAULT_SPREAD);
     state.showRange = incoming.showRange === true;
     state.tax = toRateText(incoming.tax, DEFAULT_TAX);
+    state.milestones = normalizeMilestones(incoming.milestones, METRICS);
     ui.months.value = String(state.months);
     ui.inflation.value = state.inflation;
     ui.spread.value = state.spread;
@@ -586,9 +621,6 @@ for (const [button, wanted] of [[ui.viewTotal, false], [ui.viewMonthly, true]]) 
 }
 
 /* --------------------------------------------------------------- comparing */
-
-/** Which quantity the comparison chart is showing. */
-const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'profit', 'owned', 'debt'];
 
 /** Metrics that say nothing until the thing they measure exists. */
 const CONDITIONAL_METRICS = {
@@ -1178,6 +1210,158 @@ function renderRanking(projection, projections) {
   else rankTimer = window.setTimeout(answer, 500);
 }
 
+/* -------------------------------------------------------------- milestones */
+
+/*
+ * The app's largest declared limitation is that nothing in the model is
+ * conditional — the months the renters buy were worked out by hand and written
+ * into `strategies.js`, because "as soon as savings reach 100,000" is not a
+ * rule a projection can obey. Nothing here changes that. It does not have to:
+ * "the first month savings reach 100,000" is a read over the answer, and the
+ * answer is already in `projection.points`. So this section runs no model of
+ * its own and adds no pass over the fields — it looks at what has already been
+ * computed and says which month it crossed.
+ */
+
+/**
+ * Which column a new target opens on.
+ *
+ * Module state for the same reason `metric` is: it is settled by a render and
+ * read by a command that happens between two of them. Without it, adding a
+ * target would have to run every projection again purely to find out what the
+ * page is currently being judged on.
+ */
+let preferred = 'net';
+
+/**
+ * When a target is met, in words.
+ *
+ * Three answers, and the third is one: a target the plan never reaches says so
+ * where the month would have been, rather than being left to fall off the end
+ * of a chart with nothing to explain the absence.
+ */
+function milestoneSaid(projection, milestone) {
+  const reading = whenMet(projection, milestone, toNumber);
+  if (!reading) return t('milestone.said.pending');
+  if (reading.month === null) {
+    return t('milestone.said.never', formatHorizon(projection.months, t), formatAmount(reading.value));
+  }
+  // Month 0 is not a month the plan arrives at, it is where the plan starts.
+  // "First true at month 0" would offer a date for something that was never
+  // not the case — the house the borrower's plan opens owning, for instance.
+  if (reading.month === 0) return t('milestone.said.always', formatAmount(reading.value));
+  return t('milestone.said.met', reading.month, formatAmount(reading.value));
+}
+
+/**
+ * The months to rule on the cards: every target this plan actually meets.
+ *
+ * Read against the plan on screen, and drawn only on that plan's cards. The
+ * comparison chart deliberately gets none: it holds four plans at once, and a
+ * month read off one of them ruled across all four would be a claim about
+ * plans it was never read from.
+ *
+ * Months are pooled rather than listed, so two targets met in the same month
+ * are one line instead of two drawn exactly on top of each other.
+ */
+function milestoneRules(projection) {
+  const months = new Set();
+  for (const milestone of state.milestones) {
+    const reading = whenMet(projection, milestone, toNumber);
+    if (reading && reading.month !== null) months.add(reading.month);
+  }
+  return [...months].map((month) => ({ month }));
+}
+
+function milestoneLabels(projection) {
+  return {
+    add: t('milestone.add'),
+    what: t('milestone.what'),
+    figure: t('milestone.figure'),
+    figureNamed: (metric) => t('milestone.figureNamed', metric),
+    removeNamed: (metric) => t('milestone.removeNamed', metric),
+    // The comparison's own names, never a second spelling of the same eight
+    // quantities: "Total" reading one way in a chip and another in a target is
+    // two words for one thing on one page.
+    metricName: (key) => t(`compare.metric.${key}`),
+    // Worded here rather than in the view, because the month is a read over a
+    // projection and the view has never seen one.
+    said: (milestone) => milestoneSaid(projection, milestone),
+  };
+}
+
+function renderMilestones(projection) {
+  const marked = state.milestones.length > 0;
+  ui.milestones.hidden = !marked;
+  // One affordance in. The button under the cards is the whole of the feature
+  // until there is something to show, and it goes the moment the section it
+  // opens can speak for itself — two ways to add the first target, one of them
+  // permanently visible, is an empty state wearing a button.
+  ui.addMilestone.hidden = marked;
+  // Written even when there is nothing to write. Skipping it while the section
+  // is hidden would leave the row of a removed target standing inside it,
+  // invisible and out of date, waiting to be shown again by the next target
+  // somebody adds.
+  milestoneList.update(state.milestones, milestoneLabels(projection));
+}
+
+/** Every edit the target list can ask for. */
+function runMilestoneCommand(command) {
+  switch (command.type) {
+    case 'update':
+      state.milestones = updateMilestone(state.milestones, command.id, command.patch, METRICS);
+      break;
+
+    case 'settle': {
+      // The reader left the box: show the figure the read will actually use, in
+      // their own decimal separator. Unlike a field's amount this keeps its
+      // sign — a field's direction carries the sign so the box never needs one,
+      // and a target has no direction: "net reaches −5,000" is a perfectly fair
+      // thing to want the month of.
+      const patch = { ...command.patch };
+      const figure = toNumber(patch.amount);
+      patch.amount = Number.isFinite(figure) ? formatTyped(roundToCent(figure)) : '';
+      state.milestones = updateMilestone(state.milestones, command.id, patch, METRICS);
+      break;
+    }
+
+    case 'add': {
+      const before = new Set(state.milestones.map((milestone) => milestone.id));
+      // Opened on whatever the page is being judged on, so the reader's first
+      // move is to type a figure rather than to go looking for a column.
+      state.milestones = addMilestone(state.milestones, METRICS, { metric: preferred });
+      const created = state.milestones.find((milestone) => !before.has(milestone.id));
+      persist();
+      render();
+      // Adding the first target hides the button that was just pressed, and
+      // setting `hidden` on the focused element drops focus to the document —
+      // so it is put on the box the reader now has to fill in.
+      milestoneList.focus(created ? created.id : null);
+      return;
+    }
+
+    case 'remove': {
+      const neighbour = milestoneNeighbourOf(state.milestones, command.id);
+      state.milestones = removeMilestone(state.milestones, command.id);
+      persist();
+      render();
+      // Removing the last one hides the section this button lived in, which
+      // takes focus with it: land it on the way back in.
+      if (state.milestones.length) milestoneList.focus(neighbour);
+      else ui.addMilestone.focus();
+      return;
+    }
+
+    default:
+      return;
+  }
+
+  persist();
+  render();
+}
+
+ui.addMilestone.addEventListener('click', () => runMilestoneCommand({ type: 'add' }));
+
 /* --------------------------------------------------------------- field list */
 
 function fieldLabels() {
@@ -1503,6 +1687,10 @@ function render() {
   );
   const projection = projections[activeIndex()];
   const hasInput = hasAmounts(projection);
+  // Settled once a frame so that a command landing between two renders — adding
+  // a target, say — can ask what the page is being judged on without running
+  // every projection a second time to find out.
+  preferred = preferredMetric(projections);
 
   // The conditional cards come and go with the fields, so they are rebuilt
   // only when the set actually changes rather than on every keystroke.
@@ -1627,6 +1815,11 @@ function render() {
   ui.worthLabel.textContent = t('summary.worth', projection.months);
   ui.worthValue.textContent = hasInput ? formatAmount(projection.totals.worth) : '—';
 
+  // Worked out before the cards are drawn, because the rules go on them. It is
+  // one pass over points that already exist: the model is not run again, and
+  // could not be — a milestone is a read over its answer, never a rule in it.
+  const rules = milestoneRules(projection);
+
   charts.forEach((chart, index) => {
     chart.instance.update({
       series: [
@@ -1649,12 +1842,16 @@ function render() {
       ],
       domain: ownScaleOf(specs[index]) ? extentOf(spanOf(index)) : shared,
       months: projection.months,
+      // The same months on every card, in both readings: a month is a month
+      // whether the card is showing a running total or what moved during it.
+      rules,
       labelPad,
       isEmpty: !hasInput,
       emptyMessage: t('charts.empty'),
     });
   });
 
+  renderMilestones(projection);
   renderSankey(projection);
   renderComparison(projections);
   // After the comparison, always: that call is what settles the column the
@@ -1896,6 +2093,15 @@ const list = createFieldList({
   labels: fieldLabels(),
   t,
   onCommand: runCommand,
+});
+
+// The eight quantities are handed in rather than looked up: which of them a
+// target may watch is the app's decision, and there is one list of them.
+const milestoneList = createMilestoneList({
+  mount: ui.milestoneMount,
+  metrics: METRICS,
+  labels: milestoneLabels(projectionFor(fields())),
+  onCommand: runMilestoneCommand,
 });
 
 function applyLanguage(next) {
@@ -2207,6 +2413,11 @@ function adoptPlan(plan, { replacing } = {}) {
     spread: toRateText(plan.spread, DEFAULT_SPREAD),
     showRange: plan.showRange === true,
     tax: toRateText(plan.tax, DEFAULT_TAX),
+    // The targets come with the plan for the reason the horizon does. They are
+    // asked of every strategy at once, so there is one set of them however many
+    // plans are on the device — and they are part of what somebody is sending:
+    // "here is how I would buy it" usually means "and here is when it happens".
+    milestones: normalizeMilestones(plan.milestones, METRICS),
   });
   // Which column the comparison shows is module state rather than stored state,
   // so it would otherwise survive into somebody else's plan and pick a metric

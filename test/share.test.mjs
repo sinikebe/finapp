@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { FIELD_SCHEMA, createField, normalizeFields } from '../assets/js/fields.js';
 import { MAX_STRATEGIES, defaultStrategies, normalizeStrategies } from '../assets/js/strategies.js';
+import { MAX_MILESTONES } from '../assets/js/milestones.js';
 import {
   PLAN_KEY,
   PLAN_VERSION,
@@ -207,6 +208,49 @@ test('a name in any language arrives as itself', () => {
   const after = decodePlan(encodePlan(before));
   assert.equal(after.strategies[0].name, names[0]);
   assert.deepEqual(after.strategies[0].fields.map((field) => field.label), names);
+});
+
+test('the targets travel, because they are part of what is being asked', () => {
+  // "Here is how I would buy it" usually means "and here is when it happens".
+  // A link that dropped the targets would arrive as somebody's figures with
+  // their question taken out of it.
+  const before = planOf(defaultStrategies(), {
+    milestones: [
+      { id: 'local-1', metric: 'owned', amount: '100000' },
+      { id: 'local-2', metric: 'debt', amount: '0' },
+    ],
+  });
+  const after = decodePlan(encodePlan(before));
+  assert.deepEqual(
+    after.milestones,
+    [{ metric: 'owned', amount: '100000' }, { metric: 'debt', amount: '0' }],
+    'the quantity and the figure arrive, and the id does not — it meant nothing here',
+  );
+
+  // A plan with no targets says nothing about them at all, rather than paying
+  // for an empty list in every link anybody pastes.
+  const bare = JSON.parse(Buffer.from(encodePlan(planOf(defaultStrategies())), 'base64url').toString('utf8'));
+  assert.equal('ms' in bare, false);
+  assert.deepEqual(decodePlan(encodePlan(planOf(defaultStrategies()))).milestones, []);
+});
+
+test('a target arriving in a link is shaped, and judged by whoever holds the list', () => {
+  // The same bargain the scalars strike: `decodePlan` makes a target-shaped
+  // thing out of whatever is there, and the app — which is what knows the eight
+  // quantities a target may watch — decides whether it is one it will accept.
+  const packed = {
+    v: PLAN_VERSION,
+    m: 120,
+    s: [['Later', '', []]],
+    ms: [['worth', 250000], ['the moon', {}], 'not even a pair',
+      ...Array.from({ length: 20 }, () => ['net', '1'])],
+  };
+  const after = decodePlan(Buffer.from(JSON.stringify(packed), 'utf8').toString('base64url'));
+  assert.ok(after.milestones.length <= MAX_MILESTONES, 'no more targets than the app allows');
+  assert.deepEqual(after.milestones[0], { metric: 'worth', amount: '250000' },
+    'a figure written as a number arrives as the text every amount in the app is');
+  assert.deepEqual(after.milestones[1], { metric: 'the moon', amount: '' },
+    'and a quantity this format has no opinion about is passed on for one that has');
 });
 
 test('what a plan does not carry is what is not part of a plan', () => {

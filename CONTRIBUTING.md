@@ -71,31 +71,33 @@ front page rather than merely look untidy in a sidebar.
 ## Layout
 
 ```
-index.html                 markup + i18n hooks (data-i18n)
-manifest.webmanifest       installability (manifest.fr.webmanifest: the same
-                           app, named in French)
-sw.js                      offline shell
-assets/css/app.css         design tokens (light + dark), shell, chart chrome
-assets/js/fields.js        the field model — shape, coercion, operations
-assets/js/strategies.js    the strategy model — a named set of fields
-assets/js/projection.js    fields + horizon → the cumulative series
-assets/js/field-list.js    the editable list of fields
-assets/js/strategy-bar.js  the tabs that name, switch and add strategies
-assets/js/chart.js         the SVG line chart, one or many series
-assets/js/sankey.js        the flow diagram: in, pooled, out
-assets/js/share.js         a whole plan packed into a link, and read back
-assets/js/dom.js           the DOM helpers the views share: two that build a
-                           node, two that update one in place
-assets/js/format.js        locale-aware number formatting
-assets/js/i18n.js          English and French copy
-assets/js/changelog.js     what changed, release by release, in both languages
-assets/js/version.js       the build stamp the About panel reads (generated)
-assets/js/app.js           wiring: inputs, state, theme, language, install, updates
-tools/generate-icons.mjs   icon set, rendered from a vector description
-tools/serve.mjs            development server (never deployed)
-tools/stamp-version.mjs    writes version.js from sw.js and the git checkout
-test/                      node:test unit tests
-docs/                      the screenshots the README shows
+index.html                   markup + i18n hooks (data-i18n)
+manifest.webmanifest         installability (manifest.fr.webmanifest: the same
+                             app, named in French)
+sw.js                        offline shell
+assets/css/app.css           design tokens (light + dark), shell, chart chrome
+assets/js/fields.js          the field model — shape, coercion, operations
+assets/js/strategies.js      the strategy model — a named set of fields
+assets/js/projection.js      fields + horizon → the cumulative series
+assets/js/field-list.js      the editable list of fields
+assets/js/milestones.js      targets, and the month each one is met
+assets/js/milestone-list.js  the editable list of targets
+assets/js/strategy-bar.js    the tabs that name, switch and add strategies
+assets/js/chart.js           the SVG line chart, one or many series
+assets/js/sankey.js          the flow diagram: in, pooled, out
+assets/js/share.js           a whole plan packed into a link, and read back
+assets/js/dom.js             the DOM helpers the views share: two that build a
+                             node, two that update one in place
+assets/js/format.js          locale-aware number formatting
+assets/js/i18n.js            English and French copy
+assets/js/changelog.js       what changed, release by release, in both languages
+assets/js/version.js         the build stamp the About panel reads (generated)
+assets/js/app.js             wiring: inputs, state, theme, language, install, updates
+tools/generate-icons.mjs     icon set, rendered from a vector description
+tools/serve.mjs              development server (never deployed)
+tools/stamp-version.mjs      writes version.js from sw.js and the git checkout
+test/                        node:test unit tests
+docs/                        the screenshots the README shows
 ```
 
 ## Extending it

@@ -1346,6 +1346,88 @@ main > section,
   .rank-name { grid-column: 1 / -1; }
 }
 
+/* ------------------------------------------------------------ milestones */
+
+/*
+ * A target is a rule and a label, not a series — which is the whole reason it
+ * costs nothing. Five series colours and four strategy colours is the ceiling
+ * and every one of them is spoken for, so this is drawn in the same neutral,
+ * dashed chrome the "paid in" reference line wears, and for the same reason: a
+ * reference is not a category.
+ *
+ * It is also dashed rather than solid because it is not a reading of anything.
+ * A solid vertical line at 1px reads as part of the plot; a dashed one in the
+ * muted ink reads as an annotation over it, which is what it is.
+ */
+.milestone-rule {
+  stroke: var(--text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+  shape-rendering: crispEdges;
+}
+
+.milestone-list { display: grid; gap: 14px; min-width: 0; }
+.milestone-rows { display: grid; gap: 10px; min-width: 0; }
+
+/* The question on one line, its answer under it — the shape a field row takes
+   for what a loan works out to, because it is the same relationship. */
+.milestone-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Wraps as a group, so a narrow screen breaks the row rather than squeezing
+   the two boxes into nothing. */
+.milestone-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.milestone-row input,
+.milestone-row select {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 12px;
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+}
+.milestone-row input:hover,
+.milestone-row select:hover { border-color: var(--text-muted); }
+
+/* Wide enough for the longest of the eight names in either language without
+   the select silently truncating its own label. */
+.milestone-metric { flex: 1 1 180px; max-width: 280px; }
+
+.milestone-amount {
+  flex: 1 1 120px;
+  max-width: 220px;
+  /* The value is right-aligned, so its left padding is decoration — trimming
+     it is what lets a seven-digit target fit on a phone. */
+  padding-left: 8px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.milestone-actions { flex: 0 0 auto; display: flex; gap: 2px; }
+
+/* The answer, in the same ink and the same size as everything else the app
+   derives rather than asks for. */
+.milestone-said {
+  margin: 0;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ----------------------------------------------------------- footer/toast */
 
 .app-footer {

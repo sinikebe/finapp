@@ -224,6 +224,30 @@ const STRINGS = {
     // the list from the thing it genuinely cannot do.
     'rank.caveat.parts': 'The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.',
 
+    'milestone.heading': 'When does that happen?',
+    // The distinction the whole feature rests on, said where a reader meets it:
+    // the model is not conditional and this does not make it so. The projection
+    // is run exactly as it always was and then read.
+    'milestone.note': 'A target is a figure to watch for, not a rule the plan obeys: the projection runs as it always has and the app reads off the first month the plan you are looking at is there. Switch plans and every answer is worked out again.',
+    // A target has no metric vocabulary of its own — these are the same eight
+    // the comparison offers, named by `compare.metric.*`. Two spellings of
+    // "Total" on one page would be one page too many.
+    'milestone.add': 'Mark a target',
+    'milestone.what': 'What to watch',
+    'milestone.figure': 'The figure to reach',
+    'milestone.figureNamed': (metric) => `The figure to reach on ${metric}`,
+    'milestone.removeNamed': (metric) => `Remove the target on ${metric}`,
+    // What a rule is, said once rather than on every card it appears on — and
+    // what it is not, which is the part a reader would otherwise have to guess.
+    'milestone.caveat': 'A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.',
+    'milestone.said.pending': 'Give this target a figure.',
+    // Three answers, and the third is an answer: a target the plan never
+    // reaches has to say so where it would have been marked, rather than
+    // quietly falling off the end of the chart.
+    'milestone.said.always': (value) => `True from month 0, at ${value}.`,
+    'milestone.said.met': (month, value) => `First true at month ${month}, at ${value}.`,
+    'milestone.said.never': (horizon, value) => `Not within ${horizon} — the projection ends at ${value}.`,
+
     'summary.heading': 'Projected totals',
     'summary.heroLabel': (months) => `Net after ${months} ${plural(months, 'month', 'months')}`,
     'summary.totalIncome': 'Total income',
@@ -547,6 +571,19 @@ const STRINGS = {
     'rank.said.nothing': (metric) => `Rien de ce que vous avez saisi ne déplace ${metric} sur cet horizon.`,
     'rank.caveat.horizon': 'C’est ce à quoi votre plan est sensible sur la durée que vous lisez, pas une vérité générale sur l’argent. Allongez la projection et l’ordre change\u00a0: les trois plans avec lesquels l’application démarre inversent le leur entre vingt et quarante ans.',
     'rank.caveat.parts': 'Les écarts s’additionnent bien. Chaque montant entre dans le modèle pour lui-même, si bien qu’en déplacer deux déplace le chiffre des deux, au centime près — et c’est là toute la limite de cette liste, non un défaut\u00a0: elle classera un emprunt et le logement qu’il a payé l’un au-dessus de l’autre sans jamais pouvoir dire qu’ils ne font qu’une seule décision. Le gain net fait exception, parce que l’impôt porte sur le gain d’ensemble et non sur chacune de ses parts.',
+
+    'milestone.heading': 'Quand cela arrive-t-il\u00a0?',
+    'milestone.note': 'Un objectif est un chiffre à surveiller, pas une règle que le plan applique\u00a0: la projection se déroule comme toujours et l’application y lit le premier mois où le plan que vous regardez y est. Changez de plan et chaque réponse est recalculée.',
+    'milestone.add': 'Marquer un objectif',
+    'milestone.what': 'Ce qu’il faut suivre',
+    'milestone.figure': 'Le chiffre à atteindre',
+    'milestone.figureNamed': (metric) => `Le chiffre à atteindre sur ${metric}`,
+    'milestone.removeNamed': (metric) => `Supprimer l’objectif sur ${metric}`,
+    'milestone.caveat': 'Un repère marque un mois, rien d’autre. Il est tracé au même endroit sur toutes les cartes, parce qu’un mois est un mois, et il ne dit rien de la courbe qu’il traverse. Un total qui dépasse son chiffre puis redescend est marqué une seule fois, là où il y est arrivé la première fois — les cartes montrent le reste.',
+    'milestone.said.pending': 'Donnez un chiffre à cet objectif.',
+    'milestone.said.always': (value) => `Vrai dès le mois 0, à ${value}.`,
+    'milestone.said.met': (month, value) => `Vrai pour la première fois au mois ${month}, à ${value}.`,
+    'milestone.said.never': (horizon, value) => `Pas avant ${horizon} — la projection se termine à ${value}.`,
 
     'summary.heading': 'Totaux projetés',
     'summary.heroLabel': (months) => `Solde net après ${months} mois`,
