@@ -295,3 +295,75 @@ test('the target the app opens with can be asked backwards on every opening plan
     }
   }
 });
+
+/* ------------------------------------------------- the answer on the grid */
+
+test('an answer that lands exactly on a whole figure is that figure, not the next one', () => {
+  // The bisection stops with a bracket a few hundredths wide, because it starts
+  // as wide as the model's own cap. Rounding away from the goal then turned that
+  // hair into a whole step whenever the exact answer sat on the grid: twelve
+  // months of 1,000 is 12,000, and the app used to answer 1,001 and report the
+  // plan landing at 12,012 — a figure nobody asked for, presented as the least
+  // that would do. A guessed tolerance cannot be the right size for every
+  // bracket, so the search steps back onto the grid and asks its own question
+  // about the neighbour instead.
+  const fields = normalizeFields([{ label: 'Pay', direction: 'income', amount: '10' }]);
+  const twelve = (list) => run(list, 12);
+  const solve = (amount) => solveFor({
+    fields,
+    fieldId: fields[0].id,
+    knob: 'amount',
+    milestone: { metric: 'net', kind: 'reach', amount },
+    run: twelve,
+    read: toNumber,
+  });
+
+  for (const [target, exact] of [['12000', 1000], ['6000', 500], ['18000', 1500]]) {
+    const answer = solve(target);
+    assert.equal(answer.answer, exact, `${target} over twelve months is ${exact} a month`);
+    assert.equal(answer.value, Number(target), 'and the plan lands exactly on the target');
+  }
+
+  // The other direction still rounds away: a target between two whole figures
+  // takes the larger, because the smaller would miss it.
+  const between = solve('12006');
+  assert.equal(between.answer, 1001, 'a target off the grid takes the figure that clears it');
+  assert.ok(between.value >= 12006, 'which is a figure that does clear it');
+  assert.equal(solve('12000').answer < between.answer, true, 'and the exact one is smaller than it');
+});
+
+test('what the plan reaches is its furthest, not its last', () => {
+  // `reachAt` scans the whole projection for the extremum rather than reading
+  // the closing figure, which is what lets the search see a target met in the
+  // middle of the horizon and lost again before the end — the same shape
+  // `whenMet` is held to for a target crossed and lost. Reading the last month
+  // instead leaves every existing solve test green and quietly answers with a
+  // much larger figure, so this is the test that holds the loop.
+  const fields = normalizeFields([
+    { label: 'Pay', direction: 'income', amount: '2000', endMonth: 6 },
+    { label: 'The car', direction: 'expense', kind: 'once', amount: '50000', startMonth: 10 },
+  ]);
+  const twoYears = (list) => run(list, 24);
+  const answer = solveFor({
+    fields,
+    fieldId: fields[0].id,
+    knob: 'amount',
+    milestone: { metric: 'net', kind: 'reach', amount: '20000' },
+    run: twoYears,
+    read: toNumber,
+  });
+
+  assert.ok(answer && answer.answer, 'the question has an answer');
+  // Six months of pay have to cover the target on their own, because the car
+  // takes it all away in month 10 and nothing earns after month 6. Reading the
+  // closing figure instead would have to cover the car as well, and would name
+  // a figure some ten times larger.
+  assert.ok(answer.answer < 5000, `the furthest the plan gets is what counts: ${answer.answer}`);
+  assert.ok(answer.month <= 6, `and it is met while the pay is still landing: month ${answer.month}`);
+
+  // The plan really does climb past the target and fall back, which is the whole
+  // point of the fixture.
+  const proven = twoYears(updateField(fields, fields[0].id, { amount: String(answer.answer) }));
+  const closing = proven.points[proven.points.length - 1].net;
+  assert.ok(closing < 20000, `and it has fallen back below the target by the end: ${closing}`);
+});
