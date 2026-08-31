@@ -122,6 +122,33 @@ export const FIELD_SCHEMA = {
     default: 0,
     read: (value) => toMonthMark(value),
   },
+  /*
+   * Three months a field can take from a named target instead of from a figure.
+   * Each holds a target's id, or '' for "the number beside me decides it".
+   *
+   * They are ids rather than names because a reader renaming a target must not
+   * silently repoint every field that was waiting on it — the same reason a
+   * synced field is matched by id once it has one. And they are three separate
+   * attributes rather than one, because a field can perfectly well start on a
+   * figure and be sold on a target: "put 300 a month in from month 1, and cash
+   * it in when the savings cover the house."
+   *
+   * Nothing in this file resolves them. `schedule.js` turns them into ordinary
+   * months before the projection is built, so `contributionOf` still only ever
+   * reads `startMonth`, `endMonth` and `sellMonth` as numbers.
+   */
+  startAt: {
+    default: '',
+    read: (value) => (typeof value === 'string' ? value : ''),
+  },
+  endAt: {
+    default: '',
+    read: (value) => (typeof value === 'string' ? value : ''),
+  },
+  sellAt: {
+    default: '',
+    read: (value) => (typeof value === 'string' ? value : ''),
+  },
   synced: {
     // Whether every strategy holds this same field, so that comparing two
     // plans varies only what you meant to vary. The strategies own what this

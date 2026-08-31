@@ -20,6 +20,17 @@
  * would need a second thing to compare against, a second vocabulary to say it
  * in, and a reader to learn both. One shape, asked well, first.
  *
+ * **A target may also be given a name, and a named one can be waited on.** That
+ * is the one thing here that reaches back into the plan: a field may take its
+ * first month, its last, or the month it is sold from a named target rather
+ * than from a figure, so "buy it once the savings are there" becomes something
+ * the plan can say instead of a month somebody worked out by hand. The model is
+ * still not conditional — `contributionOf` never sees anything but a number.
+ * What resolves the name to a month is `schedule.js`, which runs the projection
+ * to read the target and then runs it again with the month it found, before the
+ * projection the reader sees is built at all. The name is the seam; nothing
+ * downstream of it knows there was ever a question.
+ *
  * Which quantities may be targeted is handed in rather than listed here, for
  * the reason `raiseAmount` takes its own reader: the eight the comparison
  * offers are the app's business, and there is exactly one list of them.
@@ -38,6 +49,16 @@ import { DEFAULT_PLAN } from './strategies.js';
  */
 export const MAX_MILESTONES = 6;
 
+/** As long as a strategy's name, for the same reason: it is read in a row of
+ *  controls and a name that outgrows the row stops being a label. */
+export const MAX_MILESTONE_NAME = 40;
+
+/** The targets a field may wait on: the named ones, in the order they are in.
+ *  An unnamed target is not offered, because a menu of blanks is not a menu. */
+export function waitableOf(milestones) {
+  return (Array.isArray(milestones) ? milestones : []).filter((one) => one && one.name);
+}
+
 /**
  * Coerce anything into a well-formed target.
  *
@@ -53,6 +74,11 @@ export function normalizeMilestone(value, metrics) {
   const known = Array.isArray(metrics) ? metrics : [];
   return {
     id: typeof source.id === 'string' && source.id ? source.id : newId(),
+    // A name is what makes a target waitable: an unnamed one is still read and
+    // still drawn, but nothing can refer to it, because there is nothing to
+    // refer to it by. Empty is the default, so every target written before
+    // names existed stays exactly what it was.
+    name: typeof source.name === 'string' ? source.name.trim().slice(0, MAX_MILESTONE_NAME) : '',
     metric: known.includes(source.metric) ? source.metric : (known[0] || ''),
     // Kept exactly as it was typed, like a field's amount: the reader's own
     // separators survive, and whoever reads the figure says how.

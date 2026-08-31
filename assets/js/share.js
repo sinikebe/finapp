@@ -64,6 +64,12 @@ export const WIRE_KEYS = [
   'endMonth',
   'sellMonth',
   'synced',
+  // Appended, never inserted: a link written before targets could be waited on
+  // names its values by position in this list, and putting these in the middle
+  // would make every one of them decode into a different plan.
+  'startAt',
+  'endAt',
+  'sellAt',
 ];
 
 /* --------------------------------------------------------------- the format */
