@@ -137,6 +137,13 @@ const STRINGS = {
     'field.onceMonth': 'The month it happens',
     'field.onceWord': 'in month',
     'field.onceWordShort': 'month',
+    'field.atMonth': 'a month',
+    'field.atAria': (name) => `What sets this month for ${name}`,
+    'field.atMet': (month) => `month ${month}`,
+    'field.atNotYet': 'not yet',
+    'milestone.name': 'Name for this target, so a field can wait on it',
+    'milestone.namePlaceholder': 'Name it to wait on it',
+    'milestone.unsettled': 'These targets move each other, so there is no month that is its own cause. Give one of them a figure that does not depend on the other, or set its month by hand.',
     'field.growthSummary': (rate, amount, months) =>
       `Climbing ${rate}% a year · ${amount} a time by month ${months}`,
     // "of that is interest" read as though the interest came out of the amount
@@ -560,6 +567,13 @@ const STRINGS = {
     'field.onceMonth': 'Le mois où cela arrive',
     'field.onceWord': 'au mois',
     'field.onceWordShort': 'mois',
+    'field.atMonth': 'un mois',
+    'field.atAria': (name) => `Ce qui fixe ce mois pour ${name}`,
+    'field.atMet': (month) => `mois ${month}`,
+    'field.atNotYet': 'pas encore',
+    'milestone.name': 'Nom de cet objectif, pour qu’un poste puisse l’attendre',
+    'milestone.namePlaceholder': 'Nommez-le pour l’attendre',
+    'milestone.unsettled': 'Ces objectifs se déplacent mutuellement\u00a0: aucun mois n’est sa propre cause. Donnez à l’un un montant qui ne dépend pas de l’autre, ou fixez son mois à la main.',
     'field.growthSummary': (rate, amount, months) =>
       `+${rate} % par an · ${amount} à chaque fois au mois ${months}`,
     'field.loanSummary': (payment, term, interest, total) =>

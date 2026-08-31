@@ -23,7 +23,7 @@
 
 import { actionIcon } from './field-list.js';
 import { html, syncValue } from './dom.js';
-import { MAX_MILESTONES } from './milestones.js';
+import { MAX_MILESTONES, MAX_MILESTONE_NAME } from './milestones.js';
 
 /**
  * @param {{
@@ -53,6 +53,18 @@ export function createMilestoneList(options) {
     element.dataset.id = milestone.id;
 
     const main = html('div', 'milestone-main', element);
+
+    // A name is what makes a target waitable: without one there is nothing for
+    // a field to refer to it by, so this box is the whole affordance. It is
+    // first because it is what the row is called, and optional because a target
+    // read only for its own sake never needs one.
+    const nameLabel = html('label', 'sr-only', main);
+    const name = html('input', 'milestone-name', main);
+    name.type = 'text';
+    name.autocomplete = 'off';
+    name.maxLength = MAX_MILESTONE_NAME;
+    name.id = `milestone-${milestone.id}-name`;
+    nameLabel.htmlFor = name.id;
 
     const metricLabel = html('label', 'sr-only', main);
     const metric = html('select', 'milestone-metric', main);
@@ -112,11 +124,15 @@ export function createMilestoneList(options) {
     answer.setAttribute('role', 'status');
 
     const row = {
-      element, metric, metricLabel, metricOptions, amount, amountLabel, said, remove,
+      element, name, nameLabel, metric, metricLabel, metricOptions, amount, amountLabel, said, remove,
       ask, choose, chooseLabel, askButton, answer, offered: '',
     };
 
     const id = milestone.id;
+    name.addEventListener('input', () => onCommand({ type: 'update', id, patch: { name: name.value } }));
+    // Settled on the way out, exactly as a field's name is: what is stored is
+    // trimmed, and a box left holding only spaces is a target with no name.
+    name.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { name: name.value } }));
     metric.addEventListener('change', () => onCommand({ type: 'update', id, patch: { metric: metric.value } }));
     amount.addEventListener('input', () => onCommand({ type: 'update', id, patch: { amount: amount.value } }));
     // Leaving the box shows the figure the read will actually use, in the
@@ -140,6 +156,10 @@ export function createMilestoneList(options) {
     // Every row would otherwise announce the same box name, leaving a
     // screen-reader user with no idea which target they are editing. The select
     // needs no such help: its value is what tells the rows apart.
+    row.nameLabel.textContent = labels.name;
+    row.name.placeholder = labels.namePlaceholder;
+    syncValue(row.name, milestone.name);
+
     row.amountLabel.textContent = labels.figure;
     row.amount.setAttribute('aria-label', labels.figureNamed(named));
     syncValue(row.amount, milestone.amount);

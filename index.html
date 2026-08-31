@@ -208,6 +208,11 @@
     <section class="charts-section" id="milestones" aria-labelledby="milestones-heading" hidden>
       <h2 id="milestones-heading" data-i18n="milestone.heading">When does that happen?</h2>
       <p class="section-note" data-i18n="milestone.note">A target is a figure to watch for, not a rule the plan obeys: the projection runs as it always has and the app reads off the first month the plan you are looking at is there. Switch plans and every answer is worked out again.</p>
+      <!-- Only when the months could not be made to agree. Not a live region:
+           it appears while the reader is editing the very figures that caused
+           it, and a paragraph read out on every keystroke is worse than one
+           they find when they look. -->
+      <p class="section-note is-warning" id="milestone-unsettled" data-i18n="milestone.unsettled" hidden></p>
       <div id="milestone-mount"></div>
       <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
       <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.</p>

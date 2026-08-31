@@ -395,6 +395,12 @@ test('an unnamed field adopts nothing that differs from it in any respect', () =
     startMonth: [{}, { startMonth: 6 }],
     endMonth: [{}, { endMonth: 24 }],
     sellMonth: [{ kind: 'investment' }, { sellMonth: 18 }],
+    // Waiting on a target is a difference like any other: two rows that land in
+    // the same month for different reasons are not the same row, and writing
+    // over one of them would lose the reason.
+    startAt: [{}, { startAt: 'target-1' }],
+    endAt: [{}, { endAt: 'target-1' }],
+    sellAt: [{ kind: 'investment' }, { sellAt: 'target-1' }],
   };
   assert.deepEqual(
     Object.keys(differences).sort(),

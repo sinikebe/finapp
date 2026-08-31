@@ -9,7 +9,7 @@
  * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v51';
+const CACHE_VERSION = 'v52';
 const CACHE_PREFIX = 'finapp-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const SHELL = './index.html';
@@ -32,6 +32,7 @@ const PRECACHE = [
   './assets/js/milestones.js',
   './assets/js/projection.js',
   './assets/js/sankey.js',
+  './assets/js/schedule.js',
   './assets/js/share.js',
   './assets/js/solve.js',
   './assets/js/strategies.js',
