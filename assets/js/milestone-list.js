@@ -186,7 +186,14 @@ export function createMilestoneList(options) {
       row.choose.options[index].textContent = candidate.name;
     });
 
-    row.answer.textContent = labels.asked(milestone);
+    // Written only when it changes, because `answer` is a live region and this
+    // runs on every render — which is to say on every keystroke anywhere in the
+    // app. Assigning the same sentence again still counts as a change to a
+    // screen reader, so a reader who asked what a target would take and then
+    // carried on typing in another row would have the answer read at them on
+    // every letter. `renderUndo` guards its own receipt for exactly this reason.
+    const asked = labels.asked(milestone);
+    if (row.answer.textContent !== asked) row.answer.textContent = asked;
   }
 
   return {

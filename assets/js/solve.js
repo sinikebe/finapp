@@ -133,16 +133,23 @@ export function candidatesOf(fields) {
 
 /**
  * A figure rounded to the far side of the goal: up where more is wanted, down
- * where less is.
+ * where less is. Rounding towards the goal would hand back a figure that misses
+ * it by a fraction of a unit, which is the one thing the answer must not do.
  *
- * Rounding towards the goal would hand back a figure that misses it by a
- * fraction of a unit, which is the one thing the answer must not do. The hair
- * of tolerance keeps a bisection's last few bits from pushing an answer that
- * already sits on a whole unit a whole unit further out.
+ * There is deliberately no tolerance here. There used to be a hair of one, to
+ * stop the bisection's leftover pushing an answer that already sits on a whole
+ * unit a whole unit further out — but the leftover is not a few bits. The
+ * bracket starts as wide as the model's own cap, so after its halvings it is
+ * still a few hundredths across, thousands of times the hair that was guarding
+ * against it: an exact answer of 1,000 came back as 1,001, and the app then
+ * reported the plan landing at 12,012 rather than the 12,000 that was asked
+ * for. A guessed epsilon cannot be the right size for every bracket. The caller
+ * steps back onto the grid instead, using the very criterion the search used,
+ * which is exact by construction rather than by a constant.
  */
 function roundAway(value, step, up) {
   const scaled = value / step;
-  const whole = up ? Math.ceil(scaled - 1e-9) : Math.floor(scaled + 1e-9);
+  const whole = up ? Math.ceil(scaled) : Math.floor(scaled);
   // Through the money rounder, so a tenth of a point comes back as 6.3 rather
   // than as the 6.300000000000001 that multiplying it out actually gives.
   return roundMoney(whole * step);
@@ -243,7 +250,20 @@ export function solveFor(options) {
     else no = middle;
   }
 
-  const answer = Math.min(spec.high, Math.max(spec.low, roundAway(yes, spec.step, bound === 'least')));
+  const held = (value) => Math.min(spec.high, Math.max(spec.low, value));
+  let answer = held(roundAway(yes, spec.step, bound === 'least'));
+  // One step back towards the goal, kept only if it still meets it. The
+  // bisection stops with a bracket a few hundredths wide, so `yes` is a hair
+  // past the truth and rounding away from the goal turns that hair into a whole
+  // step whenever the exact answer sits on the grid. Asking the search's own
+  // question about the neighbouring figure settles it exactly: if that figure
+  // meets the target it was always the answer, and if it does not, the rounding
+  // was right. Cheaper than a tighter bracket, and correct at every scale
+  // rather than at the one an epsilon happened to be tuned for.
+  const inward = bound === 'least' ? answer - spec.step : answer + spec.step;
+  if (inward >= spec.low && inward <= spec.high && met(reachAt(inward))) {
+    answer = held(roundMoney(inward));
+  }
 
   // Monotone is a claim about the whole stretch past the answer, and the
   // bracket only ever looked at its two ends. A relationship that helps, stops

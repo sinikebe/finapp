@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v50', date: '2026-08-30',
+    version: 'v51', date: '2026-08-31',
+    en: 'A target asked what it would take could answer one whole unit too high: twelve months of 1,000 is 12,000, and the app said 1,001. It now steps back onto the figure you can actually type and checks that one, so an answer that lands exactly on a whole figure is that figure. And an answer read out once is no longer read out again on every letter typed afterwards.',
+    fr: 'Un objectif interrogé sur ce qu’il faudrait pouvait répondre une unité trop haut\u00a0: douze mois à 1\u202f000 font 12\u202f000, et l’application répondait 1\u202f001. Elle revient désormais sur le montant que vous pouvez réellement saisir et le vérifie, de sorte qu’une réponse tombant juste sur un montant entier est ce montant. Et une réponse déjà lue n’est plus relue à chaque lettre tapée ensuite.',
+  },
+  {
+    version: 'v50', date: '2026-08-30', commit: '0c01b37',
     en: 'Five ways to ask more of a plan. The flow cards read a month at a time as well as cumulatively, so a month that costs more than it earns is visible instead of buried in a running total. A ranked list says which of your figures actually decide where the plan lands. A target says the month it is met and is marked on the cards; one that is never met can ask what it would take, and the answer is checked by running the plan again with it before it is shown. And Undo takes back a removed field, a removed plan, a removed target, Start again, or a shared plan opened over your own — for as long as the tab stays open.',
     fr: 'Cinq façons d’en demander plus à un plan. Les cartes de flux se lisent mois par mois autant qu’en cumulé, si bien qu’un mois qui coûte plus qu’il ne rapporte se voit au lieu de se perdre dans un total. Une liste classée dit lesquels de vos montants décident vraiment où le plan aboutit. Un objectif indique le mois où il est atteint et se marque sur les cartes\u00a0; celui qui ne l’est jamais peut demander ce qu’il faudrait, et la réponse est vérifiée en rejouant le plan avec elle avant d’être affichée. Enfin, Annuler rend un poste supprimé, un plan supprimé, un objectif supprimé, un Recommencer, ou un plan partagé ouvert par-dessus les vôtres — tant que l’onglet reste ouvert.',
   },
