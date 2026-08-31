@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v52', date: '2026-08-31',
+    version: 'v53', date: '2026-08-31',
+    en: 'The form that fills in a plan now sits beside the readings rather than above them, on a screen wide enough to hold both — a column on the left that folds away to a gutter when you want the whole width for the charts. A field is a name, an amount, and one line that says the rest: what kind it is, which way it goes, how often it lands, for how long, at what rate, and the months it runs between. The boxes stay folded until you open the row. The page is about a fifth shorter on a desktop and on a phone alike, and changing plan is still in reach with the form folded away.',
+    fr: 'Le formulaire qui remplit un plan se place désormais à côté des résultats plutôt qu’au-dessus, sur un écran assez large pour les deux\u00a0: une colonne à gauche qui se replie en gouttière quand vous voulez toute la largeur pour les graphiques. Un poste, c’est un nom, un montant, et une ligne qui dit le reste\u00a0: sa nature, son sens, sa fréquence, sa durée, son taux, et les mois entre lesquels il court. Les cases restent repliées jusqu’à ce que vous ouvriez la ligne. La page est environ un cinquième plus courte, sur ordinateur comme au téléphone, et changer de plan reste à portée une fois le formulaire replié.',
+  },
+  {
+    version: 'v52', date: '2026-08-31', commit: '61c85e7',
     en: 'Give a target a name and a field can wait on it — start in the month it is met, end there, or be sold there. "Buy it once the savings are there" is now something the plan says rather than a month you worked out yourself. Each target is read off the plan as it would run without the things waiting for it, so a purchase does not chase the savings it spends; a target nothing can ever meet leaves its field out and says so; and two targets that move each other are reported rather than guessed at.',
     fr: 'Nommez un objectif et un poste peut l’attendre\u00a0: commencer le mois où il est atteint, s’y arrêter, ou y être vendu. «\u00a0Acheter quand j’aurai de côté\u00a0» se dit désormais dans le plan au lieu d’être un mois que vous aviez calculé vous-même. Chaque objectif se lit sur le plan tel qu’il se déroulerait sans ce qui l’attend, si bien qu’un achat ne court pas après l’épargne qu’il dépense\u00a0; un objectif hors d’atteinte laisse son poste de côté et le dit\u00a0; et deux objectifs qui se déplacent mutuellement sont signalés plutôt que devinés.',
   },

@@ -28,6 +28,28 @@ static files served from a folder.
 navigateur et le bouton **FR / EN** dans l’en-tête permet d’en changer à tout
 moment.*
 
+## Filling it in
+
+On a screen wide enough for both, **the form sits beside the readings rather
+than above them** — a column on the left, the charts and tables to its right.
+It folds away to a gutter when you want the whole width for the output, and the
+plan switcher stays where it is when it does, because changing plan is the one
+thing you must still be able to do with the fields away. Below 1180px the two
+stack, as they always did.
+
+[![The form docked as a column on the left — each field a name, an amount and a line of prose beneath it — with the net figure, the totals and the first pair of cumulative charts filling the width to its right](docs/rail.png)](https://sinikebe.github.io/finapp/)
+
+**A field row says what it is.** Shut, it is a name, an amount, and one line of
+prose for everything the two boxes cannot carry: what kind it is, which way it
+goes, how often it lands, over what term, at what rate, and the months it runs
+between. Open it and the boxes come back, and that line goes back to being the
+arithmetic — what a loan works out to, or what a climbing amount climbs to. A
+field you have just added arrives open, because it is one you are still filling
+in.
+
+Together those took about a fifth off the length of the page, on a desktop and
+on a phone alike, and a row from 96px to 69.
+
 ## Fields
 
 **Everything you enter is a field, and every field is the same kind of thing.**
@@ -441,7 +463,10 @@ Any browser with ES modules, `Intl.NumberFormat`, CSS custom properties,
 `<dialog>` is what moves the floor: without `showModal` the About panel cannot
 open. Later niceties degrade rather than break, so an older engine gets a
 plainer app and not a broken one, and the app falls back to a plain page where
-service workers are unavailable. Installability depends on the browser:
+service workers are unavailable. Container queries are the newest of them: they
+tidy the form for the narrow column it becomes when docked as a rail, and an
+engine without them gets the roomier layout instead of a broken one — every
+width query the app relies on is still a plain `@media` rule. Installability depends on the browser:
 Chromium prompts, Safari installs through *Add to Home Screen*.
 
 ## Built with Claude Code

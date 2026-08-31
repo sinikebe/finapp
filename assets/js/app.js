@@ -87,6 +87,8 @@ const ui = {
   undoSaid: $('undo-said'),
   fields: $('fields'),
   strategies: $('strategies'),
+  railToggle: $('rail-toggle'),
+  inputsBody: $('inputs-body'),
   strategyJump: $('strategy-jump'),
   sankey: $('sankey'),
   sankeyMount: $('sankey-mount'),
@@ -1705,11 +1707,14 @@ ui.addMilestone.addEventListener('click', () => runMilestoneCommand({ type: 'add
 
 function fieldLabels(placed) {
   const months = (placed && placed.months) || new Map();
+  // The named targets a month may wait on, and what each resolved to. Both
+  // come from the schedule the projection was built from, so the month a row
+  // shows is the month the curve above it was drawn with. Named here rather
+  // than written inline, because `saidFor` below has to look a target up by id
+  // to say its name, and two copies of the same list would be one too many.
+  const targets = waitableOf(state.milestones).map((one) => ({ id: one.id, name: one.name }));
   return {
-    // The named targets a month may wait on, and what each resolved to. Both
-    // come from the schedule the projection was built from, so the month a row
-    // shows is the month the curve above it was drawn with.
-    targets: waitableOf(state.milestones).map((one) => ({ id: one.id, name: one.name })),
+    targets,
     atMonth: t('field.atMonth'),
     atAria: (name) => t('field.atAria', name),
     monthSaid: (id) => {
@@ -1789,6 +1794,51 @@ function fieldLabels(placed) {
         interest,
         total,
       );
+    },
+    openNamed: (name) => t('field.open', name),
+    closeNamed: (name) => t('field.close', name),
+    /*
+     * What a shut row says about itself: the facts its two visible boxes — a
+     * name and an amount — cannot carry. Kind, direction, cadence, term, a rate
+     * that has been set, and every month that has been set, including a named
+     * target the field is waiting on.
+     *
+     * Every fragment is one the dictionary already has, joined the way the two
+     * derived lines above already join theirs, with ' · '. Nothing here is a
+     * new sentence for a translator to keep in step with a layout; it is the
+     * same words the controls use, read out in the order the controls sit in.
+     */
+    saidFor: (field) => {
+      const isLoan = field.kind === 'loan';
+      const isAsset = field.kind === 'asset';
+      const isOnce = field.kind === 'once';
+      const isInvestment = field.kind === 'investment';
+      const said = [t(`field.kind.${field.kind}`)];
+      // The colour stripe repeats the direction rather than carrying it, so the
+      // line has to say it on every kind that offers the select — and on the
+      // two that hide it there is no direction to say.
+      if (!isInvestment && !isAsset) said.push(t(field.direction === 'income' ? 'field.income' : 'field.expense'));
+      if (!isLoan && !isAsset && !isOnce) said.push(t(`field.period.${field.periodMonths}`));
+      if (isLoan) said.push(`${field.termMonths} ${t('field.termUnit')}`);
+      // Only a rate that does something: zero and empty are the same to the
+      // projection, and a row that said "0% a year" would be spending a third
+      // of its line on nothing.
+      const rate = toNumber(field.annualRate);
+      if (!isOnce && Number.isFinite(rate) && rate !== 0) said.push(t('field.saidRate', formatRate(rate)));
+      // A month waiting on a target says the target's name rather than the
+      // month it resolves to: the name is what the reader chose, and the month
+      // is already on the row's own curve above.
+      const when = (month, at, word, short) => {
+        const target = at && targets.find((one) => one.id === at);
+        if (target) return `${t(short)} ${target.name}`;
+        return month ? `${t(word)} ${month}` : '';
+      };
+      said.push(when(field.startMonth, field.startAt,
+        isOnce ? 'field.onceWord' : 'field.fromWord',
+        isOnce ? 'field.onceWordShort' : 'field.fromWordShort'));
+      if (isInvestment) said.push(when(field.sellMonth, field.sellAt, 'field.sellWord', 'field.sellWordShort'));
+      if (!isAsset && !isLoan && !isOnce) said.push(when(field.endMonth, field.endAt, 'field.toWord', 'field.toWordShort'));
+      return said.filter(Boolean).join(' · ');
     },
     income: t('field.income'),
     expense: t('field.expense'),
@@ -2299,6 +2349,33 @@ for (const button of ui.presets) {
   });
 }
 
+/* The form folds to a gutter that still holds the button that brings it back:
+   the way back is where the way out was, and nothing floats over the readings
+   for the reader to scroll their figures under. Below the breakpoint the same
+   press simply puts the fields away and leaves the heading and the plan
+   switcher standing, which is the whole point of keeping the switcher out of
+   the folded part.
+
+   Not remembered across reloads, and deliberately: on both layouts the reader
+   has to see the form when they arrive, or the app opens on a page of figures
+   with no visible way to change them. */
+function setRail(open) {
+  document.body.dataset.rail = open ? 'open' : 'closed';
+  ui.railToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  ui.railToggle.setAttribute('aria-label', t(open ? 'inputs.fold' : 'inputs.unfold'));
+  // `hidden` rather than a class: it takes the form out of the accessibility
+  // tree too, so there is no phantom list of rows behind the fold for anyone
+  // reading the page with something other than their eyes.
+  ui.inputsBody.hidden = !open;
+  // Every focus target the commands reach lives in there, and focus left on a
+  // hidden element lands nowhere. The button that did this is where the reader
+  // is, so it is where the focus goes.
+  if (!open && ui.inputsBody.contains(document.activeElement)) ui.railToggle.focus();
+}
+
+ui.railToggle.addEventListener('click', () => setRail(ui.inputsBody.hidden));
+
+
 // Touch keeps the last tapped reading on screen; a tap anywhere else clears it.
 // Both halves matter: the guard that holds a reading through the tap's own
 // pointerleave would otherwise hold it for good, on the flow diagram as much as
@@ -2503,6 +2580,13 @@ function applyLanguage(next) {
 
   ui.langLabel.textContent = t('lang.label');
   ui.langButton.setAttribute('aria-label', t('lang.aria'));
+
+  // The fold's button carries no data-i18n, because its label alternates
+  // between two keys depending on which way it would go — so it is relabelled
+  // here, from whichever state it is already in. This is also the call that
+  // sets the state the first time: the markup ships the form open, and this
+  // runs at startup, once the dictionary exists.
+  setRail(!ui.inputsBody.hidden);
 
   applyTheme(theme);
   relabelCharts();
