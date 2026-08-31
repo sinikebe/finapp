@@ -70,6 +70,15 @@
   --radius: 14px;
   --radius-sm: 9px;
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* One shell width in one place: the header, the page, the pinned strategy
+     row and the footer all wear it, and they have to move together or the
+     app bar stops lining up with the page under it. */
+  --shell: 1120px;
+  /* Wide enough for two 140px cells of an open field row, and no wider: at
+     1440 it leaves the readings 986px, which is where the comparison table
+     stops scrolling sideways and the summary tiles stay on one line. */
+  --rail: 354px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -208,7 +217,7 @@ button, input, output { font: inherit; color: inherit; }
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  max-width: 1120px;
+  max-width: var(--shell);
   margin: 0 auto;
   padding: 18px 20px 6px;
 }
@@ -263,7 +272,7 @@ button, input, output { font: inherit; color: inherit; }
 /* ----------------------------------------------------------------- layout */
 
 main {
-  max-width: 1120px;
+  max-width: var(--shell);
   margin: 0 auto;
   padding: 10px 20px 40px;
   display: grid;
@@ -288,6 +297,143 @@ main {
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+/* The panel is a container so the field rows can be laid out against the width
+   they actually have rather than the window's. Docked as a rail on a 1440px
+   screen it is 308px wide, which is a phone-shaped space no width query can
+   see. */
+.inputs-panel {
+  container-type: inline-size;
+  container-name: inputs;
+}
+
+/* Everything above the fold: the heading with the button that folds, and the
+   strategy switcher, which must stay out of the folded region — it is how you
+   change plan, and changing plan with the fields away is exactly what a folded
+   form is for. */
+.panel-head {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.panel-title h2 { min-width: 0; }
+
+.rail-toggle { flex: 0 0 auto; }
+/* The chevron says which way the form would go, and turns rather than swaps:
+   it is one control in two states, not two controls. */
+.rail-toggle .action-icon { transition: transform 140ms ease; }
+body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); }
+
+.panel-body {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The three paragraphs that explain the form rather than answer anything.
+   A <details> rather than a class the app toggles: the browser has this
+   behaviour, it is keyboard-operable and announced without a line of script,
+   and its state is the reader's own. */
+.panel-notes { min-width: 0; }
+.panel-notes > summary {
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.panel-notes > summary:hover { color: var(--text-primary); }
+.panel-notes > * + * { margin-top: 8px; }
+
+/* Everything that is a reading rather than a control. Stacked exactly as it
+   was when these were children of <main> — same gap, same order — because
+   above the breakpoint it becomes the second column and a grid item cannot be
+   sticky against siblings it does not have. */
+.output {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+/* These sections have never had to opt out of `min-width: auto`, because the
+   column has never been narrower than the window. It is now. */
+.output > * { min-width: 0; }
+
+/* ------------------------------------------------------------------ the rail
+
+   Past this width there is room to stand the form beside the readings instead
+   of above them, which is what the space is for: a wide screen spent on one
+   column puts the first figure below the fold and leaves 500px of margin
+   either side of it. */
+@media (min-width: 1180px) {
+  :root { --shell: 1400px; }
+
+  /* minmax(0, 1fr), never a bare 1fr: a bare 1fr is minmax(auto, 1fr) and
+     floors at the column's min-content, which a wide table or a long name
+     would then push past the screen. */
+  main {
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  /* The form stays where it is while the readings scroll past it, so changing
+     a number and watching the curve move is one movement rather than two. */
+  .inputs-panel {
+    position: sticky;
+    top: 12px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  /* The switcher holds its place while the fields scroll under it. Not
+     cosmetic: the pinned bar at the top of the window decides it is needed
+     with an IntersectionObserver, and an observer with a null root clips
+     against ancestor overflow — so a strategy bar scrolled out of a scrolling
+     rail reads as "scrolled out of view" and would raise the pinned copy over
+     the app bar with the window still at the top. Sticky, it never leaves. */
+  .inputs-panel .panel-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--surface-1);
+    padding-bottom: 12px;
+    margin-bottom: -4px;
+  }
+
+  /* Folded, the rail keeps its place in the grid as a gutter still holding the
+     one button that brings it back. The readings widen once — 986 to 1288 —
+     and that is all the movement there is: the way back is exactly where the
+     way out was, and nothing floats over the figures for the reader to scroll
+     them under. The page comes out at 3,446 against 3,458 open, which is the
+     honest measure of how little of it the form ever was. */
+  body[data-rail="closed"] main { grid-template-columns: 52px minmax(0, 1fr); }
+  body[data-rail="closed"] .inputs-panel {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding: 8px 4px;
+  }
+  body[data-rail="closed"] .inputs-panel > :not(.panel-head),
+  body[data-rail="closed"] .panel-head > :not(.panel-title),
+  body[data-rail="closed"] .panel-title > :not(.rail-toggle) { display: none; }
+  body[data-rail="closed"] .panel-head {
+    position: static;
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+
+  /* The fold is the only thing on this layout that takes the switcher off the
+     screen, so the pinned copy earns its place here — and the page makes room
+     for it rather than letting it stand on the app bar. */
+  body[data-rail="closed"] { padding-top: 48px; }
 }
 
 /* --------------------------------------------------------------- strategies */
@@ -388,7 +534,7 @@ main {
 /* Whatever the reader jumps to — the skip link, an anchor — lands below the
    fixed bar rather than under it. The bar is 44px plus the notch inset. */
 :target,
-main > section,
+main section,
 .chart-card { scroll-margin-top: calc(56px + env(safe-area-inset-top, 0px)); }
 
 .strategy-jump {
@@ -410,7 +556,7 @@ main > section,
   align-items: center;
   gap: 6px;
   width: 100%;
-  max-width: 1120px;
+  max-width: var(--shell);
   overflow-x: auto;
   scrollbar-width: none;
   padding: 1px;
@@ -455,6 +601,31 @@ main > section,
 }
 .add-strategy:hover:not([disabled]) { border-color: var(--text-muted); color: var(--text-primary); }
 .add-strategy[disabled] { opacity: 0.45; cursor: default; }
+
+/* The twin of the strategy half of the `@media (max-width: 640px)` block in the
+   field-list section, for the one case a width query cannot see: a narrow
+   column of form on a wide screen, which is what this panel becomes when it is
+   docked as a rail. 554px is what the panel's content box measures inside a
+   640px window, so every window keeps exactly the layout it had.
+
+   Both exist on purpose. Container queries want Chrome 105 / Firefox 110 /
+   Safari 16 and this app's floor is Chrome 88 / Firefox 98 / Safari 15.4, so
+   the media query is the floor-safe baseline a real phone must keep, and this
+   is the tidying a browser either understands or ignores. They never fight: a
+   phone is never inside a wide container, and a 308px rail is never inside a
+   640px window. Do not fold one into the other. */
+@container inputs (max-width: 554px) {
+  .strategy-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 1px;
+  }
+  .strategy-tabs::-webkit-scrollbar { display: none; }
+  .strategy-tab-wrap { display: contents; }
+  .strategy-tab,
+  .strategy-name { flex: none; }
+}
 
 /* --------------------------------------------------------------- comparing */
 
@@ -624,7 +795,11 @@ main > section,
      window already does with the same tabs.
 
      `display: contents` on the wrap has to go with it: a scroller needs real
-     children to lay out, and the name box is a sibling of its own tab. */
+     children to lay out, and the name box is a sibling of its own tab.
+
+     These four have a twin in an `@container` block at the end of the
+     strategies section, for the same reason the four below have one — see the
+     comment there. */
   .strategy-tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -1564,7 +1739,7 @@ main > section,
 /* ----------------------------------------------------------- footer/toast */
 
 .app-footer {
-  max-width: 1120px;
+  max-width: var(--shell);
   margin: 0 auto;
   padding: 0 20px 32px;
   font-size: 12.5px;
@@ -1762,9 +1937,18 @@ main > section,
   .strategy-name,
   .add-strategy,
   .add-field,
+  /* 32px until now, because it was the switcher of last resort. Folding the
+     rail on a touchscreen laptop makes it the only one on screen. */
+  .strategy-jump-tab,
   .table-toggle {
     min-height: 44px;
   }
+
+  /* Padding rather than min-height: a <summary> given a height has to be made a
+     flex box to centre its text, and a <summary> made a flex box loses the
+     disclosure triangle the browser draws for it. 13px a side takes a 13px line
+     to 45.5, which is the first whole pixel over the floor. */
+  .panel-notes > summary { padding: 13px 0; }
 
   .icon-button { width: 44px; }
 

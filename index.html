@@ -60,199 +60,235 @@
   <div id="strategy-jump"></div>
 
   <main id="main">
-    <section class="panel" aria-labelledby="inputs-heading">
-      <h2 id="inputs-heading" data-i18n="inputs.heading">What comes in and goes out</h2>
-      <div id="strategies"></div>
-      <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.</p>
-      <div id="fields"></div>
-      <p class="hint" id="sync-hint" data-i18n="inputs.syncHint" hidden></p>
-    <p class="hint" id="debt-hint" data-i18n="inputs.debtHint" hidden></p>
-    <p class="hint" id="window-note" data-i18n="inputs.windowNote" hidden></p>
-    <p class="hint" id="period-note" data-i18n="inputs.periodNote" hidden>Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.</p>
-      <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency — the app never converts or stores them anywhere but this device.</p>
+    <!-- The head is everything that must survive the fold: which plan you are
+         editing, and the button that brings the rest back. Docked as a rail it
+         is also sticky within the panel, which is not decoration — the pinned
+         switcher at the top of the window decides it is needed by watching this
+         bar with an IntersectionObserver, and an observer clips against
+         ancestor overflow. A strategy bar scrolled out of a scrolling rail
+         would read as "off screen" with the window still at the top, and the
+         pinned copy would appear over the app bar for no reason. -->
+    <section class="panel inputs-panel" aria-labelledby="inputs-heading">
+      <div class="panel-head">
+        <div class="panel-title">
+          <h2 id="inputs-heading" data-i18n="inputs.heading">What comes in and goes out</h2>
+          <!-- No data-i18n: its label alternates between two phrases depending
+               on which way it would go, so setRail writes it. -->
+          <button type="button" class="icon-button rail-toggle" id="rail-toggle"
+                  aria-expanded="true" aria-controls="inputs-body">
+            <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M6 10.5 12 16l6-5.5" />
+            </svg>
+          </button>
+        </div>
+        <div id="strategies"></div>
+      </div>
+      <div class="panel-body" id="inputs-body">
+        <div id="fields"></div>
+        <p class="hint" id="sync-hint" data-i18n="inputs.syncHint" hidden></p>
+        <p class="hint" id="debt-hint" data-i18n="inputs.debtHint" hidden></p>
+        <p class="hint" id="window-note" data-i18n="inputs.windowNote" hidden></p>
+        <!-- Three paragraphs that explain the form rather than answer anything
+             the reader just did — they are read once and then they are furniture.
+             Folded away, the whole rail fits a 1000px window without a scrollbar
+             of its own; in the flow they are 270 pixels that push it past one.
+             The three hints above stay out here, because each of them appears
+             only in answer to something the reader has just done. -->
+        <details class="panel-notes">
+          <summary data-i18n="inputs.notes">How this works</summary>
+          <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.</p>
+          <p class="hint" id="period-note" data-i18n="inputs.periodNote" hidden>Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.</p>
+          <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency — the app never converts or stores them anywhere but this device.</p>
+        </details>
+      </div>
     </section>
 
-    <section class="panel summary" aria-labelledby="summary-heading">
-      <h2 id="summary-heading" class="sr-only" data-i18n="summary.heading">Projected totals</h2>
-      <div class="hero">
-        <p class="hero-label" id="hero-label">Net after 24 months</p>
-        <p class="hero-value" id="hero-value">—</p>
-        <p class="status-chip" id="hero-chip" hidden>
-          <svg class="chip-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-            <path id="chip-icon-path" d="M8 3.5v6M8 12.2v.3" />
-          </svg>
-          <span id="hero-chip-text"></span>
-        </p>
-      </div>
-      <dl class="kpi-row">
-        <div class="stat-tile">
-          <dt data-i18n="summary.totalIncome">Total income</dt>
-          <dd id="total-income">—</dd>
+    <!-- Everything that is a reading rather than a control, in one box: it is
+         what the panel sits beside once the shell is two columns, and a sticky
+         grid item needs a single sibling to be sticky against. -->
+    <div class="output">
+      <section class="panel summary" aria-labelledby="summary-heading">
+        <h2 id="summary-heading" class="sr-only" data-i18n="summary.heading">Projected totals</h2>
+        <div class="hero">
+          <p class="hero-label" id="hero-label">Net after 24 months</p>
+          <p class="hero-value" id="hero-value">—</p>
+          <p class="status-chip" id="hero-chip" hidden>
+            <svg class="chip-icon" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path id="chip-icon-path" d="M8 3.5v6M8 12.2v.3" />
+            </svg>
+            <span id="hero-chip-text"></span>
+          </p>
         </div>
-        <div class="stat-tile">
-          <dt data-i18n="summary.totalExpenses">Total expenses</dt>
-          <dd id="total-expenses">—</dd>
-        </div>
-        <div class="stat-tile">
-          <dt data-i18n="summary.monthlyNet">Kept per month, on average</dt>
-          <dd id="monthly-net">—</dd>
-        </div>
-        <div class="stat-tile" id="owned-tile" hidden>
-          <dt data-i18n="summary.owned">Things you own are worth</dt>
-          <dd id="owned-value">—</dd>
-        </div>
-        <div class="stat-tile" id="debt-tile" hidden>
-          <dt data-i18n="summary.debt">You still owe</dt>
-          <dd id="debt-value">—</dd>
-        </div>
-        <div class="stat-tile" id="contributed-tile" hidden>
-          <dt data-i18n="summary.contributed">Paid into investments</dt>
-          <dd id="contributed-value">—</dd>
-        </div>
-        <div class="stat-tile" id="invested-tile" hidden>
-          <dt data-i18n="summary.invested">Investments are worth</dt>
-          <dd id="invested-value">—</dd>
-        </div>
-        <!-- Names the rate it used, so the figure is never a number from nowhere. -->
-        <div class="stat-tile" id="profit-tile" hidden>
-          <dt id="profit-label">Net profit</dt>
-          <dd id="profit-value">—</dd>
-        </div>
-        <!-- Names its own horizon, so it is filled in by render() rather than
-             carrying a data-i18n key of its own. -->
-        <div class="stat-tile" id="worth-tile" hidden>
-          <dt id="worth-label">Total after 24 months</dt>
-          <dd id="worth-value">—</dd>
-        </div>
-      </dl>
-    </section>
+        <dl class="kpi-row">
+          <div class="stat-tile">
+            <dt data-i18n="summary.totalIncome">Total income</dt>
+            <dd id="total-income">—</dd>
+          </div>
+          <div class="stat-tile">
+            <dt data-i18n="summary.totalExpenses">Total expenses</dt>
+            <dd id="total-expenses">—</dd>
+          </div>
+          <div class="stat-tile">
+            <dt data-i18n="summary.monthlyNet">Kept per month, on average</dt>
+            <dd id="monthly-net">—</dd>
+          </div>
+          <div class="stat-tile" id="owned-tile" hidden>
+            <dt data-i18n="summary.owned">Things you own are worth</dt>
+            <dd id="owned-value">—</dd>
+          </div>
+          <div class="stat-tile" id="debt-tile" hidden>
+            <dt data-i18n="summary.debt">You still owe</dt>
+            <dd id="debt-value">—</dd>
+          </div>
+          <div class="stat-tile" id="contributed-tile" hidden>
+            <dt data-i18n="summary.contributed">Paid into investments</dt>
+            <dd id="contributed-value">—</dd>
+          </div>
+          <div class="stat-tile" id="invested-tile" hidden>
+            <dt data-i18n="summary.invested">Investments are worth</dt>
+            <dd id="invested-value">—</dd>
+          </div>
+          <!-- Names the rate it used, so the figure is never a number from nowhere. -->
+          <div class="stat-tile" id="profit-tile" hidden>
+            <dt id="profit-label">Net profit</dt>
+            <dd id="profit-value">—</dd>
+          </div>
+          <!-- Names its own horizon, so it is filled in by render() rather than
+               carrying a data-i18n key of its own. -->
+          <div class="stat-tile" id="worth-tile" hidden>
+            <dt id="worth-label">Total after 24 months</dt>
+            <dd id="worth-value">—</dd>
+          </div>
+        </dl>
+      </section>
 
-    <div class="filter-row">
-      <div class="filter">
-        <label for="months" data-i18n="filter.label">Projection length</label>
-        <div class="range-line">
-          <input id="months" type="range" min="1" max="600" step="1" value="24">
-          <!-- Visual only: the slider carries the same text in aria-valuetext,
-               so the reading is announced as the value, not as a live region. -->
-          <span id="months-readout" aria-hidden="true">24 months</span>
-        </div>
-      </div>
-      <div class="presets" role="group" data-i18n-aria="filter.presetsAria" aria-label="Preset projection lengths">
-        <button type="button" class="preset" data-months="12">1 yr</button>
-        <button type="button" class="preset" data-months="24">2 yr</button>
-        <button type="button" class="preset" data-months="60">5 yr</button>
-        <button type="button" class="preset" data-months="120">10 yr</button>
-        <button type="button" class="preset" data-months="300">25 yr</button>
-        <button type="button" class="preset" data-months="600">50 yr</button>
-      </div>
-    </div>
-
-    <div class="filter-row money-row">
-      <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
-        <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today’s money</button>
-      </div>
-      <div class="filter money-filter" id="inflation-filter" hidden>
-        <label for="inflation" data-i18n="filter.inflation">Inflation a year, as a percentage</label>
-        <div class="range-line">
-          <input id="inflation" type="text" inputmode="decimal" autocomplete="off">
-          <span class="rate-unit" aria-hidden="true">%</span>
-        </div>
-      </div>
-      <div class="presets" role="group" data-i18n-aria="filter.rangeAria">
-        <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
-      </div>
-      <div class="filter money-filter" id="tax-filter" hidden>
-        <label for="tax" data-i18n="filter.tax">Tax on gains, as a percentage</label>
-        <div class="range-line">
-          <input id="tax" type="text" inputmode="decimal" autocomplete="off">
-          <span class="rate-unit" aria-hidden="true">%</span>
-        </div>
-      </div>
-      <div class="filter money-filter" id="spread-filter" hidden>
-        <label for="spread" data-i18n="filter.spread">Returns, give or take, as a percentage</label>
-        <div class="range-line">
-          <input id="spread" type="text" inputmode="decimal" autocomplete="off">
-          <span class="rate-unit" aria-hidden="true">%</span>
-        </div>
-      </div>
-    </div>
-    <p class="hint money-note" id="money-note" hidden></p>
-
-    <section class="charts-section" aria-labelledby="charts-heading">
-      <h2 id="charts-heading" data-i18n="charts.heading">Cumulative over time</h2>
-      <p class="section-note" id="charts-note" data-i18n="charts.notePrompt" aria-live="polite">
-        Give a field an amount to project the months ahead.
-      </p>
-      <!-- Two readings of the same five cards, not a sixth card: the palette
-           has five series colours and they are all spoken for. Deliberately
-           without a `data-months` attribute — that is what marks a horizon
-           preset, and `applyLanguage` relabels every one of those with a
-           length in years. -->
-      <div class="presets" role="group" id="chart-views" data-i18n-aria="charts.viewAria">
-        <button type="button" class="preset" id="view-total" aria-pressed="true" data-i18n="charts.view.total">Running total</button>
-        <button type="button" class="preset" id="view-monthly" aria-pressed="false" data-i18n="charts.view.monthly">Each month</button>
-      </div>
-      <div class="chart-grid" id="charts"></div>
-      <p class="scale-note" id="charts-scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
-      <!-- The one way in while there is no target. It sits under the cards
-           because a target is drawn on them, and it is the only thing the
-           feature shows of itself until somebody asks for it: the section
-           below ships hidden rather than standing there empty explaining
-           what it would do. -->
-      <button type="button" class="add-field" id="add-milestone" data-i18n="milestone.add">Mark a target</button>
-    </section>
-
-    <!-- Hidden until there is a target, the way the flow diagram and the
-         comparison are. The rules it draws land on the cards above, so it sits
-         directly under them. -->
-    <section class="charts-section" id="milestones" aria-labelledby="milestones-heading" hidden>
-      <h2 id="milestones-heading" data-i18n="milestone.heading">When does that happen?</h2>
-      <p class="section-note" data-i18n="milestone.note">A target is a figure to watch for, not a rule the plan obeys: the projection runs as it always has and the app reads off the first month the plan you are looking at is there. Switch plans and every answer is worked out again.</p>
-      <!-- Only when the months could not be made to agree. Not a live region:
-           it appears while the reader is editing the very figures that caused
-           it, and a paragraph read out on every keystroke is worse than one
-           they find when they look. -->
-      <p class="section-note is-warning" id="milestone-unsettled" data-i18n="milestone.unsettled" hidden></p>
-      <div id="milestone-mount"></div>
-      <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
-      <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.</p>
-    </section>
-
-    <section class="charts-section" id="sankey" aria-labelledby="sankey-heading" hidden>
-      <h2 id="sankey-heading" data-i18n="sankey.heading">Where the money goes</h2>
-      <p class="section-note" data-i18n="sankey.note">Everything that comes in over the whole projection, pooled, and where it ends up. Only money that actually moves is here — what an investment grows to, or a flat gains, is on the cards above.</p>
-      <div id="sankey-mount"></div>
-    </section>
-
-    <section class="charts-section" id="compare" aria-labelledby="compare-heading" hidden>
-      <h2 id="compare-heading" data-i18n="compare.heading">Strategies side by side</h2>
-      <p class="section-note" id="compare-note" aria-live="polite"></p>
       <div class="filter-row">
-        <div class="presets" role="group" id="compare-metrics" data-i18n-aria="compare.metricAria"></div>
+        <div class="filter">
+          <label for="months" data-i18n="filter.label">Projection length</label>
+          <div class="range-line">
+            <input id="months" type="range" min="1" max="600" step="1" value="24">
+            <!-- Visual only: the slider carries the same text in aria-valuetext,
+                 so the reading is announced as the value, not as a live region. -->
+            <span id="months-readout" aria-hidden="true">24 months</span>
+          </div>
+        </div>
+        <div class="presets" role="group" data-i18n-aria="filter.presetsAria" aria-label="Preset projection lengths">
+          <button type="button" class="preset" data-months="12">1 yr</button>
+          <button type="button" class="preset" data-months="24">2 yr</button>
+          <button type="button" class="preset" data-months="60">5 yr</button>
+          <button type="button" class="preset" data-months="120">10 yr</button>
+          <button type="button" class="preset" data-months="300">25 yr</button>
+          <button type="button" class="preset" data-months="600">50 yr</button>
+        </div>
       </div>
-      <div class="chart-grid" id="compare-chart"></div>
-      <div class="table-wrap compare-table">
-        <table class="data-table">
-          <caption id="compare-table-caption"></caption>
-          <thead><tr id="compare-head"></tr></thead>
-          <tbody id="compare-body"></tbody>
-        </table>
-      </div>
-    </section>
 
-    <!-- Under the comparison because it borrows its column: the list is judged
-         on whatever the chips above are showing, so a reader who switched them
-         to Profit gets a ranking on profit. Hidden until there are two amounts
-         to put in an order — one field ranked against nothing is not a
-         ranking. -->
-    <section class="charts-section" id="rank" aria-labelledby="rank-heading" hidden>
-      <h2 id="rank-heading" data-i18n="rank.heading">What moves the needle</h2>
-      <p class="section-note" id="rank-note"></p>
-      <ol class="rank-list" id="rank-list"></ol>
-      <p class="hint" id="rank-said" hidden></p>
-      <p class="scale-note" data-i18n="rank.caveat.horizon">This is what your plan is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three plans the app opens with swap theirs somewhere between twenty years and forty.</p>
-      <p class="scale-note" data-i18n="rank.caveat.parts">The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.</p>
-    </section>
+      <div class="filter-row money-row">
+        <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
+          <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today’s money</button>
+        </div>
+        <div class="filter money-filter" id="inflation-filter" hidden>
+          <label for="inflation" data-i18n="filter.inflation">Inflation a year, as a percentage</label>
+          <div class="range-line">
+            <input id="inflation" type="text" inputmode="decimal" autocomplete="off">
+            <span class="rate-unit" aria-hidden="true">%</span>
+          </div>
+        </div>
+        <div class="presets" role="group" data-i18n-aria="filter.rangeAria">
+          <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
+        </div>
+        <div class="filter money-filter" id="tax-filter" hidden>
+          <label for="tax" data-i18n="filter.tax">Tax on gains, as a percentage</label>
+          <div class="range-line">
+            <input id="tax" type="text" inputmode="decimal" autocomplete="off">
+            <span class="rate-unit" aria-hidden="true">%</span>
+          </div>
+        </div>
+        <div class="filter money-filter" id="spread-filter" hidden>
+          <label for="spread" data-i18n="filter.spread">Returns, give or take, as a percentage</label>
+          <div class="range-line">
+            <input id="spread" type="text" inputmode="decimal" autocomplete="off">
+            <span class="rate-unit" aria-hidden="true">%</span>
+          </div>
+        </div>
+      </div>
+      <p class="hint money-note" id="money-note" hidden></p>
+
+      <section class="charts-section" aria-labelledby="charts-heading">
+        <h2 id="charts-heading" data-i18n="charts.heading">Cumulative over time</h2>
+        <p class="section-note" id="charts-note" data-i18n="charts.notePrompt" aria-live="polite">
+          Give a field an amount to project the months ahead.
+        </p>
+        <!-- Two readings of the same five cards, not a sixth card: the palette
+             has five series colours and they are all spoken for. Deliberately
+             without a `data-months` attribute — that is what marks a horizon
+             preset, and `applyLanguage` relabels every one of those with a
+             length in years. -->
+        <div class="presets" role="group" id="chart-views" data-i18n-aria="charts.viewAria">
+          <button type="button" class="preset" id="view-total" aria-pressed="true" data-i18n="charts.view.total">Running total</button>
+          <button type="button" class="preset" id="view-monthly" aria-pressed="false" data-i18n="charts.view.monthly">Each month</button>
+        </div>
+        <div class="chart-grid" id="charts"></div>
+        <p class="scale-note" id="charts-scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
+        <!-- The one way in while there is no target. It sits under the cards
+             because a target is drawn on them, and it is the only thing the
+             feature shows of itself until somebody asks for it: the section
+             below ships hidden rather than standing there empty explaining
+             what it would do. -->
+        <button type="button" class="add-field" id="add-milestone" data-i18n="milestone.add">Mark a target</button>
+      </section>
+
+      <!-- Hidden until there is a target, the way the flow diagram and the
+           comparison are. The rules it draws land on the cards above, so it sits
+           directly under them. -->
+      <section class="charts-section" id="milestones" aria-labelledby="milestones-heading" hidden>
+        <h2 id="milestones-heading" data-i18n="milestone.heading">When does that happen?</h2>
+        <p class="section-note" data-i18n="milestone.note">A target is a figure to watch for, not a rule the plan obeys: the projection runs as it always has and the app reads off the first month the plan you are looking at is there. Switch plans and every answer is worked out again.</p>
+        <!-- Only when the months could not be made to agree. Not a live region:
+             it appears while the reader is editing the very figures that caused
+             it, and a paragraph read out on every keystroke is worse than one
+             they find when they look. -->
+        <p class="section-note is-warning" id="milestone-unsettled" data-i18n="milestone.unsettled" hidden></p>
+        <div id="milestone-mount"></div>
+        <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
+        <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.</p>
+      </section>
+
+      <section class="charts-section" id="sankey" aria-labelledby="sankey-heading" hidden>
+        <h2 id="sankey-heading" data-i18n="sankey.heading">Where the money goes</h2>
+        <p class="section-note" data-i18n="sankey.note">Everything that comes in over the whole projection, pooled, and where it ends up. Only money that actually moves is here — what an investment grows to, or a flat gains, is on the cards above.</p>
+        <div id="sankey-mount"></div>
+      </section>
+
+      <section class="charts-section" id="compare" aria-labelledby="compare-heading" hidden>
+        <h2 id="compare-heading" data-i18n="compare.heading">Strategies side by side</h2>
+        <p class="section-note" id="compare-note" aria-live="polite"></p>
+        <div class="filter-row">
+          <div class="presets" role="group" id="compare-metrics" data-i18n-aria="compare.metricAria"></div>
+        </div>
+        <div class="chart-grid" id="compare-chart"></div>
+        <div class="table-wrap compare-table">
+          <table class="data-table">
+            <caption id="compare-table-caption"></caption>
+            <thead><tr id="compare-head"></tr></thead>
+            <tbody id="compare-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Under the comparison because it borrows its column: the list is judged
+           on whatever the chips above are showing, so a reader who switched them
+           to Profit gets a ranking on profit. Hidden until there are two amounts
+           to put in an order — one field ranked against nothing is not a
+           ranking. -->
+      <section class="charts-section" id="rank" aria-labelledby="rank-heading" hidden>
+        <h2 id="rank-heading" data-i18n="rank.heading">What moves the needle</h2>
+        <p class="section-note" id="rank-note"></p>
+        <ol class="rank-list" id="rank-list"></ol>
+        <p class="hint" id="rank-said" hidden></p>
+        <p class="scale-note" data-i18n="rank.caveat.horizon">This is what your plan is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three plans the app opens with swap theirs somewhere between twenty years and forty.</p>
+        <p class="scale-note" data-i18n="rank.caveat.parts">The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.</p>
+      </section>
+    </div>
   </main>
 
   <footer class="app-footer">

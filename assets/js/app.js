@@ -87,6 +87,8 @@ const ui = {
   undoSaid: $('undo-said'),
   fields: $('fields'),
   strategies: $('strategies'),
+  railToggle: $('rail-toggle'),
+  inputsBody: $('inputs-body'),
   strategyJump: $('strategy-jump'),
   sankey: $('sankey'),
   sankeyMount: $('sankey-mount'),
@@ -2347,6 +2349,33 @@ for (const button of ui.presets) {
   });
 }
 
+/* The form folds to a gutter that still holds the button that brings it back:
+   the way back is where the way out was, and nothing floats over the readings
+   for the reader to scroll their figures under. Below the breakpoint the same
+   press simply puts the fields away and leaves the heading and the plan
+   switcher standing, which is the whole point of keeping the switcher out of
+   the folded part.
+
+   Not remembered across reloads, and deliberately: on both layouts the reader
+   has to see the form when they arrive, or the app opens on a page of figures
+   with no visible way to change them. */
+function setRail(open) {
+  document.body.dataset.rail = open ? 'open' : 'closed';
+  ui.railToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  ui.railToggle.setAttribute('aria-label', t(open ? 'inputs.fold' : 'inputs.unfold'));
+  // `hidden` rather than a class: it takes the form out of the accessibility
+  // tree too, so there is no phantom list of rows behind the fold for anyone
+  // reading the page with something other than their eyes.
+  ui.inputsBody.hidden = !open;
+  // Every focus target the commands reach lives in there, and focus left on a
+  // hidden element lands nowhere. The button that did this is where the reader
+  // is, so it is where the focus goes.
+  if (!open && ui.inputsBody.contains(document.activeElement)) ui.railToggle.focus();
+}
+
+ui.railToggle.addEventListener('click', () => setRail(ui.inputsBody.hidden));
+
+
 // Touch keeps the last tapped reading on screen; a tap anywhere else clears it.
 // Both halves matter: the guard that holds a reading through the tap's own
 // pointerleave would otherwise hold it for good, on the flow diagram as much as
@@ -2551,6 +2580,13 @@ function applyLanguage(next) {
 
   ui.langLabel.textContent = t('lang.label');
   ui.langButton.setAttribute('aria-label', t('lang.aria'));
+
+  // The fold's button carries no data-i18n, because its label alternates
+  // between two keys depending on which way it would go — so it is relabelled
+  // here, from whichever state it is already in. This is also the call that
+  // sets the state the first time: the markup ships the form open, and this
+  // runs at startup, once the dictionary exists.
+  setRail(!ui.inputsBody.hidden);
 
   applyTheme(theme);
   relabelCharts();
