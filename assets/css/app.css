@@ -514,21 +514,14 @@ main > section,
   min-width: 0;
 }
 
-/* Everything but the colour key stacks: the controls and their buttons on one
-   line, anything derived from them underneath. */
+/* Everything but the colour key stacks: the head, the line derived from it,
+   and — while the row is open — the controls the head cannot carry. */
 .field-body {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.field-main {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  min-width: 0;
 }
 
 /* A key in the row's own series colour, so a line here ties to a chart below.
@@ -546,17 +539,6 @@ main > section,
    the only thing on the row saying so. */
 .field-row[data-direction="none"]::before { background: var(--border-strong); }
 
-/* The controls wrap as a group: adding one to a field costs no layout change,
-   and a narrow screen breaks the row instead of squeezing every box. */
-.field-controls {
-  flex: 1 1 auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
 .field-row input,
 .field-row select {
   min-width: 0;
@@ -570,29 +552,17 @@ main > section,
 .field-row input:hover,
 .field-row select:hover { border-color: var(--text-muted); }
 
+/* The bases that used to be here are gone with the row that needed them: the
+   name and the amount are laid out by `.field-head` below, and everything else
+   is a grid item, to which a flex base says nothing at all. */
 .field-name {
-  /* Bases chosen so the row breaks in one place — name above, type and amount
-     below — rather than one control per line on a narrow screen. */
-  flex: 4 1 170px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
-.field-direction { flex: 1 1 96px; }
-
-/* Wide enough for its longest option ("Every 6 months") without stretching:
-   the period is a qualifier on the amount, not a headline. */
-.field-period { flex: 1 1 172px; }
-
-/* A loan and an investment ask for a rate; only a loan asks for a term. Both
-   are narrow: two or three digits and a unit. */
-.field-kind { flex: 1 1 132px; }
 /* The unit rides inside the box, so a rate reads as "5.9 % a year" rather than
    as a bare number whose meaning lives in a screen-reader label. */
 .field-unit { position: relative; display: flex; min-width: 0; }
-.field-unit-rate { flex: 0 1 148px; }
-.field-unit-term { flex: 0 1 140px; }
-.field-unit-fees { flex: 0 1 150px; }
 .field-unit input {
   flex: 1 1 auto;
   text-align: right;
@@ -614,13 +584,9 @@ main > section,
 .field-unit-fees input { padding-right: 54px; }
 
 /* When a field runs. The word leads — "from month 6" is a phrase, and a unit
-   trailing the number would read as "6 from month". Same box, mirrored. */
-/* One item in the wrapping row, so "from" and "to" never separate. */
-.field-window { display: flex; gap: 8px; min-width: 0; flex: 0 1 auto; }
-
+   trailing the number would read as "6 from month". Same box, mirrored.
+   `.field-window` itself is laid out with the rest of the fold, further down. */
 .field-when { position: relative; display: flex; min-width: 0; }
-.field-when-from { flex: 0 1 104px; }
-.field-when-to { flex: 0 1 92px; }
 .field-when input {
   flex: 1 1 auto;
   text-align: right;
@@ -628,7 +594,6 @@ main > section,
   padding-left: 46px;
 }
 .field-when-to input { padding-left: 36px; }
-.field-when-sell { flex: 0 1 168px; }
 .field-when .unit-full { display: none; }
 .field-when .when-word {
   position: absolute;
@@ -640,8 +605,6 @@ main > section,
   pointer-events: none;
 }
 
-/* On a phone the name takes its own line, the buttons take the last one, and
-   the rest pair up two by two. */
 /* A 320px screen spends 40 of its pixels on the shell's own margins, which is
    an eighth of the page. Below 380 they come down — and the header wraps rather
    than pushing its last button off the edge, which is what it did at 320 once
@@ -673,39 +636,30 @@ main > section,
   .strategy-tab,
   .strategy-name { flex: none; }
 
-  .field-name { flex-basis: 100%; }
-
-  /* The buttons sit beside the controls on a desktop, where 82px costs
-     nothing. On a phone that 82px is a third of the row, and it was squeezing
-     every select into truncating its own label. */
-  .field-main { flex-direction: column; }
-  .field-actions { align-self: flex-end; }
-
   /* Half a row leaves ~40px for the number once the unit is in the box, so the
-     unit says "%" rather than "% a year" — the label still spells it out. */
+     unit says "%" rather than "% a year" — the label still spells it out.
+
+     These four have a twin in an `@container` block at the end of this
+     section, and the duplication is deliberate. A container query needs
+     Chrome 105 / Firefox 110 / Safari 16, and this app's floor is Chrome 88 /
+     Firefox 98 / Safari 15.4 — so on a browser at the floor a phone would be
+     left with no compact treatment at all, which is a break rather than the
+     graceful degradation the app promises. This block is the floor-safe
+     baseline; the container twin is for the one case a width query cannot see,
+     a narrow column on a wide screen. They never fight: a phone is never
+     inside a wide container, and a narrow column is never inside a 640px
+     window. Do not "simplify" either of them away. */
   .field-unit .unit-full { display: none; }
   .field-unit .unit-short { display: inline; }
   .field-unit-rate input { padding-right: 30px; }
   .field-unit-term input { padding-right: 46px; }
-
-  /* Bases in pixels, sized to the longest word each control has to show — a
-     select truncates its own label silently, and French is longer than English.
-     Only the numeric boxes grow, so the slack goes where it costs nothing.
-     Any two of these fit a phone row side by side; three do not. */
-  .field-kind { flex: 0 1 132px; max-width: none; }
-  .field-direction { flex: 1 1 108px; max-width: none; }
-  .field-amount { flex: 1 1 104px; max-width: none; }
-  .field-period { flex: 1 1 176px; max-width: none; }
-  .field-unit-rate { flex: 1 1 116px; max-width: none; }
-  .field-unit-term { flex: 1 1 116px; max-width: none; }
-
-  /* "from"/"to" rather than "from month"/"to month": half a row leaves little
-     room, and the sr-only label still spells it out. */
-  .field-when-from { flex: 1 1 110px; max-width: none; }
-  .field-when-to { flex: 1 1 100px; max-width: none; }
+  .field-unit-fees input { padding-right: 40px; }
 }
 
-/* What a loan works out to, under the row that describes it. */
+/* One line under the head, doing one of two jobs: with the row open it is the
+   arithmetic the controls above it produce, and with the row shut it is the
+   description of what the fold is holding. Both are secondary to the two boxes
+   above, and both are read as figures, so both want the same ink. */
 .field-derived {
   margin: 0;
   font-size: 12.5px;
@@ -714,8 +668,6 @@ main > section,
 }
 
 .field-amount {
-  flex: 1 1 96px;
-  max-width: 260px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
@@ -741,12 +693,9 @@ main > section,
   opacity: 1;
 }
 
+/* Three buttons in a row. Where that row sits inside the fold is settled with
+   the rest of the grid, further down. */
 .field-actions {
-  flex: 0 0 auto;
-  /* Bottom-aligned so that when the row wraps, the buttons sit on the last line
-     of controls rather than floating between the two — which would put them
-     visually before controls that come after them in the tab order. */
-  align-self: flex-end;
   display: flex;
   gap: 2px;
 }
@@ -813,6 +762,125 @@ main > section,
 }
 
 .currency-note { color: var(--text-secondary); font-size: 12.5px; }
+
+/* What sets a month: the box, or a target it waits on. The picker is hidden
+   outright until some target has a name, so a reader who never names one never
+   meets it — and when one is chosen the box gives way to the month it resolved
+   to, since a number nobody typed is a reading rather than a control.
+   Filed here rather than with the milestones, where these two spent their first
+   release: they are built by field-list.js, and nothing between here and there
+   touches them, so the move changes nothing but where the next reader looks. */
+.field-at {
+  min-width: 0;
+  max-width: 148px;
+}
+
+.field-at-said {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* A shut row says who it is: a name, a number, and one line of prose carrying
+   everything the two boxes cannot. Open, the boxes come back and that line goes
+   back to being the arithmetic. Everything from here to the end of the section
+   is that arrangement, and it comes last so it out-orders the base rules above
+   without any of them needing an override written against it. */
+.field-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* The name takes all the slack: it runs to 60 characters and the amount does
+   not. Both need the explicit `min-width: 0` — a flex item floors at its own
+   min-content otherwise, and a long name would push the amount off the row. */
+.field-head .field-name { flex: 1 1 120px; min-width: 0; }
+.field-head .field-amount { flex: 0 1 108px; min-width: 0; max-width: 148px; }
+.field-toggle { flex: 0 0 auto; }
+.field-toggle .action-icon { transition: transform 140ms ease; }
+.field-row.is-open .field-toggle .action-icon { transform: rotate(180deg); }
+.field-row:not(.is-open) .field-detail { display: none; }
+
+/* A grid, not the wrapping flex row it replaces. Flex bases round every control
+   up to a line of its own in a column this narrow, where a grid cell simply
+   holds what it is given; and a control the kind does not offer is `hidden` and
+   vacates its cell rather than leaving a gap where it used to be. */
+.field-detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+/* A grid item floors at its own min-content, and a select floors at its longest
+   option — which in French is longer than the cell. One rule rather than one
+   per control, so a control added later inherits it. */
+.field-detail > * { min-width: 0; }
+
+/* `auto-fill`, not `auto-fit`, and this is the one place in the file where the
+   difference shows. `auto-fit` collapses the tracks nothing landed in, so a
+   kind with a single month box — an asset, a one-off — would stretch that box
+   across the whole line and put its word and its number a hand's width apart.
+   `auto-fill` leaves the empty tracks standing, so a lone box is one cell wide
+   and a "from" and a "to" still pair up on a phone, which is what they did
+   before this row learned to fold. */
+.field-window {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+/* A month box was sized for a world without the picker, and beside one the
+   select came out around 30px — an arrow with nothing to read. So it takes the
+   whole line while the picker is there, and the picker is only there once some
+   target has a name. */
+.field-when.is-picking { grid-column: 1 / -1; }
+.field-when .field-at { flex: 0 1 148px; min-width: 84px; }
+/* The line is the picker's, not the box's: taking the whole width is what gives
+   the picker room to say a target's name, and letting the box then swallow the
+   slack would put a four-digit month at one end of a hand's width of white. */
+.field-when.is-picking input { flex: 0 1 148px; }
+/* Once a target is chosen the number box goes and the picker is all that is
+   left, so the leading word comes out of its overlay and stands in the line:
+   "from · Deposit ready · not yet" rather than a word printed across a name.
+   It was legible only as long as the picker was too narrow to say anything. */
+.field-when.is-said { gap: 6px; align-items: center; }
+.field-when.is-said .when-word { position: static; transform: none; }
+
+/* Last in the fold and at its end, where the row's own tab order leaves them:
+   these three act on the whole field, so they come after everything they would
+   act on. */
+.field-detail .field-actions {
+  grid-column: 1 / -1;
+  justify-self: end;
+  align-self: center;
+}
+
+/* The twin of the `@media (max-width: 640px)` block above, for the one case a
+   width query cannot see: a narrow column of form on a wide screen, which is
+   what the panel becomes when it is docked as a rail. 554px is what that
+   panel's content box measures inside a 640px window, so every window keeps
+   exactly the layout it had.
+
+   Both blocks exist on purpose. The media query is the floor-safe baseline —
+   container queries want Chrome 105 / Firefox 110 / Safari 16 and this app's
+   floor is Chrome 88 / Firefox 98 / Safari 15.4 — and this one is inert until
+   the browser understands it, which is precisely what makes it safe to add.
+   They never fight: a phone is never inside a wide container, and a narrow
+   column is never inside a 640px window. Do not fold one into the other. */
+@container inputs (max-width: 554px) {
+  /* Half a row leaves ~40px for the number once the unit is in the box, so the
+     unit says "%" rather than "% a year" — the label still spells it out. */
+  .field-unit .unit-full { display: none; }
+  .field-unit .unit-short { display: inline; }
+  .field-unit-rate input { padding-right: 30px; }
+  .field-unit-term input { padding-right: 46px; }
+  .field-unit-fees input { padding-right: 40px; }
+}
+/* Two cells stop being two: 140 + 8 + 140 needs 288. Below that the fold is one
+   column, and the amount gives back the twelve pixels it can spare. */
+@container inputs (max-width: 300px) {
+  .field-detail,
+  .field-window { grid-template-columns: 1fr; }
+  .field-head .field-amount { flex-basis: 96px; }
+}
 
 /* ---------------------------------------------------------------- summary */
 
@@ -1430,21 +1498,6 @@ main > section,
 .milestone-name {
   flex: 2 1 160px;
   min-width: 0;
-}
-
-/* What sets a month: the box, or a target it waits on. The picker is hidden
-   outright until some target has a name, so a reader who never names one never
-   meets it — and when one is chosen the box gives way to the month it resolved
-   to, since a number nobody typed is a reading rather than a control. */
-.field-at {
-  min-width: 0;
-  max-width: 148px;
-}
-
-.field-at-said {
-  font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-  white-space: nowrap;
 }
 
 .milestone-amount {

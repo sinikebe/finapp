@@ -20,6 +20,9 @@ const ACTION_ICONS = {
   sync: ['M10.4 13.6a3.8 3.8 0 0 0 5.4 0l2.8-2.8a3.8 3.8 0 1 0-5.4-5.4l-1.4 1.4', 'M13.6 10.4a3.8 3.8 0 0 0-5.4 0l-2.8 2.8a3.8 3.8 0 1 0 5.4 5.4l1.4-1.4'],
   duplicate: ['M9 9h9.5a1.5 1.5 0 0 1 1.5 1.5V20a1.5 1.5 0 0 1-1.5 1.5H9A1.5 1.5 0 0 1 7.5 20v-9.5A1.5 1.5 0 0 1 9 9Z', 'M16.5 6H6a1.5 1.5 0 0 0-1.5 1.5V18'],
   remove: ['M5.5 7.5h13', 'M10 7.5V6a1.5 1.5 0 0 1 1.5-1.5h1A1.5 1.5 0 0 1 14 6v1.5', 'M7 7.5V19a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 17 19V7.5'],
+  // Points down at what is folded away, and the CSS turns it over when the row
+  // is open. Drawn low in the box on purpose: it is a disclosure, not an arrow.
+  chevron: ['M6 10.5 12 16l6-5.5'],
 };
 
 /** One of the row action icons, also used by the strategy bar. */
@@ -85,42 +88,25 @@ export function createFieldList(options) {
     element.setAttribute('role', 'listitem');
     element.dataset.id = field.id;
 
-    // Controls and actions share the first line; anything derived from them
-    // gets its own line underneath. A field that grows an attribute adds its
-    // control to `controls` and needs no layout change: the controls wrap.
+    // A row is a head and a fold. The head is the 44px that never goes away —
+    // which field this is, and how much of it — and the fold holds everything
+    // that qualifies those two: what kind of thing it is, which way the money
+    // runs, how often it lands, over what window. Between them sits one line
+    // that is the arithmetic while the row is open and a description of the
+    // fold while it is shut, so nothing behind the chevron is ever a surprise.
     const body = html('div', 'field-body', element);
-    const main = html('div', 'field-main', body);
-    const controls = html('div', 'field-controls', main);
+    const head = html('div', 'field-head', body);
 
-    const nameLabel = html('label', 'sr-only', controls);
-    const name = html('input', 'field-name', controls);
+    const nameLabel = html('label', 'sr-only', head);
+    const name = html('input', 'field-name', head);
     name.type = 'text';
     name.id = `field-${field.id}-name`;
     name.maxLength = 60;
     name.autocomplete = 'off';
     nameLabel.htmlFor = name.id;
 
-    const kindLabel = html('label', 'sr-only', controls);
-    const kind = html('select', 'field-kind', controls);
-    kind.id = `field-${field.id}-kind`;
-    kindLabel.htmlFor = kind.id;
-    const kindOptions = KINDS.map((kindName) => {
-      const option = html('option', null, kind);
-      option.value = kindName;
-      return option;
-    });
-
-    const directionLabel = html('label', 'sr-only', controls);
-    const direction = html('select', 'field-direction', controls);
-    direction.id = `field-${field.id}-direction`;
-    directionLabel.htmlFor = direction.id;
-    const income = html('option', null, direction);
-    income.value = 'income';
-    const expense = html('option', null, direction);
-    expense.value = 'expense';
-
-    const amountLabel = html('label', 'sr-only', controls);
-    const amount = html('input', 'field-amount', controls);
+    const amountLabel = html('label', 'sr-only', head);
+    const amount = html('input', 'field-amount', head);
     // Text, not number: a number box parses by the browser's locale, and a
     // comma typed into one where that locale does not use it is dropped before
     // any of this can see it — twelve-fifty arriving as 1250. `toNumber` reads
@@ -132,23 +118,44 @@ export function createFieldList(options) {
     amount.placeholder = '0';
     amountLabel.htmlFor = amount.id;
 
-    // Beside the amount, because the two are read together: what you need, and
-    // what the lender adds to it.
-    const feesLabel = html('label', 'sr-only', controls);
-    const feesWrap = html('span', 'field-unit field-unit-fees', controls);
-    const fees = html('input', 'field-fees', feesWrap);
-    const feesUnit = html('span', 'unit', feesWrap);
-    const feesUnitFull = html('span', 'unit-full', feesUnit);
-    const feesUnitShort = html('span', 'unit-short', feesUnit);
-    fees.type = 'text';
-    fees.id = `field-${field.id}-fees`;
-    fees.inputMode = 'decimal';
-    fees.autocomplete = 'off';
-    fees.placeholder = '0';
-    feesLabel.htmlFor = fees.id;
+    const toggle = html('button', 'icon-button field-toggle', head);
+    toggle.type = 'button';
+    actionIcon('chevron', toggle);
 
-    const periodLabel = html('label', 'sr-only', controls);
-    const period = html('select', 'field-period', controls);
+    // What a loan works out to, under the row that describes it — and, while
+    // the row is shut, what the fold is holding.
+    const derived = html('p', 'field-derived', body);
+    derived.hidden = true;
+
+    // Everything the head cannot carry, in the order the shut row's sentence
+    // reads it. A field that grows an attribute adds its control here and
+    // needs no layout change: the grid gives it a cell, and a control the kind
+    // does not offer is `hidden` and vacates the one it had.
+    const detail = html('div', 'field-detail', body);
+    detail.id = `field-${field.id}-detail`;
+    toggle.setAttribute('aria-controls', detail.id);
+
+    const kindLabel = html('label', 'sr-only', detail);
+    const kind = html('select', 'field-kind', detail);
+    kind.id = `field-${field.id}-kind`;
+    kindLabel.htmlFor = kind.id;
+    const kindOptions = KINDS.map((kindName) => {
+      const option = html('option', null, kind);
+      option.value = kindName;
+      return option;
+    });
+
+    const directionLabel = html('label', 'sr-only', detail);
+    const direction = html('select', 'field-direction', detail);
+    direction.id = `field-${field.id}-direction`;
+    directionLabel.htmlFor = direction.id;
+    const income = html('option', null, direction);
+    income.value = 'income';
+    const expense = html('option', null, direction);
+    expense.value = 'expense';
+
+    const periodLabel = html('label', 'sr-only', detail);
+    const period = html('select', 'field-period', detail);
     period.id = `field-${field.id}-period`;
     periodLabel.htmlFor = period.id;
     const periodOptions = PERIODS.map((months) => {
@@ -157,10 +164,8 @@ export function createFieldList(options) {
       return option;
     });
 
-    // When a field runs. The word comes *before* the box here — "from month 6"
-    // reads as a sentence where a trailing unit would not.
-    const rateLabel = html('label', 'sr-only', controls);
-    const rateWrap = html('span', 'field-unit field-unit-rate', controls);
+    const rateLabel = html('label', 'sr-only', detail);
+    const rateWrap = html('span', 'field-unit field-unit-rate', detail);
     const rate = html('input', 'field-rate', rateWrap);
     const rateUnit = html('span', 'unit', rateWrap);
     const rateUnitFull = html('span', 'unit-full', rateUnit);
@@ -171,8 +176,8 @@ export function createFieldList(options) {
     rate.autocomplete = 'off';
     rateLabel.htmlFor = rate.id;
 
-    const termLabel = html('label', 'sr-only', controls);
-    const termWrap = html('span', 'field-unit field-unit-term', controls);
+    const termLabel = html('label', 'sr-only', detail);
+    const termWrap = html('span', 'field-unit field-unit-term', detail);
     const term = html('input', 'field-term', termWrap);
     const termUnit = html('span', 'unit', termWrap);
     const termUnitFull = html('span', 'unit-full', termUnit);
@@ -185,9 +190,30 @@ export function createFieldList(options) {
     term.autocomplete = 'off';
     termLabel.htmlFor = term.id;
 
-    // The two boxes are one item in the wrapping row, so they move to the next
-    // line together — a lone "to" box under a full line reads as a mistake.
-    const window = html('span', 'field-window', controls);
+    // The fees box used to sit beside the amount, because the two are read
+    // together: what you need, and what the lender adds to it. The amount has
+    // gone up into the head, so it sits after the term instead — and on the
+    // only kind that shows it, a loan, direction and period are hidden, so the
+    // cells read kind, rate, term, fees, window. That is the same sentence in
+    // the same order the shut row says it in.
+    const feesLabel = html('label', 'sr-only', detail);
+    const feesWrap = html('span', 'field-unit field-unit-fees', detail);
+    const fees = html('input', 'field-fees', feesWrap);
+    const feesUnit = html('span', 'unit', feesWrap);
+    const feesUnitFull = html('span', 'unit-full', feesUnit);
+    const feesUnitShort = html('span', 'unit-short', feesUnit);
+    fees.type = 'text';
+    fees.id = `field-${field.id}-fees`;
+    fees.inputMode = 'decimal';
+    fees.autocomplete = 'off';
+    fees.placeholder = '0';
+    feesLabel.htmlFor = fees.id;
+
+    // When a field runs. The word comes *before* the box here — "from month 6"
+    // reads as a sentence where a trailing unit would not.
+    // The three boxes take a line of their own, so a window is read as one
+    // thing rather than as two numbers that happened to land side by side.
+    const window = html('span', 'field-window', detail);
     const fromLabel = html('label', 'sr-only', window);
     const fromWrap = html('span', 'field-when field-when-from', window);
     const fromUnit = html('span', 'when-word', fromWrap);
@@ -257,7 +283,7 @@ export function createFieldList(options) {
     const toSaid = html('span', 'field-at-said', toWrap);
 
 
-    const actions = html('div', 'field-actions', main);
+    const actions = html('div', 'field-actions', detail);
     // Only worth showing once there is another strategy for a field to be the
     // same as; with one plan there is nothing to keep in step.
     const sync = html('button', 'icon-button', actions);
@@ -269,10 +295,6 @@ export function createFieldList(options) {
     const remove = html('button', 'icon-button', actions);
     remove.type = 'button';
     actionIcon('remove', remove);
-
-    // What a loan works out to, spelled out where the reader entered it.
-    const derived = html('p', 'field-derived', body);
-    derived.hidden = true;
 
     const row = {
       element, name, nameLabel, kind, kindLabel, kindOptions,
@@ -287,6 +309,18 @@ export function createFieldList(options) {
       rate, rateLabel, rateWrap, rateUnitFull, rateUnitShort,
       term, termLabel, termWrap, termUnitFull, termUnitShort,
       derived, sync, duplicate, remove, shown: '',
+      head, detail, toggle,
+      // A field with no amount yet is one the reader is still filling in, so it
+      // arrives open: needing a click to reach the boxes you were sent here to
+      // fill would be a fold working against the reader. Evaluated once, here,
+      // and never again — clearing an amount mid-edit must not pop a row open
+      // under the caret.
+      open: !String(field.amount).trim(),
+      // The arguments of the last `syncRow`, so the row can redraw itself when
+      // nothing about the model changed and only the way it is being looked at
+      // did. One redraw path rather than two: whatever `syncRow` does for the
+      // list, the chevron gets exactly the same.
+      last: null,
     };
 
     const id = field.id;
@@ -342,6 +376,14 @@ export function createFieldList(options) {
     from.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { startMonth: from.value } }));
     to.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { endMonth: to.value } }));
 
+    // No command, and so no undo entry and nothing stored: whether a row is
+    // folded is how it is being looked at, not part of the plan. Two readers
+    // sharing a link should not inherit each other's folds.
+    toggle.addEventListener('click', () => {
+      row.open = !row.open;
+      if (row.last) syncRow(row, ...row.last);
+    });
+
     sync.addEventListener('click', () => onCommand({ type: 'sync', id }));
     duplicate.addEventListener('click', () => onCommand({ type: 'duplicate', id }));
     remove.addEventListener('click', () => onCommand({ type: 'remove', id }));
@@ -350,6 +392,10 @@ export function createFieldList(options) {
   }
 
   function syncRow(row, field, atCap, comparing) {
+    // Kept so the chevron can ask for the same draw the list would have given
+    // it. Everything below reads `row.open`, so folding a row is one more call
+    // to this function rather than a second, quieter way of updating a row.
+    row.last = [field, atCap, comparing];
     const shown = labelOf(field, t);
     const named = shown || labels.untitled;
     row.shown = shown;
@@ -400,16 +446,23 @@ export function createFieldList(options) {
     row.fromWordShort.textContent = isOnce ? labels.onceWordShort : labels.fromWordShort;
     row.from.placeholder = '';
     // One place decides, for all three, whether a month is a box or a reading.
-    for (const [picker, said, box, boxLabel, key] of [
-      [row.fromAt, row.fromSaid, row.from, row.fromLabel, 'startAt'],
-      [row.sellAt, row.sellSaid, row.sell, row.sellLabel, 'sellAt'],
-      [row.toAt, row.toSaid, row.to, row.toLabel, 'endAt'],
+    for (const [picker, said, box, boxLabel, key, wrap] of [
+      [row.fromAt, row.fromSaid, row.from, row.fromLabel, 'startAt', row.fromWrap],
+      [row.sellAt, row.sellSaid, row.sell, row.sellLabel, 'sellAt', row.sellWrap],
+      [row.toAt, row.toSaid, row.to, row.toLabel, 'endAt', row.toWrap],
     ]) {
       const waiting = labels.targets.length > 0;
       // The picker and the reading carry their own accessible names rather than
       // a paired <label>, so they are hidden on their own; the number box has
       // one, and goes with it.
       picker.hidden = !waiting;
+      // A month box was sized for a world without the picker; with one beside
+      // it the select came out around 30px, an arrow with nothing readable in
+      // it. So the box takes the whole line while the picker is there. A class
+      // set here rather than a `:has()` in the stylesheet, because that is how
+      // every other per-row state in this file is carried, and because it keeps
+      // the rule inside the row's own reconciliation.
+      wrap.classList.toggle('is-picking', waiting);
       if (waiting) {
         syncOptions(picker, [{ value: '', name: labels.atMonth }, ...labels.targets.map((one) => ({ value: one.id, name: one.name }))]);
         picker.setAttribute('aria-label', labels.atAria(named));
@@ -421,6 +474,11 @@ export function createFieldList(options) {
       }
       const chosen = waiting && Boolean(picker.value);
       setVisible(box, boxLabel, !chosen);
+      // The leading word is painted over the number box, which is how "from
+      // month 6" reads as a phrase. With the box gone there is nothing under it
+      // and it would sit on top of the target's name instead, so it steps back
+      // into the flow and leads the picker the same way it led the box.
+      wrap.classList.toggle('is-said', chosen);
       said.hidden = !chosen;
       if (chosen) said.textContent = labels.monthSaid(picker.value);
     }
@@ -465,8 +523,13 @@ export function createFieldList(options) {
     let summary = '';
     if (isLoan) summary = labels.loanSummary(field);
     else if (field.kind === 'plain') summary = labels.growthSummary(field);
-    row.derived.textContent = summary;
-    row.derived.hidden = !summary;
+    // One line, two jobs. Shut, it says which field this is — kind, direction,
+    // cadence, term, a set rate and every set month — because the name and the
+    // amount above it cannot carry any of that. Open, it goes back to being the
+    // arithmetic, which is the thing you want in front of you while you edit.
+    const said = row.open ? summary : labels.saidFor(field);
+    row.derived.textContent = said;
+    row.derived.hidden = !said;
 
     row.periodLabel.textContent = labels.period;
     row.periodOptions.forEach((option, index) => {
@@ -484,6 +547,14 @@ export function createFieldList(options) {
     // Without this every box announced "Amount each month" — for a loan you are
     // borrowing once, for a house you already own, for a yearly bill.
     row.amount.setAttribute('aria-label', labels.amountNamed(labels.amountFor(field.kind), named));
+
+    // The chevron is the one control on the row whose label changes with what
+    // pressing it would do, so it says both which field it belongs to and which
+    // way it goes. `aria-expanded` says the same thing a second way, for the
+    // reader whose screen reader announces state rather than the whole name.
+    row.element.classList.toggle('is-open', row.open);
+    row.toggle.setAttribute('aria-expanded', row.open ? 'true' : 'false');
+    row.toggle.setAttribute('aria-label', row.open ? labels.closeNamed(named) : labels.openNamed(named));
 
     row.sync.hidden = !comparing;
     row.sync.setAttribute('aria-pressed', field.synced ? 'true' : 'false');
@@ -556,6 +627,15 @@ export function createFieldList(options) {
       if (!row) {
         addButton.focus();
         return;
+      }
+      // A field you have just made arrives ready to fill in, fold and all:
+      // `select` is passed only by add and duplicate, which are the two
+      // commands that make one. Every focus target here lives in the head,
+      // which never folds, so this is about what the reader does next rather
+      // than about reaching the box.
+      if (select) {
+        row.open = true;
+        if (row.last) syncRow(row, ...row.last);
       }
       const target = row[control] || row.name;
       target.focus();
