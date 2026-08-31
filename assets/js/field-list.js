@@ -39,6 +39,29 @@ export function actionIcon(name, parent) {
  *   onCommand: (command: {type: string, id?: string, patch?: object}) => void
  * }} options
  */
+/**
+ * Fill a select from a list that changes, keeping the choice where the thing it
+ * named is still on offer. Rebuilt only when the set of values changes, so the
+ * common render — the same targets, different labels — touches text and nothing
+ * else, and a select the reader has open is not torn out from under them.
+ */
+function syncOptions(select, entries) {
+  const shape = entries.map((entry) => entry.value).join('\n');
+  if (select.dataset.shape !== shape) {
+    const chosen = select.value;
+    select.dataset.shape = shape;
+    select.textContent = '';
+    for (const entry of entries) {
+      const option = html('option', null, select);
+      option.value = entry.value;
+    }
+    if (entries.some((entry) => entry.value === chosen)) select.value = chosen;
+  }
+  entries.forEach((entry, index) => {
+    if (select.options[index].textContent !== entry.name) select.options[index].textContent = entry.name;
+  });
+}
+
 export function createFieldList(options) {
   const { mount, onCommand } = options;
   let labels = options.labels;
@@ -178,6 +201,14 @@ export function createFieldList(options) {
     from.step = '1';
     from.autocomplete = 'off';
     fromLabel.htmlFor = from.id;
+    // A month can be a figure or a named target. The picker is hidden outright
+    // until a target has a name, so a reader who never names one never learns
+    // that any of this exists; when one is chosen the box gives way to the
+    // month it resolved to, because a number nobody typed is a reading rather
+    // than a control.
+    const fromAt = html('select', 'field-at', fromWrap);
+    fromAt.id = `field-${field.id}-from-at`;
+    const fromSaid = html('span', 'field-at-said', fromWrap);
 
     // Only an investment can be cashed in, so this sits with the window rather
     // than beside the amount: it is a date, and it is when the holding ends.
@@ -194,6 +225,14 @@ export function createFieldList(options) {
     sell.step = '1';
     sell.autocomplete = 'off';
     sellLabel.htmlFor = sell.id;
+    // A month can be a figure or a named target. The picker is hidden outright
+    // until a target has a name, so a reader who never names one never learns
+    // that any of this exists; when one is chosen the box gives way to the
+    // month it resolved to, because a number nobody typed is a reading rather
+    // than a control.
+    const sellAt = html('select', 'field-at', sellWrap);
+    sellAt.id = `field-${field.id}-sell-at`;
+    const sellSaid = html('span', 'field-at-said', sellWrap);
 
     const toLabel = html('label', 'sr-only', window);
     const toWrap = html('span', 'field-when field-when-to', window);
@@ -208,6 +247,14 @@ export function createFieldList(options) {
     to.step = '1';
     to.autocomplete = 'off';
     toLabel.htmlFor = to.id;
+    // A month can be a figure or a named target. The picker is hidden outright
+    // until a target has a name, so a reader who never names one never learns
+    // that any of this exists; when one is chosen the box gives way to the
+    // month it resolved to, because a number nobody typed is a reading rather
+    // than a control.
+    const toAt = html('select', 'field-at', toWrap);
+    toAt.id = `field-${field.id}-to-at`;
+    const toSaid = html('span', 'field-at-said', toWrap);
 
 
     const actions = html('div', 'field-actions', main);
@@ -233,6 +280,7 @@ export function createFieldList(options) {
       amount, amountLabel, period, periodLabel, periodOptions,
       window,
       from, fromLabel, fromWrap, fromWordFull, fromWordShort,
+      fromAt, fromSaid, sellAt, sellSaid, toAt, toSaid,
       to, toLabel, toWrap, toWordFull, toWordShort,
       sell, sellLabel, sellWrap, sellWordFull, sellWordShort,
       fees, feesLabel, feesWrap, feesUnitFull, feesUnitShort,
@@ -279,6 +327,9 @@ export function createFieldList(options) {
     term.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { termMonths: term.value } }));
     // An empty box is "not set", which the model reads as 0 — from the
     // beginning, or with no end.
+    for (const [picker, key] of [[fromAt, 'startAt'], [sellAt, 'sellAt'], [toAt, 'endAt']]) {
+      picker.addEventListener('change', () => onCommand({ type: 'update', id, patch: { [key]: picker.value } }));
+    }
     from.addEventListener('input', () => onCommand({ type: 'update', id, patch: { startMonth: from.value } }));
     sell.addEventListener('input', () => onCommand({ type: 'update', id, patch: { sellMonth: sell.value } }));
     sell.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { sellMonth: sell.value } }));
@@ -348,6 +399,32 @@ export function createFieldList(options) {
     row.fromWordFull.textContent = isOnce ? labels.onceWord : labels.fromWord;
     row.fromWordShort.textContent = isOnce ? labels.onceWordShort : labels.fromWordShort;
     row.from.placeholder = '';
+    // One place decides, for all three, whether a month is a box or a reading.
+    for (const [picker, said, box, boxLabel, key] of [
+      [row.fromAt, row.fromSaid, row.from, row.fromLabel, 'startAt'],
+      [row.sellAt, row.sellSaid, row.sell, row.sellLabel, 'sellAt'],
+      [row.toAt, row.toSaid, row.to, row.toLabel, 'endAt'],
+    ]) {
+      const waiting = labels.targets.length > 0;
+      // The picker and the reading carry their own accessible names rather than
+      // a paired <label>, so they are hidden on their own; the number box has
+      // one, and goes with it.
+      picker.hidden = !waiting;
+      if (waiting) {
+        syncOptions(picker, [{ value: '', name: labels.atMonth }, ...labels.targets.map((one) => ({ value: one.id, name: one.name }))]);
+        picker.setAttribute('aria-label', labels.atAria(named));
+        if (picker.value !== field[key]) picker.value = field[key];
+        // A target that has since been unnamed or removed leaves the field
+        // waiting on nothing, which the select cannot show; fall back to the
+        // month box rather than to a blank the reader cannot act on.
+        if (picker.value !== field[key]) onCommand({ type: 'update', id: field.id, patch: { [key]: '' } });
+      }
+      const chosen = waiting && Boolean(picker.value);
+      setVisible(box, boxLabel, !chosen);
+      said.hidden = !chosen;
+      if (chosen) said.textContent = labels.monthSaid(picker.value);
+    }
+
     syncValue(row.from, field.startMonth ? String(field.startMonth) : '');
 
     row.sellLabel.textContent = labels.sell;

@@ -29,6 +29,7 @@ import { createMilestoneList } from './milestone-list.js';
 import {
   addMilestone, updateMilestone, removeMilestone, defaultMilestones,
   neighbourOf as milestoneNeighbourOf, normalizeMilestones, whenMet,
+  waitableOf,
 } from './milestones.js';
 import { candidatesOf, solveFor } from './solve.js';
 import { createStrategyBar, createStrategyJump } from './strategy-bar.js';
@@ -38,6 +39,7 @@ import {
   neighbourOf as strategyNeighbourOf, normalizeStrategies, activeIdOf, nameOf,
   migrateFields, defaultStrategies, markShared, MAX_STRATEGIES,
 } from './strategies.js';
+import { schedule } from './schedule.js';
 import { decodePlan, linkFor, planInHash } from './share.js';
 import { remember, takeBack, nextBack } from './history.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
@@ -182,6 +184,7 @@ const ui = {
   shareSaid: $('share-said'),
   sharedDialog: $('shared'),
   sharedHeading: $('shared-heading'),
+  milestoneUnsettled: $('milestone-unsettled'),
   sharedWhat: $('shared-what'),
   sharedRoom: $('shared-room'),
   sharedAsk: $('shared-ask'),
@@ -967,9 +970,35 @@ function renderCompareTable(projections) {
  * once, here, so every reader below — cards, tiles, tables, the comparison, and
  * the two extra runs behind a band — is looking at the same money.
  */
-function projectionFor(planFields) {
+function runPlain(planFields) {
   const projection = project({ fields: planFields, months: state.months, taxRate: state.tax });
   return state.realMoney ? inTodaysMoney(projection, state.inflation) : projection;
+}
+
+/**
+ * The same, with every waited-on target resolved to a month first.
+ *
+ * `schedule` hands back the plan it wants projected, so the projection below is
+ * built from months rather than from names and nothing under it knows a name
+ * was ever involved. Its report rides along on the projection because every
+ * view that would want it — the target list, the field rows, the note that says
+ * a plan did not settle — already has one of these in hand and threading a
+ * second argument through all of them would say nothing extra.
+ *
+ * A plan where nothing waits on anything costs nothing: `schedule` returns the
+ * list it was given without running a projection at all, so the common case
+ * pays for none of this.
+ */
+function projectionFor(planFields) {
+  const placed = schedule({
+    fields: planFields,
+    milestones: state.milestones,
+    run: runPlain,
+    read: toNumber,
+  });
+  const projection = runPlain(placed.fields);
+  projection.schedule = placed;
+  return projection;
 }
 
 /* --------------------------------------------------------------- the flow */
@@ -1554,6 +1583,8 @@ function milestoneLabels(projection) {
   return {
     add: t('milestone.add'),
     what: t('milestone.what'),
+    name: t('milestone.name'),
+    namePlaceholder: t('milestone.namePlaceholder'),
     figure: t('milestone.figure'),
     figureNamed: (metric) => t('milestone.figureNamed', metric),
     removeNamed: (metric) => t('milestone.removeNamed', metric),
@@ -1593,6 +1624,9 @@ function renderMilestones(projection) {
   // is hidden would leave the row of a removed target standing inside it,
   // invisible and out of date, waiting to be shown again by the next target
   // somebody adds.
+  // Said once, above the list, rather than on the row that happens to be last
+  // to move: when two targets chase each other there is no one row at fault.
+  ui.milestoneUnsettled.hidden = projection.schedule.settled;
   milestoneList.update(state.milestones, milestoneLabels(projection));
 }
 
@@ -1669,8 +1703,19 @@ ui.addMilestone.addEventListener('click', () => runMilestoneCommand({ type: 'add
 
 /* --------------------------------------------------------------- field list */
 
-function fieldLabels() {
+function fieldLabels(placed) {
+  const months = (placed && placed.months) || new Map();
   return {
+    // The named targets a month may wait on, and what each resolved to. Both
+    // come from the schedule the projection was built from, so the month a row
+    // shows is the month the curve above it was drawn with.
+    targets: waitableOf(state.milestones).map((one) => ({ id: one.id, name: one.name })),
+    atMonth: t('field.atMonth'),
+    atAria: (name) => t('field.atAria', name),
+    monthSaid: (id) => {
+      const month = months.get(id);
+      return Number.isFinite(month) ? t('field.atMet', month) : t('field.atNotYet');
+    },
     name: t('field.name'),
     namePlaceholder: t('field.namePlaceholder'),
     direction: t('field.direction'),
@@ -2071,7 +2116,12 @@ function render() {
   bar.update(state.strategies, state.activeId, labels, t);
   jump.update(state.strategies, state.activeId, labels, t);
   const comparing = state.strategies.length > 1;
-  list.update(projection.fields, fieldLabels(), t, { comparing });
+  // The reader's own fields, deliberately NOT `projection.fields`: those are
+  // the scheduled ones, and a field still waiting on a target that has not come
+  // is not in them. Showing the projected list would make a row the reader can
+  // still edit disappear out of the editor the moment its target stopped being
+  // met, which is the one place it is most needed.
+  list.update(fields(), fieldLabels(projection.schedule), t, { comparing });
   // Explains itself only while it has not been used: once something is synced,
   // the pressed links say it better than a paragraph does.
   ui.syncHint.hidden = !(comparing && !projection.fields.some((field) => field.synced));

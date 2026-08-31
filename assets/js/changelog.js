@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v51', date: '2026-08-31',
+    version: 'v52', date: '2026-08-31',
+    en: 'Give a target a name and a field can wait on it — start in the month it is met, end there, or be sold there. "Buy it once the savings are there" is now something the plan says rather than a month you worked out yourself. Each target is read off the plan as it would run without the things waiting for it, so a purchase does not chase the savings it spends; a target nothing can ever meet leaves its field out and says so; and two targets that move each other are reported rather than guessed at.',
+    fr: 'Nommez un objectif et un poste peut l’attendre\u00a0: commencer le mois où il est atteint, s’y arrêter, ou y être vendu. «\u00a0Acheter quand j’aurai de côté\u00a0» se dit désormais dans le plan au lieu d’être un mois que vous aviez calculé vous-même. Chaque objectif se lit sur le plan tel qu’il se déroulerait sans ce qui l’attend, si bien qu’un achat ne court pas après l’épargne qu’il dépense\u00a0; un objectif hors d’atteinte laisse son poste de côté et le dit\u00a0; et deux objectifs qui se déplacent mutuellement sont signalés plutôt que devinés.',
+  },
+  {
+    version: 'v51', date: '2026-08-31', commit: '8b073f0',
     en: 'A target asked what it would take could answer one whole unit too high: twelve months of 1,000 is 12,000, and the app said 1,001. It now steps back onto the figure you can actually type and checks that one, so an answer that lands exactly on a whole figure is that figure. And an answer read out once is no longer read out again on every letter typed afterwards.',
     fr: 'Un objectif interrogé sur ce qu’il faudrait pouvait répondre une unité trop haut\u00a0: douze mois à 1\u202f000 font 12\u202f000, et l’application répondait 1\u202f001. Elle revient désormais sur le montant que vous pouvez réellement saisir et le vérifie, de sorte qu’une réponse tombant juste sur un montant entier est ce montant. Et une réponse déjà lue n’est plus relue à chaque lettre tapée ensuite.',
   },

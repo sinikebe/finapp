@@ -248,9 +248,12 @@ The lesson is not a single one. Over twenty years borrowing wins by about
 owns an appreciating house eleven years earlier. **Slide the horizon out and
 the answer reverses**: by forty years the renters are ahead by more than
 100,000, because they have been compounding at 6% since year thirteen while the
-house appreciates at 1.5%. Nothing in the model is conditional, so the months
-the renters buy were computed and hard-coded — and a test recomputes both and
-fails if a figure moves without them following.
+house appreciates at 1.5%. The months the renters buy are computed and written
+down rather than left to a rule — a test recomputes both and fails if a figure
+moves without them following. A plan built today could instead name a target and
+have its purchase wait on it, which is what the section below is about; these
+three predate that and are kept as they were, because a worked example whose
+figures move under the reader is not one.
 
 **Start again**, in the About panel, puts the defaults back. It still asks
 first, and the second click is still labelled *Replace everything* rather than
@@ -260,8 +263,8 @@ alone — they are preferences about reading the app, not part of the plan.
 
 ## When does that happen?
 
-The model has no conditionals in it: *as soon as savings reach 100,000* is not a
-rule the projection can obey. **A target does not need one**, because it is a
+*As soon as savings reach 100,000* is not a rule the projection can obey, and it
+still is not one. **A target does not need it to be**, because a target is a
 reading over the result rather than a rule inside it. Mark *worth reaches
 250,000*, or *debt clear*, or *the fund covers the house*, and the app scans the
 months for the first one where it is true and says so in words. The month is
@@ -284,6 +287,45 @@ crossing it found first. One of the app's own opening plans is a shape that
 wobbles, and a test holds it to refusing.
 
 The answer is shown, never applied: applying it would write over what you typed.
+
+## Naming a target, and waiting on one
+
+Give a target a **name** and a field can wait on it: *from* the month it is met,
+*to* that month, or **sold** in it. "Buy it once the savings are there" becomes
+something the plan says, instead of a month somebody worked out by hand.
+
+**The model is still not conditional.** `contributionOf` reads three months as
+numbers and has never heard of a target. What is new is a pass that runs first:
+[`schedule.js`](assets/js/schedule.js) resolves the names to months and hands
+the plan on with numbers in it. The name is the seam, and nothing under it knows
+there was ever a question.
+
+Resolving is circular on its face — the month comes out of a projection, and the
+projection needs the month — so **the shape of that loop is the whole design,
+and the obvious version is wrong.** Reading a target off the plan you just
+placed makes *buy the car when savings reach 12,000* watch savings the purchase
+then spends: the crossing moves to the purchase, the purchase moves to the
+crossing, and the two chase each other for ever. What a reader means by *the
+savings* is the ones they were putting by. So each target is read off the plan
+**as it would run if that target never came**, with everything waiting on it
+held back — per target, not all at once, which is what lets the second in a
+chain see the first purchase and land on month 18 rather than month 12.
+
+That also settles the confused question honestly. *Buy the house when what I own
+reaches 100,000*, where the house **is** what would be owned, reads a plan with
+no house in it, owns nothing, and answers **never** — a true answer to a
+question that answers itself, rather than one of the two months a chase would
+have alternated between.
+
+Two targets can still move each other, and holding back cannot help when neither
+is the one being held. The loop watches for a state it has been in, stops, and
+**says it could not settle** — the posture the solver already takes when asked
+something not monotonic. Guessing would mean picking one of two wrong answers.
+
+A start that never comes takes its field out of the plan, which is what *has not
+begun* means with no sentinel month; an end that never comes is no end, and a
+sale that never comes is no sale. The row stays in the form either way, because
+a row you can no longer see is a row you can no longer fix.
 
 ## Which figures decide it
 

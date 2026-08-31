@@ -1419,6 +1419,34 @@ main > section,
    the select silently truncating its own label. */
 .milestone-metric { flex: 1 1 180px; max-width: 280px; }
 
+/* The name that makes a target waitable. Wider than the figure beside it,
+   because a name is read and a figure is scanned, and `min-width: 0` because it
+   sits in a flex row that must not be pushed sideways by a long one. */
+/* The one note in the app that reports a failure rather than a fact, so it
+   carries the colour the app already reserves for one — and says so in words
+   too, since the colour is a second cue and never the only one. */
+.section-note.is-warning { color: var(--status-critical); }
+
+.milestone-name {
+  flex: 2 1 160px;
+  min-width: 0;
+}
+
+/* What sets a month: the box, or a target it waits on. The picker is hidden
+   outright until some target has a name, so a reader who never names one never
+   meets it — and when one is chosen the box gives way to the month it resolved
+   to, since a number nobody typed is a reading rather than a control. */
+.field-at {
+  min-width: 0;
+  max-width: 148px;
+}
+
+.field-at-said {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .milestone-amount {
   flex: 1 1 120px;
   max-width: 220px;
@@ -1691,6 +1719,8 @@ main > section,
   .preset { min-width: 44px; }
 
   /* The boxes in the filter row are controls like any other. */
+  .field-at,
+  .milestone-name,
   .money-filter input,
   .filter input[type="text"],
   .filter input[type="number"] { min-height: 44px; }
