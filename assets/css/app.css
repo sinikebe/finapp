@@ -391,6 +391,8 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
     max-height: calc(100vh - 24px);
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* Handed to the head below, which is what has to cover it. */
+    padding-top: 0;
   }
 
   /* The switcher holds its place while the fields scroll under it. Not
@@ -404,6 +406,14 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
     top: 0;
     z-index: 1;
     background: var(--surface-1);
+    /* A scrollport's padding is inside it and scrolls with everything else, so
+       the panel's own 22px sat above a head pinned at `top: 0` — a strip that
+       rows slid up through. Measured at a 900px window: a colour key and the
+       three action buttons of a row that had already gone, floating over the
+       panel's top edge. So the head holds that padding instead of the panel
+       (which gives it up, above), and what it pins against is the top of the
+       box rather than the top of the text inside it. */
+    padding-top: 22px;
     padding-bottom: 12px;
     margin-bottom: -4px;
   }
@@ -426,6 +436,10 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
   body[data-rail="closed"] .panel-title > :not(.rail-toggle) { display: none; }
   body[data-rail="closed"] .panel-head {
     position: static;
+    /* Nothing is pinned here and nothing scrolls under it, so the head hands
+       the padding back — kept, it would push the chevron 22px down a gutter
+       that is only padded by 8. */
+    padding-top: 0;
     padding-bottom: 0;
     margin-bottom: 0;
   }
@@ -963,10 +977,18 @@ main section,
    without any of them needing an override written against it. */
 .field-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 /* The name takes all the slack: it runs to 60 characters and the amount does
-   not. Both need the explicit `min-width: 0` — a flex item floors at its own
-   min-content otherwise, and a long name would push the amount off the row. */
+   not. The name needs the explicit `min-width: 0` — a flex item floors at its
+   own min-content otherwise, and a long name would push the amount off the row.
+   The amount is the other side of that bargain, and it does not shrink at all.
+   It is right-aligned, so a box a few pixels too narrow does not truncate at
+   the end where a reader would notice: it scrolls the leading digit out of
+   sight, and a hundred thousand is read as ten. 108px is what the seven digits
+   the two comments above promise actually measure here — seven of a 10.9px
+   tabular figure, plus the 8 and 12 of padding either side and 2 of border. A
+   name that runs out of room truncates instead, which is what a name does, and
+   the row's own aria-label still carries it whole. */
 .field-head .field-name { flex: 1 1 120px; min-width: 0; }
-.field-head .field-amount { flex: 0 1 108px; min-width: 0; max-width: 148px; }
+.field-head .field-amount { flex: 0 0 108px; }
 .field-toggle { flex: 0 0 auto; }
 .field-toggle .action-icon { transition: transform 140ms ease; }
 .field-row.is-open .field-toggle .action-icon { transform: rotate(180deg); }
@@ -1050,11 +1072,18 @@ main section,
   .field-unit-fees input { padding-right: 40px; }
 }
 /* Two cells stop being two: 140 + 8 + 140 needs 288. Below that the fold is one
-   column, and the amount gives back the twelve pixels it can spare. */
+   column.
+
+   `minmax(0, 1fr)` and not a bare `1fr`, which is `minmax(auto, 1fr)` and
+   floors the track at the widest min-content in it. That is safe today only
+   because every one of these cells happens to opt out of `min-width: auto`
+   somewhere else; written this way it is safe because it says so.
+
+   The amount used to give back twelve pixels here, and those twelve are
+   exactly the ones a seven-digit figure needs — see the rule that sets it. */
 @container inputs (max-width: 300px) {
   .field-detail,
-  .field-window { grid-template-columns: 1fr; }
-  .field-head .field-amount { flex-basis: 96px; }
+  .field-window { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ---------------------------------------------------------------- summary */
