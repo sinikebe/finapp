@@ -1084,6 +1084,27 @@ main section,
 @container inputs (max-width: 300px) {
   .field-detail,
   .field-window { grid-template-columns: minmax(0, 1fr); }
+  /* See the media twin below for why the name takes the line here. */
+  .field-head { flex-wrap: wrap; }
+  .field-head .field-name { flex: 1 1 100%; }
+  .field-toggle { margin-left: auto; }
+}
+
+/* The floor-safe twin of the two rules above, for a real phone rather than a
+   rail. 358px of window is where this panel's content box crosses 300.
+
+   A head this narrow cannot hold a name, a seven-digit amount and a 44px
+   target on one line: something has to give, and until now it was the name,
+   down to about five characters — "Mortgage" and "The house" both truncated on
+   the plan the app ships with. The amount cannot be the one to give, because it
+   is right-aligned and loses its LEADING digit, which reads as a smaller number
+   rather than as a clipped one. So the name takes the line and the other two
+   share the next. It costs a row about 36px on the smallest phones and nothing
+   at any other width. */
+@media (max-width: 358px) {
+  .field-head { flex-wrap: wrap; }
+  .field-head .field-name { flex: 1 1 100%; }
+  .field-toggle { margin-left: auto; }
 }
 
 /* ---------------------------------------------------------------- summary */
