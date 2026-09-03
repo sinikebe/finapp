@@ -85,6 +85,12 @@ const STRINGS = {
     'inputs.periodNote': 'Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.',
     'inputs.currencyNote': 'Amounts are in your own currency — the app never converts or stores them anywhere but this device.',
     'inputs.notes': 'How this works',
+    // The same phrase over every disclosure that explains rather than reports.
+    // One key, because a reader who learns what the summary means in one
+    // section should not have to learn it again in the next.
+    'notes.how': 'How this works',
+    'assumptions.heading': 'How money behaves',
+    'assumptions.note': 'These apply to every plan at once, which is what keeps two plans worth comparing.',
     'inputs.fold': 'Fold the form away',
     'inputs.unfold': 'Bring the form back',
 
@@ -523,6 +529,9 @@ const STRINGS = {
     'inputs.periodNote': 'Tout ce qui revient moins souvent que chaque mois tombe à la fin de chaque période — un montant annuel au mois 12, 24, et ainsi de suite.',
     'inputs.currencyNote': 'Les montants sont dans votre devise — l’application ne convertit rien et n’enregistre rien ailleurs que sur cet appareil.',
     'inputs.notes': 'Comment ça marche',
+    'notes.how': 'Comment ça marche',
+    'assumptions.heading': 'Le comportement de l’argent',
+    'assumptions.note': 'Elles s’appliquent à tous les plans à la fois, et c’est ce qui rend deux plans comparables.',
     'inputs.fold': 'Replier le formulaire',
     'inputs.unfold': 'Rouvrir le formulaire',
 

@@ -96,3 +96,69 @@ test('the button that folds the form says what it folds, and which way it is', (
   assert.match(button[0], /aria-controls="inputs-body"/, 'it names what it folds');
   assert.match(button[0], /aria-expanded="(true|false)"/, 'and ships saying which way it is');
 });
+
+test('the assumptions sit outside the panel that belongs to one plan', () => {
+  /*
+   * The load-bearing fact of the left column, and it is a claim about meaning
+   * rather than about pixels. `months`, `inflation`, `spread`, `tax`,
+   * `realMoney` and `showRange` are siblings of `strategies` in the state, not
+   * properties of one: every plan is read through the same set. The inputs
+   * panel, though, sits under a strategy switcher, and everything inside it
+   * belongs to the plan that switcher names.
+   *
+   * Put these controls in there and the layout says the opposite of what the
+   * model does — that switching plan switches the assumptions with it, and
+   * that two plans compared were read on different terms. They are not, and a
+   * comparison would mean nothing if they were. So they live in a panel of
+   * their own, and this is what keeps them there.
+   */
+  const rail = markup.slice(markup.indexOf('<div class="rail">'), markup.indexOf('<div class="output">'));
+  assert.ok(rail.includes('assumptions-panel'), 'the assumptions are in the left column');
+
+  const inputs = rail.slice(rail.indexOf('class="panel inputs-panel"'));
+  const perPlan = inputs.slice(0, inputs.indexOf('</section>'));
+  for (const id of ['real-toggle', 'range-toggle', 'inflation', 'tax', 'spread']) {
+    assert.ok(
+      !perPlan.includes(`id="${id}"`),
+      `${id} applies to every plan at once, so it must not sit inside the panel a strategy switcher names`,
+    );
+  }
+});
+
+test('the rail lets the fields give up room rather than pushing the assumptions off the screen', () => {
+  /*
+   * The column is capped at the height of the window and holds two panels. Its
+   * first row therefore has to be allowed to shrink: written `auto`, the fields
+   * keep their full height, the rows overflow a box that is not scrolling, and
+   * the assumptions are laid out past the bottom edge of a sticky element —
+   * on screen by every measurement, and reachable by no amount of scrolling.
+   *
+   * That is exactly what happened when this was built, and it is invisible in
+   * a diff: `minmax(0, auto)` and `minmax(0, 1fr)` differ by three characters.
+   */
+  const rows = css.match(/\.rail\s*\{[^}]*grid-template-rows:([^;]+)/);
+  assert.ok(rows, 'the rail sizes its rows');
+  assert.match(
+    rows[1],
+    /minmax\(0,\s*1fr\)/,
+    `the rail's first row is ${rows[1].trim()}; the fields have to be able to shrink and scroll`,
+  );
+});
+
+test('every disclosure in the app is a thumb-sized target', () => {
+  /*
+   * A <summary> is 28px of text and nothing else — there is no control in the
+   * app that is further from 44px by default, and there are now three kinds of
+   * them. Each was added in a different pass, and the first two were given
+   * their padding by hand; this is what stops the fourth from being missed.
+   */
+  const coarse = css.slice(css.indexOf('@media (pointer: coarse)'));
+  const summaries = [...markup.matchAll(/<details class="([\w-]+)"/g)].map((m) => m[1]);
+  assert.ok(summaries.length >= 3, 'the app has disclosures to hold to this');
+  for (const kind of new Set(summaries)) {
+    assert.ok(
+      coarse.includes(`.${kind} > summary`),
+      `.${kind} has no coarse-pointer rule, so its summary is 28px under a thumb`,
+    );
+  }
+});
