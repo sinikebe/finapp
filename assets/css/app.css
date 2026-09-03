@@ -343,15 +343,65 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
    A <details> rather than a class the app toggles: the browser has this
    behaviour, it is keyboard-operable and announced without a line of script,
    and its state is the reader's own. */
-.panel-notes { min-width: 0; }
-.panel-notes > summary {
+.panel-notes,
+.section-notes { min-width: 0; }
+.panel-notes > summary,
+.section-notes > summary {
   padding: 6px 0;
   font-size: 13px;
   color: var(--text-secondary);
   cursor: pointer;
 }
-.panel-notes > summary:hover { color: var(--text-primary); }
-.panel-notes > * + * { margin-top: 8px; }
+.panel-notes > summary:hover,
+.section-notes > summary:hover { color: var(--text-primary); }
+.panel-notes > * + *,
+.section-notes > * + * { margin-top: 8px; }
+/* The paragraphs inside carry the section's own note margins, which were sized
+   to stand between blocks rather than inside one. */
+.section-notes > .section-note,
+.section-notes > .scale-note { margin: 0; }
+
+/* The left column: the plan's own fields, and under them the assumptions every
+   plan is read through. One column so the grid sees one item; two panels so the
+   scope of each is visible without reading a word. */
+.rail {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  /* The fields take what is left and the assumptions take what they need. */
+  align-content: start;
+}
+
+/* The whole panel is the disclosure, so its heading is the thing you press.
+   `display: flex` would take the marker away from a <summary>, so the h2 is
+   made inline instead and the marker keeps its place. */
+.assumptions-fold > summary {
+  cursor: pointer;
+  padding: 2px 0;
+}
+.assumptions-fold > summary h2 { display: inline; }
+.assumptions-fold > summary:hover h2 { color: var(--text-secondary); }
+.assumptions-fold > * + * { margin-top: 12px; }
+
+/* Side by side where there is room, stacked where there is not. Below the
+   breakpoint this panel is the width of the page and the two groups read as the
+   row they used to be; docked in a 308px rail they become a short list. auto-fit
+   rather than a query because the wrap is the whole rule. */
+.assumption-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px 20px;
+  min-width: 0;
+}
+
+/* A control and the box it reveals belong to each other: read as one row of
+   five, that was only ever legible because the row was 986px wide. */
+.assumption-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.assumptions-panel .money-filter { min-width: 0; }
 
 /* Everything that is a reading rather than a control. Stacked exactly as it
    was when these were children of <main> — same gap, same order — because
@@ -383,12 +433,29 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
     align-items: start;
   }
 
-  /* The form stays where it is while the readings scroll past it, so changing
+  /* The column stays where it is while the readings scroll past it, so changing
      a number and watching the curve move is one movement rather than two. */
-  .inputs-panel {
+  .rail {
     position: sticky;
     top: 12px;
     max-height: calc(100vh - 24px);
+    /* The fields take what is left over and scroll inside it; the assumptions
+       take the height they need and stay in view at the bottom. `minmax(0, …)`
+       because a bare `1fr` floors at min-content, and a form's min-content is
+       the whole form — which would push the assumptions off the bottom of a
+       column that is capped at the height of the window. */
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  /* The scrollport is the panel rather than the column, and that is not a
+     detail: the pinned bar at the top of the window decides it is needed by
+     watching the switcher with an IntersectionObserver, and an observer with a
+     null root clips against ancestor overflow. Kept here, the head can never
+     leave the box that scrolls it, so the switcher is never "off screen" with
+     the window still at the top. Were the column the scrollport, a long enough
+     form would scroll its own head out of view and raise the pinned copy over
+     the app bar for no reason. */
+  .inputs-panel {
     overflow-y: auto;
     overscroll-behavior: contain;
     /* Handed to the head below, which is what has to cover it. */
@@ -425,9 +492,15 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
      them under. The page comes out at 3,446 against 3,458 open, which is the
      honest measure of how little of it the form ever was. */
   body[data-rail="closed"] main { grid-template-columns: 52px minmax(0, 1fr); }
-  body[data-rail="closed"] .inputs-panel {
+  body[data-rail="closed"] .rail {
     position: static;
     max-height: none;
+    grid-template-rows: auto;
+  }
+  /* Folded to a gutter there is room for one button and nothing else, and the
+     assumptions are not what the button brings back first. */
+  body[data-rail="closed"] .assumptions-panel { display: none; }
+  body[data-rail="closed"] .inputs-panel {
     overflow: visible;
     padding: 8px 4px;
   }
@@ -1998,7 +2071,9 @@ main section,
      flex box to centre its text, and a <summary> made a flex box loses the
      disclosure triangle the browser draws for it. 13px a side takes a 13px line
      to 45.5, which is the first whole pixel over the floor. */
-  .panel-notes > summary { padding: 13px 0; }
+  .panel-notes > summary,
+  .section-notes > summary,
+  .assumptions-fold > summary { padding: 13px 0; }
 
   .icon-button { width: 44px; }
 

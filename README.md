@@ -37,7 +37,15 @@ plan switcher stays where it is when it does, because changing plan is the one
 thing you must still be able to do with the fields away. Below 1180px the two
 stack, as they always did.
 
-[![The form docked as a column on the left — each field a name, an amount and a line of prose beneath it — with the net figure, the totals and the first pair of cumulative charts filling the width to its right](docs/rail.png)](https://sinikebe.github.io/finapp/)
+Under the form, in a panel of its own, is **How money behaves** — the horizon's
+assumptions, described [below](#what-it-computes). It is a separate panel rather than
+part of the form because it is not part of any one plan: every strategy is read
+through the same set, which is the only thing that makes two of them worth
+comparing. It arrives folded, because every one of those settings already has
+an answer, and the line above the charts says so the moment one of them does
+not.
+
+[![The form docked as a column on the left — each field a name, an amount and a line of prose beneath it, with the folded How money behaves panel below it — and the net figure, the totals and the first pair of cumulative charts filling the width to its right](docs/rail.png)](https://sinikebe.github.io/finapp/)
 
 **A field row says what it is.** Shut, it is a name, an amount, and one line of
 prose for everything the two boxes cannot carry: what kind it is, which way it
@@ -190,7 +198,9 @@ up. The horizon is clamped to 1–600 months, and both a single field and the su
 of a direction are capped at a hundred billion a month — which is what keeps
 every total inside the range where a double still holds cents exactly.
 
-Three switches sit over the whole projection:
+Three switches sit over the whole projection, in the **How money behaves**
+panel under the form. They belong to the projection rather than to a plan, so
+switching strategy leaves them where they are:
 
 - **In today's money** divides every figure at month *m* by one deflator,
   `(1 + i)^m` — what that pile would buy now. One factor per month is what

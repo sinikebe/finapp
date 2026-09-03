@@ -60,6 +60,12 @@
   <div id="strategy-jump"></div>
 
   <main id="main">
+    <!-- The left column. Two panels rather than one, because what they hold
+         differs in scope: the fields belong to the plan named in the switcher
+         above them, and the assumptions below apply to every plan at once. A
+         wrapper because a grid gives each of its children a cell, so a second
+         panel placed directly would land where the readings go. -->
+    <div class="rail">
     <!-- The head is everything that must survive the fold: which plan you are
          editing, and the button that brings the rest back. Docked as a rail it
          is also sticky within the panel, which is not decoration — the pinned
@@ -102,6 +108,65 @@
         </details>
       </div>
     </section>
+
+    <!-- Not inside the panel above: there they would sit under a strategy
+         switcher that would say they belong to the plan it names. They do not.
+         One horizon and one set of assumptions, every plan read through them,
+         which is the only thing that makes two plans comparable at all. -->
+    <section class="panel assumptions-panel" aria-labelledby="assumptions-heading">
+      <!-- Shut by default, and that costs the reader nothing they can act on:
+           every one of these has a default that is already true, and the moment
+           one of them is not, the note above the cards says so in words. Open,
+           it would spend a third of a docked rail on figures set once, taking
+           the room from the fields, which are the thing being edited. -->
+      <details class="assumptions-fold">
+        <summary>
+          <h2 id="assumptions-heading" data-i18n="assumptions.heading">How money behaves</h2>
+        </summary>
+        <p class="hint" data-i18n="assumptions.note">These apply to every plan at once, which is what keeps two plans worth comparing.</p>
+
+        <div class="assumption-groups">
+          <div class="assumption-group">
+            <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
+              <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today’s money</button>
+            </div>
+            <div class="filter money-filter" id="inflation-filter" hidden>
+              <label for="inflation" data-i18n="filter.inflation">Inflation a year, as a percentage</label>
+              <div class="range-line">
+                <input id="inflation" type="text" inputmode="decimal" autocomplete="off">
+                <span class="rate-unit" aria-hidden="true">%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="assumption-group">
+            <div class="presets" role="group" data-i18n-aria="filter.rangeAria">
+              <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
+            </div>
+            <div class="filter money-filter" id="spread-filter" hidden>
+              <label for="spread" data-i18n="filter.spread">Returns, give or take, as a percentage</label>
+              <div class="range-line">
+                <input id="spread" type="text" inputmode="decimal" autocomplete="off">
+                <span class="rate-unit" aria-hidden="true">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- On its own, because it answers to neither button above it: a rate
+             on gains is asked for whenever a plan invests inside the horizon,
+             and is gone when none does. Grouped under "Show a range" it would
+             read as something that toggle reveals, which it is not. -->
+        <div class="filter money-filter" id="tax-filter" hidden>
+          <label for="tax" data-i18n="filter.tax">Tax on gains, as a percentage</label>
+          <div class="range-line">
+            <input id="tax" type="text" inputmode="decimal" autocomplete="off">
+            <span class="rate-unit" aria-hidden="true">%</span>
+          </div>
+        </div>
+      </details>
+    </section>
+    </div>
 
     <!-- Everything that is a reading rather than a control, in one box: it is
          what the panel sits beside once the shell is two columns, and a sticky
@@ -182,35 +247,6 @@
         </div>
       </div>
 
-      <div class="filter-row money-row">
-        <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
-          <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today’s money</button>
-        </div>
-        <div class="filter money-filter" id="inflation-filter" hidden>
-          <label for="inflation" data-i18n="filter.inflation">Inflation a year, as a percentage</label>
-          <div class="range-line">
-            <input id="inflation" type="text" inputmode="decimal" autocomplete="off">
-            <span class="rate-unit" aria-hidden="true">%</span>
-          </div>
-        </div>
-        <div class="presets" role="group" data-i18n-aria="filter.rangeAria">
-          <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
-        </div>
-        <div class="filter money-filter" id="tax-filter" hidden>
-          <label for="tax" data-i18n="filter.tax">Tax on gains, as a percentage</label>
-          <div class="range-line">
-            <input id="tax" type="text" inputmode="decimal" autocomplete="off">
-            <span class="rate-unit" aria-hidden="true">%</span>
-          </div>
-        </div>
-        <div class="filter money-filter" id="spread-filter" hidden>
-          <label for="spread" data-i18n="filter.spread">Returns, give or take, as a percentage</label>
-          <div class="range-line">
-            <input id="spread" type="text" inputmode="decimal" autocomplete="off">
-            <span class="rate-unit" aria-hidden="true">%</span>
-          </div>
-        </div>
-      </div>
       <p class="hint money-note" id="money-note" hidden></p>
 
       <section class="charts-section" aria-labelledby="charts-heading">
@@ -228,7 +264,13 @@
           <button type="button" class="preset" id="view-monthly" aria-pressed="false" data-i18n="charts.view.monthly">Each month</button>
         </div>
         <div class="chart-grid" id="charts"></div>
-        <p class="scale-note" id="charts-scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
+        <details class="section-notes">
+          <!-- How the cards are scaled explains the drawing rather than reading
+               anything off it, so it waits for the reader who wonders why one
+               card is scaled differently from the other four. -->
+          <summary data-i18n="notes.how">How this works</summary>
+          <p class="scale-note" id="charts-scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
+        </details>
         <!-- The one way in while there is no target. It sits under the cards
              because a target is drawn on them, and it is the only thing the
              feature shows of itself until somebody asks for it: the section
@@ -242,20 +284,35 @@
            directly under them. -->
       <section class="charts-section" id="milestones" aria-labelledby="milestones-heading" hidden>
         <h2 id="milestones-heading" data-i18n="milestone.heading">When does that happen?</h2>
-        <p class="section-note" data-i18n="milestone.note">A target is a figure to watch for, not a rule the plan obeys: the projection runs as it always has and the app reads off the first month the plan you are looking at is there. Switch plans and every answer is worked out again.</p>
+        <details class="section-notes">
+          <!-- What a target is, rather than what any of them answered. -->
+          <summary data-i18n="notes.how">How this works</summary>
+          <p class="section-note" data-i18n="milestone.note">A target is a figure to watch for, not a rule the plan obeys: the projection runs as it always has and the app reads off the first month the plan you are looking at is there. Switch plans and every answer is worked out again.</p>
+        </details>
         <!-- Only when the months could not be made to agree. Not a live region:
              it appears while the reader is editing the very figures that caused
              it, and a paragraph read out on every keystroke is worse than one
              they find when they look. -->
         <p class="section-note is-warning" id="milestone-unsettled" data-i18n="milestone.unsettled" hidden></p>
         <div id="milestone-mount"></div>
-        <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
-        <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.</p>
+        <details class="section-notes">
+          <!-- Why a rule is drawn where it is, and what can and cannot be worked
+               backwards. The app reveals the second when a target is asked what
+               it would take; inside a disclosure it keeps that behaviour and
+               simply waits to be opened. -->
+          <summary data-i18n="notes.how">How this works</summary>
+          <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
+          <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.</p>
+        </details>
       </section>
 
       <section class="charts-section" id="sankey" aria-labelledby="sankey-heading" hidden>
         <h2 id="sankey-heading" data-i18n="sankey.heading">Where the money goes</h2>
-        <p class="section-note" data-i18n="sankey.note">Everything that comes in over the whole projection, pooled, and where it ends up. Only money that actually moves is here — what an investment grows to, or a flat gains, is on the cards above.</p>
+        <details class="section-notes">
+          <!-- What the diagram counts, and what it leaves to the cards above. -->
+          <summary data-i18n="notes.how">How this works</summary>
+          <p class="section-note" data-i18n="sankey.note">Everything that comes in over the whole projection, pooled, and where it ends up. Only money that actually moves is here — what an investment grows to, or a flat gains, is on the cards above.</p>
+        </details>
         <div id="sankey-mount"></div>
       </section>
 
@@ -285,8 +342,13 @@
         <p class="section-note" id="rank-note"></p>
         <ol class="rank-list" id="rank-list"></ol>
         <p class="hint" id="rank-said" hidden></p>
-        <p class="scale-note" data-i18n="rank.caveat.horizon">This is what your plan is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three plans the app opens with swap theirs somewhere between twenty years and forty.</p>
-        <p class="scale-note" data-i18n="rank.caveat.parts">The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.</p>
+        <details class="section-notes">
+          <!-- The two limits of a ranking: it is true of the length you are reading
+               at, and it ranks amounts rather than decisions. -->
+          <summary data-i18n="notes.how">How this works</summary>
+          <p class="scale-note" data-i18n="rank.caveat.horizon">This is what your plan is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three plans the app opens with swap theirs somewhere between twenty years and forty.</p>
+          <p class="scale-note" data-i18n="rank.caveat.parts">The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.</p>
+        </details>
       </section>
     </div>
   </main>
