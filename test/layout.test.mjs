@@ -162,3 +162,98 @@ test('every disclosure in the app is a thumb-sized target', () => {
     );
   }
 });
+
+test('the dock is a column of readings, never a box that scrolls inside itself', () => {
+  /*
+   * The rail is a scrollport because it holds controls you work while watching
+   * the figures move, and its own head is what pins the switcher. The dock
+   * holds figures. A reading that has to be scrolled out from behind its own
+   * edge is worse than one that scrolls with the page, because nothing tells
+   * the reader it is there.
+   *
+   * Measured while this was being built, with the dock capped at the window:
+   * 97px of the ranking hidden on a 3440x900 screen and 277px on a 2560x720
+   * one — an ultrawide driven from a laptop, which is not an exotic machine.
+   * Sticky without the cap is the same bug wearing a hat: a box taller than
+   * the window sticks at once and holds its own foot below the fold.
+   */
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+  for (const [, selector, body] of rules) {
+    if (!/\.dock\b/.test(selector)) continue;
+    for (const banned of ['overflow-y', 'overflow', 'max-height', 'position: sticky']) {
+      assert.ok(
+        !new RegExp(`${banned}\\s*:`).test(body),
+        `${selector.trim()} sets ${banned}; the dock must not become a scrollport — `
+        + 'a reading behind its own edge is a reading nobody finds',
+      );
+    }
+  }
+});
+
+test('every dock state the stylesheet lays out is one the app can actually write', async () => {
+  /*
+   * The dock's width is sized for the comparison, which is the app's one
+   * starved section. But `rankable` counts fields rather than plans, so a
+   * single plan with a few amounts hides the comparison and still shows the
+   * ranking — and said as one boolean, that plan reserved the comparison's
+   * width for a list that could not use it. Measured on a 5120px screen before
+   * this was split three ways: 1,940px of column holding an 820px reading.
+   *
+   * So the attribute names its cargo, and this is what keeps the two halves in
+   * step — a value the stylesheet lays out but the app never writes is a rule
+   * that never fires, and a value the app writes but the stylesheet does not
+   * know is a column with no width.
+   */
+  const app = await readFile(new URL('../assets/js/app.js', import.meta.url), 'utf8');
+  const written = new Set([...app.matchAll(/dataset\.dock\s*=([^;]+);/gs)]
+    .flatMap((match) => [...match[1].matchAll(/'([\w-]+)'/g)].map((one) => one[1])));
+  const laidOut = new Set([...css.matchAll(/\[data-dock="([\w-]+)"\]/g)].map((match) => match[1]));
+
+  assert.ok(written.size >= 3, `app.js writes ${[...written]}; the dock has three states, not two`);
+  for (const state of laidOut) {
+    assert.ok(written.has(state), `app.css lays out [data-dock="${state}"], which app.js never writes`);
+  }
+  for (const state of written) {
+    assert.ok(
+      laidOut.has(state) || state === 'on',
+      `app.js writes data-dock="${state}", which app.css never lays out`,
+    );
+  }
+});
+
+test('every layout that gives main its columns also says what the fold does to them', () => {
+  /*
+   * The fold is written once, high up, as a two-column grid. Every tier that
+   * re-declares `main`'s columns therefore has to re-declare the folded case
+   * too, because a media query adds no specificity and the later rule simply
+   * wins — silently, with no error and nothing in the diff to look at.
+   *
+   * It happened: the dock's three-column rule out-ordered the fold, and above
+   * 2400 the chevron turned, `data-rail` said closed, the panel emptied itself,
+   * and the column stayed 354px wide. Measured 354 -> 354 at 2400, 2560, 3440
+   * and 5120 — the fold inert on exactly the screens it was built for.
+   *
+   * So: for every rule that sets grid-template-columns on `main`, there must be
+   * a folded counterpart no earlier in the file.
+   */
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+  const onMain = rules
+    .map((match, index) => ({ selector: match[1].trim(), body: match[2], index, at: match.index }))
+    .filter((rule) => /(^|[\s,])(body[^\s,]*\s+)?main\b/.test(rule.selector)
+      && /grid-template-columns\s*:/.test(rule.body));
+
+  assert.ok(onMain.length >= 2, 'main is given columns in more than one place');
+
+  const folded = onMain.filter((rule) => /data-rail="closed"/.test(rule.selector));
+  assert.ok(folded.length >= 2, 'the fold restates main\'s columns for more than the base layout');
+
+  const lastFolded = Math.max(...folded.map((rule) => rule.at));
+  for (const rule of onMain) {
+    if (/data-rail="closed"/.test(rule.selector)) continue;
+    assert.ok(
+      rule.at < lastFolded,
+      `\`${rule.selector}\` sets main's columns after the last folded rule, so folding `
+      + 'cannot override it — the fold would turn its chevron and change nothing',
+    );
+  }
+});

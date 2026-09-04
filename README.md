@@ -37,6 +37,21 @@ plan switcher stays where it is when it does, because changing plan is the one
 thing you must still be able to do with the fields away. Below 1180px the two
 stack, as they always did.
 
+Wider still, the app keeps going rather than stopping at a fixed measure. From
+1600px the shell grows; at 1830px the flow cards go four across instead of two;
+at 3000px **the comparison and the ranking dock to the right of the readings**,
+which is what finally ends the sideways scroll in a ten-column table; at 3300px
+the form itself widens to 620px and comes out of the narrow layout it had been
+wearing on every screen since it was docked; and at 3560px the targets and the
+flow diagram come up side by side. At 4400px it stops. Past that the rail and
+the far edge of the table are already further apart than a reader takes in at
+one glance, and what is left over is margin — which is the honest thing to do
+with width that has run out of uses.
+
+The point of the ladder is that each rung seats a column that was not there
+before, so a 5120px screen shows the same plan in half the scrolling of a
+1440px one. Nothing below 1440px moves by a pixel.
+
 Under the form, in a panel of its own, is **How money behaves** — the horizon's
 assumptions, described [below](#what-it-computes). It is a separate panel rather than
 part of the form because it is not part of any one plan: every strategy is read
@@ -476,7 +491,8 @@ plainer app and not a broken one, and the app falls back to a plain page where
 service workers are unavailable. Container queries are the newest of them: they
 tidy the form for the narrow column it becomes when docked as a rail, and an
 engine without them gets the roomier layout instead of a broken one — every
-width query the app relies on is still a plain `@media` rule. Installability depends on the browser:
+width query the app relies on, the ultrawide ladder included, is still a plain
+`@media` rule. Installability depends on the browser:
 Chromium prompts, Safari installs through *Add to Home Screen*.
 
 ## Built with Claude Code
