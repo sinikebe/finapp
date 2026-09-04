@@ -118,6 +118,15 @@ staircase rather than a smooth line that never matches anyone's bank balance.
 Because of that there is no single "per month" figure once a yearly bill is in
 the list, and the summary reports the average over the horizon instead.
 
+**An average cannot show a trough, so it is not the last word.** If the running
+cash balance ever goes below zero, the summary says the month it does and how
+far under it goes, in place of the average — because a month you are overdrawn
+in is one you actually live through, and an average is not. A plan can end
+56,000 ahead, average 1,555 a month kept, and still be 20,000 short at month
+twenty; the average alone answers "can I afford this?" with a figure nobody
+ever sees. What you keep on average is still there, on its own tile, saying
+what it is.
+
 Input is coerced rather than trusted, and read in whichever notation it was
 written in: spaces of every width group, and a comma is a decimal point except
 where it is plainly grouping, so a French reader typing `12,50` into a box

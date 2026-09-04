@@ -719,6 +719,38 @@ export function hasAmounts(projection) {
   ));
 }
 
+/**
+ * The month the cash runs out, and how far under it goes at the worst.
+ *
+ * `net` is the running cash balance — everything in less everything out — so a
+ * negative one is an overdraft nobody arranged. The summary otherwise reports
+ * the *average* net over the whole horizon, and an average is exactly the
+ * reading that hides this: a plan can be twenty thousand under at month twenty,
+ * be rescued by something later, and still average out to a comfortable
+ * surplus. Averaged, the app answers "can I afford this?" — its own reason for
+ * existing — with a figure nobody ever lives through.
+ *
+ * Read from the points rather than stored on the projection, because
+ * `inTodaysMoney` restates the points and spreads everything else through
+ * unchanged: a month kept on the projection would survive that spread and go
+ * stale. The month itself is the same either way — deflating divides by a
+ * positive factor, which cannot change a sign — but `worst` is an amount, and
+ * an amount has to be in the money the reader is being shown.
+ *
+ * @param {object} projection
+ * @returns {{month: number, worst: number}|null} null when the cash never dips
+ */
+export function runsDryAt(projection) {
+  let first = null;
+  let worst = 0;
+  for (const point of projection.points) {
+    if (point.net >= 0) continue;
+    if (first === null) first = point.month;
+    if (point.net < worst) worst = point.net;
+  }
+  return first === null ? null : { month: first, worst };
+}
+
 /** True when any field builds a balance worth charting on its own. */
 export function hasInvestments(projection) {
   return projection.fields.some((field) => field.kind === 'investment' && toAmount(field.amount) > 0);
