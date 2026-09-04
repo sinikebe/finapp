@@ -603,7 +603,13 @@ body[data-dock="off"] .dock { display: none; }
    scrollbar on a desktop Chrome and the difference has to be paid out of the
    margin rather than out of the page. */
 @media (min-width: 1600px) {
-  :root { --shell: min(1960px, calc(100vw - 48px)); }
+  /* 2,600 rather than the 1,960 this stopped at when the dock stood up at
+     2400: the dock waits for 3000 now, so this regime — one column of readings
+     with the comparison full-width beneath it — has to cover everything up to
+     there. Pinned at 1,960 it left a 2560px screen using 77% of its width and
+     the flow cards two across at 765px, which is a 3.3:1 plot: the smear this
+     ladder exists to prevent, in the one band nobody was looking at. */
+  :root { --shell: min(2600px, calc(100vw - 48px)); }
 
   /* The rest of the measure caps (see the note beside `.section-note`): from
      here the reading column is wider than any this app has had, and a sentence
@@ -617,16 +623,26 @@ body[data-dock="off"] .dock { display: none; }
   #compare-note { max-width: 68ch; }
 }
 
-/* ---- 2400: the dock stands up.
+/* ---- 3000: the dock stands up.
 
-   354 rail + 20 + 738 of cards + 20 + 1,180 of comparison + 40 of padding is
-   2,352, which is what a 2400px window has once the margin is paid. Below this
+   Not 2400. At 2400 the arithmetic works only if the cards are handed 738px —
+   less than the 986 they have on a 1440 laptop — and a tier that makes the
+   readings NARROWER than the width below it is the complaint this whole ladder
+   answers, wearing a third column. Measured at 2400 before this moved: the
+   reading column 738 against 986 at 1440, the flow cards down to two at 441px,
+   the summary tiles broken onto two lines with one strangled on the second, and
+   the projection slider 58% shorter than the laptop's.
+
+   3000 is where the third column is free. 354 rail + 1,338 of cards + 1,180 of
+   comparison + 40 of gaps + 40 of padding is 2,952, which is what a 3000px
+   window has once the margin is paid — and 1,338 is four cards across, so the
+   readings gain a column at the same moment the comparison gets one. Below this
    the dock would have to take the cards' room to get its own, and a comparison
    table that fits at the cost of a chart column is not a trade this app should
    make silently. Above it, the two halves of the reading — one plan in depth,
    and the plans against each other — finally stand side by side, which is what
    the eye was doing by scrolling before. */
-@media (min-width: 2400px) {
+@media (min-width: 3000px) {
   :root {
     --shell: min(3400px, calc(100vw - 48px));
     --dock: 1180px;
@@ -647,6 +663,15 @@ body[data-dock="off"] .dock { display: none; }
   body:not([data-dock="off"]) main {
     grid-template-columns: var(--rail) minmax(0, 1fr) var(--dock);
     grid-template-areas: "rail output dock";
+  }
+
+  /* The fold is written once, up at 1180, as a two-column grid — and a grid
+     with a third column has to say so again here or the rule above simply
+     out-orders it. It did: the chevron turned, `data-rail` said closed, the
+     panel emptied itself, and the column stayed 354px wide. The fold was inert
+     on exactly the screens this ladder was built for. */
+  body[data-rail="closed"]:not([data-dock="off"]) main {
+    grid-template-columns: 52px minmax(0, 1fr) var(--dock);
   }
 
   /* Deliberately NOT sticky, and deliberately not a scrollport of its own.
@@ -1675,11 +1700,11 @@ main section,
 
    Five cards go three across rather than four: four would leave the fifth alone
    on a line of its own, which is the same reason the block above exists. */
-@media (min-width: 1600px) and (max-width: 2399px) {
+@media (min-width: 1600px) and (max-width: 2999px) {
   body[data-rail="closed"] .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   body[data-rail="closed"] .chart-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@media (min-width: 1830px) and (max-width: 2399px) {
+@media (min-width: 1830px) and (max-width: 2999px) {
   .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .chart-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
@@ -1687,7 +1712,7 @@ main section,
   body[data-rail="closed"] .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   body[data-rail="closed"] .chart-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-@media (min-width: 3030px) and (max-width: 4219px) {
+@media (min-width: 3000px) and (max-width: 4219px) {
   .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .chart-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

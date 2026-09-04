@@ -11,6 +11,6 @@
 export const BUILD = Object.freeze({
   version: 'v55',
   branch: 'claude/financial-future-pwa-w2fh0j',
-  commit: 'aacff37',
+  commit: '9f08fde',
   date: '2026-09-04',
 });

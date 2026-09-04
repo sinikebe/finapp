@@ -39,7 +39,7 @@ stack, as they always did.
 
 Wider still, the app keeps going rather than stopping at a fixed measure. From
 1600px the shell grows; at 1830px the flow cards go four across instead of two;
-at 2400px **the comparison and the ranking dock to the right of the readings**,
+at 3000px **the comparison and the ranking dock to the right of the readings**,
 which is what finally ends the sideways scroll in a ten-column table; at 3300px
 the form itself widens to 620px and comes out of the narrow layout it had been
 wearing on every screen since it was docked; and at 3560px the targets and the
