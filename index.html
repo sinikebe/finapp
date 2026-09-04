@@ -168,9 +168,11 @@
     </section>
     </div>
 
-    <!-- Everything that is a reading rather than a control, in one box: it is
-         what the panel sits beside once the shell is two columns, and a sticky
-         grid item needs a single sibling to be sticky against. -->
+    <!-- One plan, read in depth: the totals, the horizon it is read at, the
+         cards, the targets drawn on them and where the money goes. One box
+         because it is what the form sits beside once the shell is two columns,
+         and because a sticky rail can only travel the height of its own grid
+         area — the rail is given an area that spans this and the dock both. -->
     <div class="output">
       <section class="panel summary" aria-labelledby="summary-heading">
         <h2 id="summary-heading" class="sr-only" data-i18n="summary.heading">Projected totals</h2>
@@ -315,6 +317,20 @@
         </details>
         <div id="sankey-mount"></div>
       </section>
+    </div>
+
+    <!-- The other half of the reading: the plans against each other rather than
+         one plan in depth. A box of its own because on a wide screen it docks to
+         the right of the readings, and because these two belong together
+         wherever they land — the chips in the comparison decide what the ranking
+         below is a ranking of, so they must never be a scroll apart.
+
+         It is not folded by a button, the way the form is. It shows itself when
+         there is more than one plan and hides when there is not, which is the
+         same rule its two sections already followed on their own: a folded
+         reading would show nothing, where the folded form at least leaves the
+         chevron that brings it back. -->
+    <div class="dock" id="dock">
 
       <section class="charts-section" id="compare" aria-labelledby="compare-heading" hidden>
         <h2 id="compare-heading" data-i18n="compare.heading">Strategies side by side</h2>
@@ -334,9 +350,10 @@
 
       <!-- Under the comparison because it borrows its column: the list is judged
            on whatever the chips above are showing, so a reader who switched them
-           to Profit gets a ranking on profit. Hidden until there are two amounts
-           to put in an order — one field ranked against nothing is not a
-           ranking. -->
+           to Profit gets a ranking on profit. That is why the two travel
+           together into the dock rather than one of them going. Hidden until
+           there are two amounts to put in an order — one field ranked against
+           nothing is not a ranking. -->
       <section class="charts-section" id="rank" aria-labelledby="rank-heading" hidden>
         <h2 id="rank-heading" data-i18n="rank.heading">What moves the needle</h2>
         <p class="section-note" id="rank-note"></p>

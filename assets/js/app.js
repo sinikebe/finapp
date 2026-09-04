@@ -2270,6 +2270,28 @@ function render() {
   // ranking is judged on. `renderRanking` says why at length.
   renderRanking(projection, projections);
 
+  // The dock is a column of the shell on a wide screen, and a column that
+  // reserves its width for two hidden sections is a strip of empty plane the
+  // readings could have had. Nothing here decides *whether* the comparison or
+  // the ranking shows — each has already decided that for itself, above — this
+  // only tells the stylesheet whether anything is left in the box, because CSS
+  // cannot ask. Written on <body> rather than the box so a layout rule can be
+  // filed on `main` without :has(), which this project does not use.
+  // Three states, not two, because the two sections in here want very different
+  // widths and only one of them is why the column is wide. The comparison is the
+  // starved section — ten columns of table, 1,160px of it in French — and the
+  // dock's whole width is sized for it. The ranking is a list of bars that has
+  // never wanted more than ~820px.
+  //
+  // `rankable` counts fields, not plans, so a single plan with a few amounts in
+  // it hides the comparison and still shows the ranking. Said as one boolean,
+  // that plan reserved the comparison's width for a list that could not use it:
+  // 1,940px of column holding an 820px reading, measured on a 5120px screen —
+  // which is the complaint this whole layout exists to answer, restated one
+  // column to the right.
+  document.body.dataset.dock = !ui.compare.hidden ? 'on'
+    : (!ui.rank.hidden ? 'rank' : 'off');
+
   // Under a year the horizon restates the month count ("1 month · 1 mo"), so it
   // is only worth spelling out once there are years to spell out.
   const readout = projection.months < 12

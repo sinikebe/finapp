@@ -77,8 +77,19 @@
   --shell: 1120px;
   /* Wide enough for two 140px cells of an open field row, and no wider: at
      1440 it leaves the readings 986px, which is where the comparison table
-     stops scrolling sideways and the summary tiles stay on one line. */
+     stops scrolling sideways with three plans and six tiles. With four plans
+     and nine it does neither — the table wants 1,075px and the tiles 1,320 —
+     which is what the wide tiers below are for. */
   --rail: 354px;
+  /* The right-hand column, and zero until the shell is wide enough to seat one
+     without taking the room the cards need. 1,180px is not a taste: it is the
+     narrowest column in which the comparison table stops scrolling sideways,
+     measured with four plans in both languages. English needs 1,076; French
+     needs 1,160, because every column head in it is longer and the row heads
+     are `white-space: nowrap` so a plan's name cannot give way. Sizing this on
+     the English table would have shipped a dock that fixes the scroll in one
+     language and moves it in the other. */
+  --dock: 0px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -416,6 +427,27 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
    column has never been narrower than the window. It is now. */
 .output > * { min-width: 0; }
 
+/* The comparison dock: the same stack, the same gap, and in one column it lands
+   exactly where its two sections used to sit — last, under the flow diagram.
+   Everything that makes it a *column* is in the wide blocks below; here it is
+   only a box.
+
+   It has no fold of its own. Both sections inside it already hide themselves
+   when there is nothing to compare and nothing to rank, and `render` copies
+   that verdict onto <body> so this rule and the grid can read it: a column that
+   reserves 1,180px for two hidden sections is 1,180px the cards could have had.
+   A button would have added a third state to persist and a folded gutter that
+   shows nothing — the form's gutter at least keeps the chevron that brings it
+   back. */
+.dock {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+  align-content: start;
+}
+.dock > * { min-width: 0; }
+body[data-dock="off"] .dock { display: none; }
+
 /* ------------------------------------------------------------------ the rail
 
    Past this width there is room to stand the form beside the readings instead
@@ -427,11 +459,27 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
 
   /* minmax(0, 1fr), never a bare 1fr: a bare 1fr is minmax(auto, 1fr) and
      floors at the column's min-content, which a wide table or a long name
-     would then push past the screen. */
+     would then push past the screen.
+
+     Named areas rather than auto-placement, because there are three boxes now
+     and only two of them are columns here: the comparison dock rides under the
+     readings until the shell is wide enough to stand it beside them. The rail
+     is given an area that spans both rows for one reason — a sticky grid item
+     travels the height of its own grid area and no further, so a rail parked in
+     row one alone would stop dead where the readings end and leave the dock to
+     scroll past it. */
   main {
     grid-template-columns: var(--rail) minmax(0, 1fr);
+    grid-template-areas:
+      "rail output"
+      "rail dock";
     align-items: start;
   }
+  .rail { grid-area: rail; }
+  .output { grid-area: output; }
+  .dock { grid-area: dock; }
+  /* Nothing to compare: the second row goes with the box, gap and all. */
+  body[data-dock="off"] main { grid-template-areas: "rail output"; }
 
   /* The column stays where it is while the readings scroll past it, so changing
      a number and watching the curve move is one movement rather than two. */
@@ -521,6 +569,198 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
      screen, so the pinned copy earns its place here — and the page makes room
      for it rather than letting it stand on the app bar. */
   body[data-rail="closed"] { padding-top: 48px; }
+}
+
+/* -------------------------------------------------------- the wide shell
+
+   Three sizes of screen above the rail's breakpoint, and each one is a claim
+   about what the extra width is worth rather than a round number.
+
+   The measurements this ladder was built from, at 1440 today: every section in
+   the readings is already at its full height by the time the column is 986px
+   wide, and stays there to 7680. Width on its own buys 60px of page — 1.8%.
+   What buys page height is how many things stand beside each other: four cards
+   across instead of two is 375px, and moving the comparison out of the stack is
+   another 950. So the shell grows in order to *seat columns*, and stops the
+   moment there is no further column worth seating.
+
+   Two floors govern the whole ladder. The comparison table stops scrolling
+   sideways at 1,076px with four plans in English and 1,160 in French, measured
+   — that is the one hard width requirement in the app, and it is why the dock
+   starts at 1,180 rather than anywhere narrower. And a flow card wants about 320px before its end-labels start being
+   dropped and about 560 before the plot goes flat, since the plot is 220px tall
+   at every width there has ever been (`chart.js`, PLOT_HEIGHT + TOP_PAD +
+   X_AXIS_BAND). Cards are counted against those two numbers, not eyeballed. */
+
+/* ---- 1600: the readings finally clear the comparison table.
+
+   The rail's breakpoint costs the readings 314px — 1,080 at a 1179px window,
+   766 at 1180 — and until here the shell's 1400px cap never gave it back. It
+   does now: 1,138px at 1600 is the first reading column in this app's history
+   wide enough for four plans of comparison without a sideways scroll.
+
+   `100vw` minus 48 rather than minus 40, because `100vw` counts the classic
+   scrollbar on a desktop Chrome and the difference has to be paid out of the
+   margin rather than out of the page. */
+@media (min-width: 1600px) {
+  :root { --shell: min(1960px, calc(100vw - 48px)); }
+
+  /* The rest of the measure caps (see the note beside `.section-note`): from
+     here the reading column is wider than any this app has had, and a sentence
+     that grows with it is the one part of the page a wider screen makes
+     worse. */
+  .section-note,
+  .money-note,
+  .hint,
+  #rank-note,
+  #charts-note,
+  #compare-note { max-width: 68ch; }
+}
+
+/* ---- 2400: the dock stands up.
+
+   354 rail + 20 + 738 of cards + 20 + 1,180 of comparison + 40 of padding is
+   2,352, which is what a 2400px window has once the margin is paid. Below this
+   the dock would have to take the cards' room to get its own, and a comparison
+   table that fits at the cost of a chart column is not a trade this app should
+   make silently. Above it, the two halves of the reading — one plan in depth,
+   and the plans against each other — finally stand side by side, which is what
+   the eye was doing by scrolling before. */
+@media (min-width: 2400px) {
+  :root {
+    --shell: min(3400px, calc(100vw - 48px));
+    --dock: 1180px;
+  }
+
+  /* One plan has no comparison and no ranking, so it has no dock — and with no
+     dock the shell has 1,180px of readings fewer to hold. It gets narrower to
+     match rather than handing the whole width to the cards: four flow cards at
+     990px each is not four readings, it is four pancakes with a 220px plot in
+     them. The app is as wide as it has things to put side by side. */
+  body[data-dock="off"] { --shell: min(2560px, calc(100vw - 48px)); }
+
+  /* The ranking on its own is a list of bars, and it has never wanted more than
+     this. Sized for the comparison it would be an 820px reading in a 1,180px
+     column — and at the tier below, in a 1,940px one. */
+  body[data-dock="rank"] { --dock: 820px; }
+
+  body:not([data-dock="off"]) main {
+    grid-template-columns: var(--rail) minmax(0, 1fr) var(--dock);
+    grid-template-areas: "rail output dock";
+  }
+
+  /* Deliberately NOT sticky, and deliberately not a scrollport of its own.
+     The rail is both because it holds controls you work while watching the
+     figures move; this holds figures, and a reading that has to be scrolled
+     out from behind its own edge is worse than one that simply scrolls with
+     the page.
+
+     Measured before it was taken out: capped at the window, the dock hid 97px
+     of the ranking on a 3440x900 screen and 277px on a 2560x720 one — an
+     ultrawide driven from a laptop, which is not an exotic machine. Sticky
+     without the cap is no better: a box taller than the window sticks at once
+     and holds its own foot below the fold. */
+
+  /* The one figure the whole page is about, on a screen where 56px is a
+     footnote. The clamp's 8vw term died above a 700px window years ago. */
+  .hero-value { font-size: 64px; }
+}
+
+/* ---- 4220: the dock takes the comparison chart beside its table.
+
+   1,940 = a 760px card, a gap, and the 1,160 the table wants. It is the last
+   column this layout has to give, and it is worth giving: the chart and the
+   table are the same ten figures drawn and written, and read side by side you
+   can put a finger on a line and read its row. Stacked, as they are everywhere
+   narrower, the table is always a scroll below the chart it explains.
+
+   4220 rather than the first width the three columns would fit, because
+   widening the dock by 760px takes 760 from the cards, and the cards must not
+   lose a column to buy it: the readings are 1,786px at the top of the tier
+   below, and 4220 is where they are that wide again with the wider dock in
+   place. A layout that gives with one hand at 3600 and takes with the other is
+   worse than one that waits.
+
+   4400 is where the shell stops for good. Past it the rail and the far edge of
+   the table are already 4.4m apart — further than a reader holds in one glance
+   at any sane viewing distance — and nothing in this app reads better for being
+   wider, only for being beside something. What is left over is margin, and
+   margin is the honest thing to do with width that has run out of uses. */
+@media (min-width: 4220px) {
+  :root { --shell: min(4400px, calc(100vw - 48px)); }
+
+  /* Only when the comparison is actually in the box: 1,940 is a card plus the
+     table beside it, and a lone ranking has neither. */
+  body[data-dock="on"] { --dock: 1940px; }
+
+  #compare {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1160px);
+    align-items: start;
+  }
+  #compare > h2,
+  #compare > .section-note,
+  #compare > .filter-row { grid-column: 1 / -1; }
+  #compare > .compare-table { margin-top: 0; }
+}
+
+/* ---- 3300: the flow diagram comes up beside the targets.
+
+   Not a split of the readings into two columns — the cards, the totals and the
+   horizon all still span, and the targets still sit directly under the cards
+   they draw their rules on. It is one row of two: the targets on the left where
+   they have always been, the flow diagram on the right, which is the one pair
+   in the reading order joined by nothing stronger than "the cards are above us
+   both". It is worth 253px of page, measured at 3440 and at 5120 in both plans
+   — the height of the shorter of the two, which is all a row of two can ever
+   save. It does not get the page inside a 1440px viewport: 1,867 becomes 1,614
+   and 1,440 is still 174 short. What it does is stop the targets from being one
+   short row with 900px of nothing beside it.
+
+   If a plan has no target, the left half of that one row is empty plane. These
+   sections carry no surface of their own — only the cards inside them do — so
+   it reads as space rather than as a hole. */
+@media (min-width: 3300px) {
+  /* The form has been in phone mode on every screen this app has ever run on.
+     The rail is 354px, so the panel's content box is 308 — under the 554px
+     `@container inputs` threshold — and it has been since the rail was built.
+     Measured on a 5120px screen before this line existed: the plan switcher
+     scrolling 277px sideways inside a 308px box, field names clipped to 133px,
+     and 1,600px of empty screen beside it.
+
+     620 is the first rail whose content box (620 − 44 of padding − 2 of border
+     = 574) clears that threshold, so the row layout the container rules were
+     written for finally arrives. Filed here rather than with the dock at 2400
+     because it has to be paid for: at the bottom of that tier the shell is
+     2,352px, and a 620px rail would leave the cards 472px — one column. Here
+     the shell is 3,252 at its narrowest and the readings keep 1,372, which is
+     still four cards across. */
+  :root { --rail: 620px; }
+}
+
+/* ---- 3560: the targets and the flow diagram come up side by side.
+
+   Not an even split, and not at 3300 where the rail widens. The flow diagram
+   reserves its label gutters from its own width — `min(190, max(58, w * 0.22))`
+   in sankey.js — so it stops gaining room for names at about 864px and starts
+   losing them below it. An even split of a 1,444px reading column gives it 712,
+   and at 712 it draws "Everyday c… 240,000": a diagram whose whole job is to
+   say where money goes, no longer saying whose.
+
+   1.6fr against 1fr, and only from 3560, is where both are satisfied at once:
+   the flow gets 923px at the narrowest window in this tier and 1,070 at the
+   widest, and the targets row keeps 577 — past the 560 at which it stops
+   changing. Below 3560 they stack, exactly as they do today. */
+@media (min-width: 3560px) {
+  .output {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    /* Each of the two takes the height it needs rather than the row's, so a
+       short one does not stretch into a tall box with nothing in the bottom
+       of it. */
+    align-items: start;
+  }
+  .output > * { grid-column: 1 / -1; }
+  #milestones { grid-column: 1; }
+  #sankey { grid-column: 2; }
 }
 
 /* --------------------------------------------------------------- strategies */
@@ -652,7 +892,9 @@ main section,
 
 .strategy-jump-tab {
   flex: none;
-  max-width: 42vw;
+  /* 42vw was a phone measurement and it never stopped growing: 3,226px a tab on
+     a 7680px screen. The px term is what holds above a 670px window. */
+  max-width: min(42vw, 280px);
   min-height: 32px;
   padding: 4px 12px;
   background: var(--surface-1);
@@ -1233,10 +1475,18 @@ main section,
 .kpi-row {
   display: grid;
   gap: 12px;
-  /* 136px rather than a rounder number: it is the widest track that still
-     seats two tiles on a 390px phone and all of them on a laptop, so the row
-     never leaves a single tile stranded on a line of its own. */
-  grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+  /* 140px, and it is a ceiling as much as a floor. Four pixels is not a taste:
+     at 148 a 360px phone drops to one tile a line, and at 148 the six tiles
+     stop fitting on one line in the 986px reading column, which costs 78px of
+     page at the width most people are at. 140 is the widest value that keeps
+     both — measured at 320, 360, 390, 986, 1440 and 2560. What 136 did not do
+     was fit the labels: "Kept per month, on average" and "Things you own are worth" wrapped
+     to two lines anywhere under about 150px, so the row's height went *up* as
+     the window widened — 321px at a 660px window, 362 at 680, because 680
+     bought a fourth track and the fourth track was still too narrow to unwrap
+     the words in it. A floor the labels fit ends that: the row only ever gets
+     shorter as the column grows. */
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   margin: 0;
   padding-top: 4px;
   border-top: 1px solid var(--border);
@@ -1325,6 +1575,28 @@ main section,
   letter-spacing: -0.01em;
 }
 
+/* Everything that is a sentence rather than a figure is capped at a measure.
+   Nothing in the readings had one, and at 986px — the widest reading column the
+   app has ever had — the note under the cards was already running 146
+   characters to the line against a comfortable 45–90. A column that grows to
+   2,100px without this makes the drawings better and the writing worse, which
+   is not a wider app, only a bigger one. `ch` rather than px so it holds at each
+   of the three sizes these are set in, and so it follows the font the browser
+   is actually using.
+
+   In two halves, because they cost different things. What sits inside a closed
+   disclosure costs nothing to cap at any width — it is not on the page until
+   somebody opens it — and that is where the worst of it was: the note on how
+   the cards are scaled runs 146 characters to the line at 986px and 438 at
+   3,000. What is on the page all the time is capped only from 1600 up, where
+   the column first outgrows anything a reading column in this app has been:
+   capping those at 1440 as well would buy a better measure for a line of page
+   height at the width most people are actually at, and that is not a trade
+   worth making silently. Below 1600 every line of this app is where it was. */
+.scale-note,
+.panel-notes p,
+.section-notes p { max-width: 72ch; }
+
 .section-note { font-size: 14px; color: var(--text-secondary); min-height: 1.5em; }
 
 .scale-note { font-size: 12.5px; color: var(--text-secondary); }
@@ -1384,6 +1656,105 @@ main section,
 /* Four cards read better two-by-two than as three and a lonely fourth. */
 @media (min-width: 720px) {
   .chart-grid[data-count="4"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* ---- how many cards across, at the widths where the answer changes.
+
+   These are viewport queries with the arithmetic already done, not guesses at
+   the column. At every width below they are filed, the shell, the rail and the
+   dock are all fixed by the blocks in the layout section, so the reading column
+   is a known number: four 320px cards and their three 16px gaps need 1,328px,
+   which the column reaches at a 1830px window on the two-column shell and 3030
+   on the three-column one. Five need 1,664, reached at 3370.
+
+   The rail folding is the one thing a width query cannot see — and it does not
+   have to. Folding only ever *widens* the column, by 302px, so a count chosen
+   with the rail open is never wrong with it shut. The `[data-rail="closed"]`
+   rules are here to take the wider column earlier, not to keep it correct, and
+   where both apply they agree.
+
+   Five cards go three across rather than four: four would leave the fifth alone
+   on a line of its own, which is the same reason the block above exists. */
+@media (min-width: 1600px) and (max-width: 2399px) {
+  body[data-rail="closed"] .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body[data-rail="closed"] .chart-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 1830px) and (max-width: 2399px) {
+  .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .chart-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 2720px) and (max-width: 4219px) {
+  body[data-rail="closed"] .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body[data-rail="closed"] .chart-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 3030px) and (max-width: 4219px) {
+  .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .chart-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* Five across, from the two widths the readings first reach 1,664px: with the
+   rail shut on the three-column shell, and with it open once the shell has
+   stopped growing. */
+@media (min-width: 3060px) and (max-width: 4219px) {
+  body[data-rail="closed"] .chart-grid[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (min-width: 3370px) {
+  .chart-grid[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (min-width: 4220px) {
+  .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .chart-grid[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+
+/* ---- and how wide a card is allowed to get.
+
+   `auto-fit` collapses the tracks it has no cards for and hands the room to the
+   ones it has, which is right on a phone and wrong on a 4000px shell: three
+   cards would take 700px each. The plot inside them is 220px tall whatever the
+   width, so a card past about 560 is not a bigger reading, it is a flatter one
+   — and the same five-card scale that makes the flow cards comparable makes a
+   6:1 pancake beside a 2:1 card a genuinely harder comparison. So the grid is
+   capped by how many cards are in it, and the leftover goes to the margin.
+
+   Filed as a max-width on the grid rather than on the card so the cards keep
+   sharing one geometry: `chart.js` reserves the same end-label width across
+   siblings, and cards of different widths in one row break that. */
+@media (min-width: 1600px) {
+  .chart-grid[data-count="1"] { max-width: 560px; }
+  .chart-grid[data-count="2"] { max-width: 1136px; }
+  .chart-grid[data-count="3"] { max-width: 1712px; }
+  /* These two are never reached with the dock standing — the readings stop at
+     2,106px — but a plan with no dock has the whole shell, and without them
+     four cards would be 990px each. */
+  .chart-grid[data-count="4"] { max-width: 2288px; }
+  .chart-grid[data-count="5"] { max-width: 2864px; }
+
+  /* One card carrying one line per plan, so it is allowed a little more width
+     than a flow card before it flattens — but only a little. Left where the
+     cards are rather than centred: the table under it starts at the same edge,
+     and two readings of one thing should share a left margin. */
+  #compare-chart { max-width: 760px; }
+
+  /* The flow diagram is the one drawing in the app that genuinely wants width —
+     and only to a point. Its label gutters hit their 190px cap at a card width
+     of 864 (`sankey.js`, the Math.min in `draw`), so past that every extra pixel
+     goes into the ribbon run and nothing into the names: 2.9 to 1 at the width
+     it ships at today, 8.2 to 1 at 2,786. Its height is a constant, so the only
+     way to keep the ribbons diagonal is to stop widening it. */
+  #sankey-mount { max-width: 1200px; }
+
+  /* Capped as well as floored. The slider inside is `flex: 1 1 auto` with no
+     ceiling, so an uncapped filter handed it every spare pixel: 428px of track
+     at a 986px column, 2,242 at 2,800. Six hundred steps spread over two metres
+     is not a better control than six hundred over four hundred pixels, and the
+     chips beside it are how anybody actually picks a horizon. */
+  .filter { max-width: 520px; }
+
+  /* Capped at a length a bar is still comparable at. The name is 240px and the
+     figure is its own width, so every surplus pixel went to the track: 659px at
+     a 986 column, 2,673 at 3,000. Two and a half metres of bar beside a 240px
+     name is the same failure the row's own comment warns about from the other
+     side. */
+  .rank-list { max-width: 820px; }
 }
 
 .chart-card {
@@ -1577,7 +1948,9 @@ main section,
 
 .chart-tip-row {
   display: grid;
-  grid-template-columns: 14px 1fr auto;
+  /* minmax(0, 1fr), the same rule every other grid in this file keeps: a bare
+     1fr floors at min-content, and the label in the middle is a plan's name. */
+  grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
 }
@@ -1793,9 +2166,15 @@ main section,
    too, since the colour is a second cue and never the only one. */
 .section-note.is-warning { color: var(--status-critical); }
 
+/* Every other cell in this row is capped; this one was not, so it took all the
+   surplus — 836px at a 1400 shell, 2,236 at 2,800, for a field that stops at
+   forty characters. */
 .milestone-name {
   flex: 2 1 160px;
   min-width: 0;
+  /* Twice the 220px the amount beside it gets, which is the proportion the
+     `flex: 2` was already asking for — it just had no ceiling to ask within. */
+  max-width: 440px;
 }
 
 .milestone-amount {
