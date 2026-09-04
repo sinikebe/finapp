@@ -220,3 +220,40 @@ test('every dock state the stylesheet lays out is one the app can actually write
     );
   }
 });
+
+test('every layout that gives main its columns also says what the fold does to them', () => {
+  /*
+   * The fold is written once, high up, as a two-column grid. Every tier that
+   * re-declares `main`'s columns therefore has to re-declare the folded case
+   * too, because a media query adds no specificity and the later rule simply
+   * wins — silently, with no error and nothing in the diff to look at.
+   *
+   * It happened: the dock's three-column rule out-ordered the fold, and above
+   * 2400 the chevron turned, `data-rail` said closed, the panel emptied itself,
+   * and the column stayed 354px wide. Measured 354 -> 354 at 2400, 2560, 3440
+   * and 5120 — the fold inert on exactly the screens it was built for.
+   *
+   * So: for every rule that sets grid-template-columns on `main`, there must be
+   * a folded counterpart no earlier in the file.
+   */
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
+  const onMain = rules
+    .map((match, index) => ({ selector: match[1].trim(), body: match[2], index, at: match.index }))
+    .filter((rule) => /(^|[\s,])(body[^\s,]*\s+)?main\b/.test(rule.selector)
+      && /grid-template-columns\s*:/.test(rule.body));
+
+  assert.ok(onMain.length >= 2, 'main is given columns in more than one place');
+
+  const folded = onMain.filter((rule) => /data-rail="closed"/.test(rule.selector));
+  assert.ok(folded.length >= 2, 'the fold restates main\'s columns for more than the base layout');
+
+  const lastFolded = Math.max(...folded.map((rule) => rule.at));
+  for (const rule of onMain) {
+    if (/data-rail="closed"/.test(rule.selector)) continue;
+    assert.ok(
+      rule.at < lastFolded,
+      `\`${rule.selector}\` sets main's columns after the last folded rule, so folding `
+      + 'cannot override it — the fold would turn its chevron and change nothing',
+    );
+  }
+});
