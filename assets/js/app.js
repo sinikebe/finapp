@@ -9,7 +9,8 @@
  */
 
 import {
-  project, inTodaysMoney, shiftReturns, seriesOf, monthlyOf, extentOf,
+  project,
+  runsDryAt, inTodaysMoney, shiftReturns, seriesOf, monthlyOf, extentOf,
   hasAmounts, hasDebt, hasOwned,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
   fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf, swingsOf,
@@ -2064,14 +2065,34 @@ function renderSummary(projection, hasInput) {
 
   ui.summary.classList.toggle('is-empty', !hasInput);
 
+  /* The chip says the most urgent true thing about the plan, and a month the
+     reader is overdrawn in outranks any average of the months around it.
+
+     Averaged, this chip could report a comfortable surplus for a plan that
+     spends twenty thousand it does not have at month twenty and is rescued by
+     something later — measured, not imagined: 1,555.56 a month kept, in green,
+     on a plan underwater from month one and 20,000 down at its worst. The
+     average is not wrong, it is just not an answer to "can I afford this?", and
+     it is still on the tile below, where it says what it is.
+
+     No new colour and no new icon: running dry is the critical reading the
+     shortfall already was, said about a month instead of about an average. */
+  const dry = runsDryAt(projection);
   const shortfall = projection.averages.net < 0;
-  ui.heroChip.hidden = !hasInput || projection.averages.net === 0;
-  ui.heroChip.classList.toggle('is-critical', shortfall);
-  ui.heroChip.classList.toggle('is-good', !shortfall);
-  ui.heroChipText.textContent = shortfall
-    ? t('summary.shortfall', formatAmount(Math.abs(projection.averages.net)))
-    : t('summary.surplus', formatAmount(projection.averages.net));
-  ui.chipIconPath.setAttribute('d', shortfall ? STATUS_ICONS.shortfall : STATUS_ICONS.surplus);
+  const critical = Boolean(dry) || shortfall;
+  // A plan that averages exactly nothing still has a chip if it ran dry on the
+  // way there — that is precisely the plan the average hides.
+  ui.heroChip.hidden = !hasInput || (!dry && projection.averages.net === 0);
+  ui.heroChip.classList.toggle('is-critical', critical);
+  ui.heroChip.classList.toggle('is-good', !critical);
+  if (dry) {
+    ui.heroChipText.textContent = t('summary.runsDry', dry.month, formatAmount(Math.abs(dry.worst)));
+  } else {
+    ui.heroChipText.textContent = shortfall
+      ? t('summary.shortfall', formatAmount(Math.abs(projection.averages.net)))
+      : t('summary.surplus', formatAmount(projection.averages.net));
+  }
+  ui.chipIconPath.setAttribute('d', critical ? STATUS_ICONS.shortfall : STATUS_ICONS.surplus);
 
   // One polite announcement once typing settles, rather than one per keystroke.
   window.clearTimeout(noteTimer);

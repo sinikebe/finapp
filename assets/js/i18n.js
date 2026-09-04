@@ -357,6 +357,9 @@ const STRINGS = {
     'inputs.debtHint': 'A loan counts against what you are worth until it is repaid. If it bought something you still have — a flat, a car — add that as “Something you own”, or the total is only half the story.',
     'summary.surplus': (amount) => `You keep ${amount} a month on average`,
     'summary.shortfall': (amount) => `Expenses outrun income by ${amount} a month on average`,
+    // Outranks both of the above: an average is a figure nobody lives through,
+    // and a month you are overdrawn in is one you do.
+    'summary.runsDry': (month, amount) => `The money runs out in month ${month}, ${amount} short at its lowest`,
 
     'filter.label': 'Projection length',
     'filter.readout': (months, horizon) => `${months} ${plural(months, 'month', 'months')} · ${horizon}`,
@@ -747,6 +750,7 @@ const STRINGS = {
     'inputs.debtHint': 'Un emprunt pèse sur ce que vous valez tant qu’il n’est pas remboursé. S’il a servi à acheter quelque chose que vous avez toujours — un logement, une voiture — ajoutez-le comme « Un bien que vous possédez », sinon le total ne dit que la moitié de l’histoire.',
     'summary.surplus': (amount) => `Vous gardez ${amount} par mois en moyenne`,
     'summary.shortfall': (amount) => `Les dépenses dépassent les revenus de ${amount} par mois en moyenne`,
+    'summary.runsDry': (month, amount) => `L’argent vient à manquer au mois ${month}, ${amount} de découvert au plus bas`,
 
     'filter.label': 'Durée de la projection',
     'filter.readout': (months, horizon) => `${months} mois · ${horizon}`,

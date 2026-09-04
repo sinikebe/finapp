@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v55', date: '2026-09-04',
+    version: 'v56', date: '2026-09-04',
+    en: 'The summary used to answer "can I afford this?" with an average, and an average cannot show a trough. A plan could end 56,000 ahead, report a comfortable 1,555 a month kept, and still be 20,000 overdrawn at month twenty — with nothing on the page saying so. Now, if the money ever runs out, the summary says the month it does and how far under it goes, in place of the average. What you keep on average is still there, on its own tile. Plans that never go overdrawn read exactly as they did.',
+    fr: 'Le résumé répondait à «\u00a0puis-je me le permettre\u00a0?\u00a0» par une moyenne, et une moyenne ne montre pas un creux. Un plan pouvait finir avec 56\u202f000 d’avance, annoncer 1\u202f555 gardés par mois, et rester à découvert de 20\u202f000 au vingtième mois — sans que rien ne le dise. Désormais, si l’argent vient à manquer, le résumé indique le mois où cela arrive et l’ampleur du découvert, à la place de la moyenne. Ce que vous gardez en moyenne reste affiché, sur sa propre tuile. Les plans qui ne sont jamais à découvert se lisent comme avant.',
+  },
+  {
+    version: 'v55', date: '2026-09-04', commit: 'a82fcd7',
     en: 'The app used to stop at 1,400 pixels. On a wide monitor that was a quarter of the screen with the rest left empty, and the page was exactly as long at 5,120 pixels as at 1,440 — the width bought nothing. Now the comparison and the ranking dock to the right of the readings on a screen with room for them, the flow cards go four across instead of two, and the form itself finally comes out of the narrow layout it had been wearing on every screen ever since it was docked. A 5,120-pixel screen shows the whole plan in half the scrolling. Nothing below 1,440 has moved by a pixel.',
     fr: 'L’application s’arrêtait à 1\u202f400 pixels. Sur un écran large, cela faisait un quart de la surface et le reste vide, et la page était aussi longue en 5\u202f120 qu’en 1\u202f440\u00a0: la largeur n’apportait rien. Désormais la comparaison et le classement viennent s’amarrer à droite des résultats dès qu’il y a la place, les cartes de flux se rangent par quatre au lieu de deux, et le formulaire quitte enfin la mise en page étroite qu’il portait sur tous les écrans depuis qu’il est en colonne. Un écran de 5\u202f120 pixels montre tout le plan avec moitié moins de défilement. Rien en dessous de 1\u202f440 n’a bougé d’un pixel.',
   },

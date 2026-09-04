@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax,
+  project, inTodaysMoney, shiftReturns, monthlyGrowth, afterTax, runsDryAt,
   seriesOf, monthlyOf, extentOf, hasAmounts, hasInvestments, hasDebt, hasOwned,
   flowIn, contributionOf, outstandingOf, startOf, firstPaymentOf, drawMonthOf, lastLandingOf,
   grownBy, yearsRunning, fieldTotalOf, loanPartsOf, shareOut,
@@ -1399,4 +1399,72 @@ test('a ranking is read in whatever money the page is in', () => {
   for (let index = 0; index < here.length; index += 1) {
     assert.ok(Math.abs(now[index].swing) < Math.abs(here[index].swing) || here[index].swing === 0);
   }
+});
+
+test('the month the cash runs out, which an average will not tell you', () => {
+  /*
+   * `net` is the running cash balance, and the summary otherwise reports the
+   * average of it over the whole horizon. An average is the one reading that
+   * cannot show a trough: the plan below ends 56,000 up and averages 1,555.56 a
+   * month kept, while being overdrawn from its first month and 20,000 down at
+   * its worst. Before this reading existed the app said "You keep 1,555.56 a
+   * month on average", in green, and nothing else — an answer to "can I afford
+   * this?" that nobody ever lives through.
+   */
+  const fields = [
+    { id: 'pay', label: 'Pay', kind: 'plain', direction: 'income', amount: '1000', periodMonths: 1, startMonth: 1 },
+    { id: 'rent', label: 'Rent', kind: 'plain', direction: 'expense', amount: '2000', periodMonths: 1, startMonth: 1, endMonth: 20 },
+    { id: 'win', label: 'Windfall', kind: 'once', direction: 'income', amount: '60000', startMonth: 21 },
+  ];
+  const run = project({ fields, months: 36 });
+
+  assert.ok(run.averages.net > 0, 'the average is a comfortable surplus');
+  assert.ok(run.totals.net > 0, 'and the plan ends up ahead');
+
+  const dry = runsDryAt(run);
+  assert.deepEqual(dry, { month: 1, worst: -20000 });
+});
+
+test('a plan that keeps its cash positive never reports running dry', () => {
+  // Including the three the app opens with: default-plan.test.mjs holds them to
+  // a cash balance that never goes negative, so none of them may raise this.
+  const steady = project({
+    fields: [{ id: 'pay', label: 'Pay', kind: 'plain', direction: 'income', amount: '100', periodMonths: 1 }],
+    months: 12,
+  });
+  assert.equal(runsDryAt(steady), null);
+
+  // A month that merely costs more than it earns is not the same as being
+  // overdrawn, and must not raise it either. Here a 3,000 bill lands at month
+  // 13, by which time 12,000 has come in: the month itself is 2,000 in the red
+  // and the balance never is.
+  const dips = project({
+    fields: [
+      { id: 'pay', label: 'Pay', kind: 'plain', direction: 'income', amount: '1000', periodMonths: 1, startMonth: 1 },
+      { id: 'tax', label: 'A yearly bill', kind: 'plain', direction: 'expense', amount: '3000', periodMonths: 12, startMonth: 13 },
+    ],
+    months: 24,
+  });
+  const worstMonth = Math.min(...monthlyOf(dips, 'net').map((point) => point.value));
+  assert.ok(worstMonth < 0, 'there is a month that costs more than it earns');
+  assert.equal(runsDryAt(dips), null, 'but a bill smaller than what has been saved is not an overdraft');
+});
+
+test('the month it runs dry survives being restated in today’s money', () => {
+  // `inTodaysMoney` divides every figure by a positive factor, so it cannot
+  // change a sign: the month is the same either way. The depth is not — it is
+  // an amount, and an amount has to be in the money the reader is shown, which
+  // is why this is read from the points rather than stored on the projection.
+  const fields = [
+    { id: 'pay', label: 'Pay', kind: 'plain', direction: 'income', amount: '1000', periodMonths: 1, startMonth: 1 },
+    { id: 'rent', label: 'Rent', kind: 'plain', direction: 'expense', amount: '2000', periodMonths: 1, startMonth: 1, endMonth: 20 },
+    { id: 'win', label: 'Windfall', kind: 'once', direction: 'income', amount: '60000', startMonth: 21 },
+  ];
+  const run = project({ fields, months: 36 });
+  const real = inTodaysMoney(run, 5);
+
+  const here = runsDryAt(run);
+  const there = runsDryAt(real);
+  assert.equal(there.month, here.month, 'the same month');
+  assert.ok(there.worst > here.worst, 'and a shallower hole, because 20,000 then is less now');
 });
