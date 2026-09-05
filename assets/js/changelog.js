@@ -18,7 +18,12 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v56', date: '2026-09-04',
+    version: 'v57', date: '2026-09-05',
+    en: 'A share link could name a field after a function the app’s dictionary inherits rather than holds, and opening it threw during the render — after the plan had already been saved, so the app threw again on every start with no rows and buttons that did nothing. A link could also give a field any paragraph of the app’s own copy as its name. Both doors are closed: a phrase is looked up only on the dictionary itself, and a name that arrives from a link is admitted only when it is one of the default names.',
+    fr: 'Un lien de partage pouvait nommer un poste d’après une fonction que le dictionnaire de l’application hérite au lieu de la posséder, et l’ouvrir levait une erreur pendant le rendu — après que le plan avait déjà été enregistré, si bien que l’application échouait à chaque démarrage, sans aucune ligne et avec des boutons inertes. Un lien pouvait aussi donner à un poste n’importe quel paragraphe des textes de l’application en guise de nom. Les deux portes sont fermées\u00a0: une phrase n’est cherchée que dans le dictionnaire lui-même, et un nom venu d’un lien n’est admis que s’il s’agit d’un des noms par défaut.',
+  },
+  {
+    version: 'v56', date: '2026-09-04', commit: '2ea7f8f',
     en: 'The summary used to answer "can I afford this?" with an average, and an average cannot show a trough. A plan could end 56,000 ahead, report a comfortable 1,555 a month kept, and still be 20,000 overdrawn at month twenty — with nothing on the page saying so. Now, if the money ever runs out, the summary says the month it does and how far under it goes, in place of the average. What you keep on average is still there, on its own tile. Plans that never go overdrawn read exactly as they did.',
     fr: 'Le résumé répondait à «\u00a0puis-je me le permettre\u00a0?\u00a0» par une moyenne, et une moyenne ne montre pas un creux. Un plan pouvait finir avec 56\u202f000 d’avance, annoncer 1\u202f555 gardés par mois, et rester à découvert de 20\u202f000 au vingtième mois — sans que rien ne le dise. Désormais, si l’argent vient à manquer, le résumé indique le mois où cela arrive et l’ampleur du découvert, à la place de la moyenne. Ce que vous gardez en moyenne reste affiché, sur sa propre tuile. Les plans qui ne sont jamais à découvert se lisent comme avant.',
   },

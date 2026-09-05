@@ -47,9 +47,13 @@ export const FIELD_SCHEMA = {
     read: (value) => (typeof value === 'string' && value ? value : newId()),
   },
   labelKey: {
-    // A dictionary key, while the reader hasn't renamed the field.
+    // A dictionary key, while the reader hasn't renamed the field. Only ever
+    // one of the default names — and held to that shape, because this value
+    // arrives from a share link and is resolved through the dictionary: any
+    // other key would put a paragraph of the app's own copy in the name box,
+    // and `hasOwnProperty` would put a function there and throw on render.
     default: '',
-    read: (value) => (typeof value === 'string' ? value : ''),
+    read: (value) => (typeof value === 'string' && /^field\.default\.[a-zA-Z]+$/.test(value) ? value : ''),
   },
   label: {
     // The reader's own name; wins over labelKey when set.

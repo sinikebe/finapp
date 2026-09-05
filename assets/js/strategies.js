@@ -45,7 +45,10 @@ export function normalizeStrategy(value) {
     // A name the app gave it, so the plans it opens with follow the language
     // the way an untouched field's does. The reader's own name wins over it,
     // exactly as a field's label wins over its labelKey.
-    nameKey: typeof source.nameKey === 'string' ? source.nameKey : '',
+    // Held to the shape of a default plan's name, for the reason a field's
+    // labelKey is: it comes in from a link and goes out through the dictionary.
+    nameKey: typeof source.nameKey === 'string' && /^strategy\.default\.[a-zA-Z]+$/.test(source.nameKey)
+      ? source.nameKey : '',
     // A store written before origins existed has none. A `nameKey` is set by
     // nothing but `defaultStrategies`, so its presence is an honest reading of
     // "this is one of the plans the app opened with" — and its absence, of

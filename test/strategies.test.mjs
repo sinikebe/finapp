@@ -125,9 +125,9 @@ test('a store from before strategies becomes one unnamed strategy', () => {
 /* ------------------------------------------------------- syncing a field */
 
 const wage = (amount, extra = {}) => createField({
-  direction: 'income', labelKey: 'field.income', amount, ...extra,
+  direction: 'income', labelKey: 'field.default.salary', amount, ...extra,
 });
-const rent = (amount) => createField({ direction: 'expense', labelKey: 'field.rent', amount });
+const rent = (amount) => createField({ direction: 'expense', labelKey: 'field.default.rent', amount });
 const fieldsOf = (strategies, index) => strategies[index].fields;
 const named = (strategy, key) => strategy.fields.find((f) => f.labelKey === key);
 
@@ -140,9 +140,9 @@ test('syncing finds the counterpart by name the first time', () => {
   assert.notEqual(fieldsOf(before, 0)[0].id, fieldsOf(before, 1)[0].id, 'ids differ to begin with');
 
   const after = spreadField(before, { ...fieldsOf(before, 0)[0], synced: true, amount: '4500' });
-  assert.equal(named(after[1], 'field.income').amount, '4500', 'the other strategy followed');
-  assert.equal(named(after[1], 'field.income').id, fieldsOf(before, 0)[0].id, 'and now shares its id');
-  assert.equal(named(after[1], 'field.rent').amount, '1800', 'its own fields are untouched');
+  assert.equal(named(after[1], 'field.default.salary').amount, '4500', 'the other strategy followed');
+  assert.equal(named(after[1], 'field.default.salary').id, fieldsOf(before, 0)[0].id, 'and now shares its id');
+  assert.equal(named(after[1], 'field.default.rent').amount, '1800', 'its own fields are untouched');
   assert.equal(after[1].fields.length, 2, 'nothing was added');
 });
 
@@ -169,7 +169,7 @@ test('a strategy with no counterpart gains the field', () => {
   ]);
   const after = spreadField(before, { ...fieldsOf(before, 0)[0], synced: true });
   assert.equal(after[1].fields.length, 2, 'a synced field exists everywhere by definition');
-  assert.equal(named(after[1], 'field.income').amount, '4000');
+  assert.equal(named(after[1], 'field.default.salary').amount, '4000');
 });
 
 test('syncing never steals a field already following something else', () => {
@@ -201,7 +201,7 @@ test('removing a synced field removes it everywhere', () => {
     { fields: [wage('4000'), rent('1200')] },
     { fields: [wage('4000'), rent('1800')] },
   ]), { ...wage('4000'), synced: true });
-  const id = linked[0].fields.find((f) => f.labelKey === 'field.income').id;
+  const id = linked[0].fields.find((f) => f.labelKey === 'field.default.salary').id;
   const gone = removeEverywhere(linked, id);
   for (const strategy of gone) {
     assert.equal(strategy.fields.some((f) => f.id === id), false);
@@ -217,8 +217,8 @@ test('duplicating a strategy keeps synced ids and renews the rest', () => {
   const source = copied[0].fields;
   const copy = copied[1].fields;
   assert.equal(copy.find((f) => f.synced).id, source.find((f) => f.synced).id, 'the link survives');
-  const ownRent = copy.find((f) => f.labelKey === 'field.rent');
-  const sourceRent = source.find((f) => f.labelKey === 'field.rent');
+  const ownRent = copy.find((f) => f.labelKey === 'field.default.rent');
+  const sourceRent = source.find((f) => f.labelKey === 'field.default.rent');
   assert.notEqual(ownRent.id, sourceRent.id, 'an unsynced field is its own again');
 });
 
@@ -383,7 +383,7 @@ test('an unnamed field adopts nothing that differs from it in any respect', () =
   // thought about here too: what both fields hold, then the one thing theirs
   // holds differently.
   const differences = {
-    labelKey: [{}, { labelKey: 'field.rent' }],
+    labelKey: [{}, { labelKey: 'field.default.rent' }],
     label: [{}, { label: 'Rent' }],
     direction: [{}, { direction: 'income' }],
     amount: [{}, { amount: '4001' }],
@@ -486,4 +486,14 @@ test('a shared plan does not become edited just by being stored and read back', 
   const [shared] = markShared(normalizeStrategies([{ name: 'Theirs', fields: [{ label: 'Rent', amount: '950' }] }]));
   const roundTripped = normalizeStrategy(JSON.parse(JSON.stringify(shared)));
   assert.equal(originStateOf(roundTripped), 'shared');
+});
+
+test('a nameKey is one of the default plan names or nothing', () => {
+  // The same door as a field's labelKey, on the strategy tab.
+  for (const nameKey of ['strategy.default.loan', 'strategy.default.saveUp', 'strategy.default.sellFund']) {
+    assert.equal(normalizeStrategies([{ nameKey, fields: [] }])[0].nameKey, nameKey);
+  }
+  for (const nameKey of ['valueOf', 'toString', 'about.resetAsk', 'strategy.default.', 'x']) {
+    assert.equal(normalizeStrategies([{ nameKey, fields: [] }])[0].nameKey, '', `${JSON.stringify(nameKey)} must be dropped`);
+  }
 });

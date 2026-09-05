@@ -153,3 +153,25 @@ test('every language points at a manifest, and they agree on app identity', asyn
     assert.deepEqual(Object.keys(manifest).sort(), Object.keys(first).sort());
   }
 });
+
+test('a phrase is looked up on the dictionary itself, never on what it inherits', () => {
+  /*
+   * A field's `labelKey` and a plan's `nameKey` arrive from a share link and are
+   * resolved through `t`. Looked up with `in`, or a bare index, a key of
+   * `hasOwnProperty` or `constructor` resolves to a function on
+   * Object.prototype and `t` calls it — with no `this`, so it throws, from
+   * inside a render, after the plan has already been saved. Reproduced before
+   * this test existed: one click on such a link, and the app threw on every
+   * boot afterwards with no rows, no hero figure and a language button that
+   * did nothing.
+   */
+  for (const language of LANGUAGES) {
+    const t = makeTranslator(language);
+    for (const key of ['hasOwnProperty', 'constructor', 'valueOf', 'toString', '__proto__', 'isPrototypeOf', 'toLocaleString']) {
+      let out;
+      assert.doesNotThrow(() => { out = t(key); }, `${language}: t(${JSON.stringify(key)}) must not throw`);
+      assert.equal(typeof out, 'string', `${language}: t(${JSON.stringify(key)}) returned a ${typeof out}`);
+      assert.equal(out, key, 'an unknown key comes back as itself, as any unknown key does');
+    }
+  }
+});

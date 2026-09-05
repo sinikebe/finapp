@@ -892,11 +892,19 @@ export function localeFor(language, nav = typeof navigator === 'undefined' ? nul
   return DEFAULT_LOCALES[language] || DEFAULT_LOCALES.en;
 }
 
+/** True when `key` is a phrase the dictionary itself carries — not one it
+ *  inherits. `in` and a bare index both walk the prototype chain, so a key of
+ *  `hasOwnProperty` or `constructor` would resolve to a function on
+ *  Object.prototype, and `t` would call it. A field's `labelKey` arrives from
+ *  a share link, so that key is whatever somebody put in the link. */
+const carries = (dictionary, key) => Object.prototype.hasOwnProperty.call(dictionary, key);
+
 /** A lookup bound to one language, falling back to English then to the key. */
 export function makeTranslator(language) {
   const dictionary = STRINGS[language] || STRINGS.en;
   return function t(key, ...params) {
-    const entry = key in dictionary ? dictionary[key] : STRINGS.en[key];
+    const entry = carries(dictionary, key) ? dictionary[key]
+      : (carries(STRINGS.en, key) ? STRINGS.en[key] : undefined);
     if (entry === undefined) return key;
     return typeof entry === 'function' ? entry(...params) : entry;
   };
