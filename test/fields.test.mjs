@@ -325,3 +325,17 @@ test('a duplicate of a loan or an investment is the same instrument', () => {
   assert.equal(copy.termMonths, 300);
   assert.equal(copy.amount, '200000');
 });
+
+test('a labelKey is one of the default names or nothing', () => {
+  // It comes in from a share link and goes out through the dictionary, so any
+  // other key is a way to put the app's own copy — or a function — in the name
+  // box. The default plans use nine of these; all of them must still pass.
+  const keep = ['field.default.salary', 'field.default.rent', 'field.default.fundAfter'];
+  for (const labelKey of keep) {
+    assert.equal(normalizeFields([{ labelKey, amount: '1' }])[0].labelKey, labelKey);
+  }
+  const drop = ['hasOwnProperty', 'constructor', 'about.resetAsk', 'field.removeNamed', 'field.default.', 'field.default.a-b', ' field.default.salary', ''];
+  for (const labelKey of drop) {
+    assert.equal(normalizeFields([{ labelKey, amount: '1' }])[0].labelKey, '', `${JSON.stringify(labelKey)} must be dropped`);
+  }
+});
