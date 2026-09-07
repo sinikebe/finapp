@@ -52,8 +52,9 @@ import { whenMet } from './milestones.js';
  * How many times round before giving up.
  *
  * A chain settles in about as many rounds as it is long, and a plan may hold
- * six targets, so six rounds is the honest ceiling plus one to notice it has
- * stopped moving. The cycle check below usually stops it long before this;
+ * six targets, so six rounds is the honest ceiling; one more notices it has
+ * stopped moving, and one is slack for a chain that settles late — eight in
+ * all. The cycle check below usually stops it long before this;
  * the cap is for a wobble long enough to look like progress.
  */
 const MAX_ROUNDS = 8;

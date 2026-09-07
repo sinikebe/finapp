@@ -18,12 +18,17 @@ export const RELEASES = Object.freeze([
     // The release being written has no commit yet — it is created by the merge
     // that publishes it. It is filled in with the next change, which is the one
     // place the hash is finally knowable. Only the newest entry may lack one.
-    version: 'v57', date: '2026-09-05',
+    version: 'v58', date: '2026-09-05',
+    en: 'Three things the layout got wrong on the widest screens, all measured. With the comparison docked, five flow cards were forced onto one line at 276 pixels from 3,370 wide — under the 320 the app sets itself, every end label dropped — because that rule was worked out for a rail the tier before had already widened; they now go five across only where 320 is really there. On a laptop-height window with the money assumptions open, the fields could sit entirely under their own sticky head, out of reach; the assumptions now take under half the column and scroll past that. And folding a single plan’s form left a 48-pixel band above the app bar for a plan switcher that only exists with two plans. Nine comments and two documents that named a number or a file the code no longer matched are corrected.',
+    fr: 'Trois erreurs de la mise en page sur les écrans les plus larges, toutes mesurées. Comparaison amarrée, cinq cartes de flux étaient forcées sur une ligne à 276 pixels dès 3\u202f370 de large — sous le plancher de 320 que l’application se fixe, toutes les étiquettes de fin perdues — parce que cette règle avait été calculée pour un rail que le palier précédent avait déjà élargi\u00a0; elles ne passent à cinq que là où 320 existe vraiment. Sur une fenêtre à hauteur d’ordinateur portable avec les hypothèses ouvertes, les postes pouvaient se retrouver entièrement sous leur propre en-tête fixe, hors d’atteinte\u00a0; les hypothèses prennent désormais moins de la moitié de la colonne et défilent au-delà. Et replier le formulaire d’un plan unique laissait une bande de 48 pixels au-dessus de la barre, pour un sélecteur de plan qui n’existe qu’à deux plans. Neuf commentaires et deux documents qui citaient un nombre ou un fichier que le code ne suivait plus sont corrigés.',
+  },
+  {
+    version: 'v57', date: '2026-09-05', commit: 'bd8091d',
     en: 'A share link could name a field after a function the app’s dictionary inherits rather than holds, and opening it threw during the render — after the plan had already been saved, so the app threw again on every start with no rows and buttons that did nothing. A link could also give a field any paragraph of the app’s own copy as its name. Both doors are closed: a phrase is looked up only on the dictionary itself, and a name that arrives from a link is admitted only when it is one of the default names.',
     fr: 'Un lien de partage pouvait nommer un poste d’après une fonction que le dictionnaire de l’application hérite au lieu de la posséder, et l’ouvrir levait une erreur pendant le rendu — après que le plan avait déjà été enregistré, si bien que l’application échouait à chaque démarrage, sans aucune ligne et avec des boutons inertes. Un lien pouvait aussi donner à un poste n’importe quel paragraphe des textes de l’application en guise de nom. Les deux portes sont fermées\u00a0: une phrase n’est cherchée que dans le dictionnaire lui-même, et un nom venu d’un lien n’est admis que s’il s’agit d’un des noms par défaut.',
   },
   {
-    version: 'v56', date: '2026-09-04', commit: '2ea7f8f',
+    version: 'v56', date: '2026-09-05', commit: '2ea7f8f',
     en: 'The summary used to answer "can I afford this?" with an average, and an average cannot show a trough. A plan could end 56,000 ahead, report a comfortable 1,555 a month kept, and still be 20,000 overdrawn at month twenty — with nothing on the page saying so. Now, if the money ever runs out, the summary says the month it does and how far under it goes, in place of the average. What you keep on average is still there, on its own tile. Plans that never go overdrawn read exactly as they did.',
     fr: 'Le résumé répondait à «\u00a0puis-je me le permettre\u00a0?\u00a0» par une moyenne, et une moyenne ne montre pas un creux. Un plan pouvait finir avec 56\u202f000 d’avance, annoncer 1\u202f555 gardés par mois, et rester à découvert de 20\u202f000 au vingtième mois — sans que rien ne le dise. Désormais, si l’argent vient à manquer, le résumé indique le mois où cela arrive et l’ampleur du découvert, à la place de la moyenne. Ce que vous gardez en moyenne reste affiché, sur sa propre tuile. Les plans qui ne sont jamais à découvert se lisent comme avant.',
   },
@@ -53,7 +58,7 @@ export const RELEASES = Object.freeze([
     fr: 'Un objectif interrogé sur ce qu’il faudrait pouvait répondre une unité trop haut\u00a0: douze mois à 1\u202f000 font 12\u202f000, et l’application répondait 1\u202f001. Elle revient désormais sur le montant que vous pouvez réellement saisir et le vérifie, de sorte qu’une réponse tombant juste sur un montant entier est ce montant. Et une réponse déjà lue n’est plus relue à chaque lettre tapée ensuite.',
   },
   {
-    version: 'v50', date: '2026-08-30', commit: '0c01b37',
+    version: 'v50', date: '2026-08-31', commit: '0c01b37',
     en: 'Five ways to ask more of a plan. The flow cards read a month at a time as well as cumulatively, so a month that costs more than it earns is visible instead of buried in a running total. A ranked list says which of your figures actually decide where the plan lands. A target says the month it is met and is marked on the cards; one that is never met can ask what it would take, and the answer is checked by running the plan again with it before it is shown. And Undo takes back a removed field, a removed plan, a removed target, Start again, or a shared plan opened over your own — for as long as the tab stays open.',
     fr: 'Cinq façons d’en demander plus à un plan. Les cartes de flux se lisent mois par mois autant qu’en cumulé, si bien qu’un mois qui coûte plus qu’il ne rapporte se voit au lieu de se perdre dans un total. Une liste classée dit lesquels de vos montants décident vraiment où le plan aboutit. Un objectif indique le mois où il est atteint et se marque sur les cartes\u00a0; celui qui ne l’est jamais peut demander ce qu’il faudrait, et la réponse est vérifiée en rejouant le plan avec elle avant d’être affichée. Enfin, Annuler rend un poste supprimé, un plan supprimé, un objectif supprimé, un Recommencer, ou un plan partagé ouvert par-dessus les vôtres — tant que l’onglet reste ouvert.',
   },
@@ -143,12 +148,12 @@ export const RELEASES = Object.freeze([
     fr: 'L’application s’ouvre sur une question posée de trois façons — comment acheter une maison — et un bien s’acquiert, un placement se vend.',
   },
   {
-    version: 'v32', date: '2026-08-25', commit: '5901a7b',
+    version: 'v32', date: '2026-08-26', commit: '5901a7b',
     en: 'The About panel names the branch a build is published from, rather than the working branch it was written on.',
     fr: 'Le panneau À propos indique la branche de publication d’une version, et non la branche de travail.',
   },
   {
-    version: 'v31', date: '2026-08-25', commit: 'f484508',
+    version: 'v31', date: '2026-08-26', commit: 'f484508',
     en: 'An About panel: the version being served, the commit it was built from, and what every release changed.',
     fr: 'Un panneau À propos\u00a0: la version servie, le commit d’origine, et ce qu’a changé chaque version.',
   },

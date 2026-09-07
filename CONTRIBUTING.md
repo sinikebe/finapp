@@ -132,12 +132,13 @@ describe a change that has actually been made, not a hope:
    attribute that never reaches the person you shared the plan with.
 
 This was measured, not assumed: adding a per-field start month took six edits
-across exactly those three files, and duplication, storage round-trips and the
+across the first three of those files — the wire key came later — and duplication, storage round-trips and the
 v1 migration carried the new attribute with no changes at all.
 
 **A new derived series** (savings, taxes, a running balance) is a key on each
 point in `project()` plus one entry in the `CHARTS` list in `app.js` — and, if
-it belongs in the comparison, one more in `METRICS`. The chart component takes
+it belongs in the comparison, one more in `METRICS` and a column in the list
+`renderCompareTable` builds, which does not read `METRICS`. The chart component takes
 any `{month, value}` series and needs no changes: the investment-value card was
 added exactly that way, with two flags on its entry, `onlyWithInvestments` and
 `ownScale`. The total came the same way and cost a line in `project()`, an
