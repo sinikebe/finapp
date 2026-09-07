@@ -1312,8 +1312,9 @@ function paintRanking(projection, key) {
   // The largest swing is the first, so it is what every bar is drawn against.
   const widest = ranked.rows.length ? Math.abs(ranked.rows[0].swing) : 0;
   // A plan can hold nothing at all that touches the column being read — every
-  // plan the app opens with is like that on Profit inside twenty years, because
-  // the fund only starts once the housing is paid for. There is no order to put
+  // plan the app opens on is like that on Profit inside twenty years, because
+  // its fund only starts once the housing is paid for; the two renters' funds
+  // run from month one and rank. There is no order to put
   // those fields in, so the fact is said once instead of on every line.
   ui.rankList.hidden = !widest;
   ui.rankSaid.hidden = Boolean(widest);

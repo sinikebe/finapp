@@ -492,7 +492,13 @@ body[data-dock="off"] .dock { display: none; }
        because a bare `1fr` floors at min-content, and a form's min-content is
        the whole form — which would push the assumptions off the bottom of a
        column that is capped at the height of the window. */
-    grid-template-rows: minmax(0, 1fr) auto;
+    /* The fields take what is left over and the assumptions take what they
+       need — but the assumptions are capped at under half the column, and
+       scroll inside it past that. Uncapped, a 641px laptop window with the
+       assumptions open and both toggles on gave the fields 134px, and their
+       own sticky head is 180: every row was pinned under it, unreachable by
+       any amount of scrolling. Measured before this line existed. */
+    grid-template-rows: minmax(0, 1fr) minmax(0, 45%);
   }
 
   /* The scrollport is the panel rather than the column, and that is not a
@@ -548,6 +554,7 @@ body[data-dock="off"] .dock { display: none; }
   /* Folded to a gutter there is room for one button and nothing else, and the
      assumptions are not what the button brings back first. */
   body[data-rail="closed"] .assumptions-panel { display: none; }
+  .assumptions-panel { overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
   body[data-rail="closed"] .inputs-panel {
     overflow: visible;
     padding: 8px 4px;
@@ -568,7 +575,11 @@ body[data-dock="off"] .dock { display: none; }
   /* The fold is the only thing on this layout that takes the switcher off the
      screen, so the pinned copy earns its place here — and the page makes room
      for it rather than letting it stand on the app bar. */
-  body[data-rail="closed"] { padding-top: 48px; }
+  /* And only when that bar can exist: it shows with more than one plan, which
+     is exactly when the comparison is docked. Folding a single plan's form
+     used to leave 48px of empty band above the app bar for a bar that never
+     came. */
+  body[data-rail="closed"][data-dock="on"] { padding-top: 48px; }
 }
 
 /* -------------------------------------------------------- the wide shell
@@ -701,7 +712,7 @@ body[data-dock="off"] .dock { display: none; }
 
    4220 rather than the first width the three columns would fit, because
    widening the dock by 760px takes 760 from the cards, and the cards must not
-   lose a column to buy it: the readings are 1,786px at the top of the tier
+   lose a column to buy it: the readings are 1,520px at the top of the tier
    below, and 4220 is where they are that wide again with the wider dock in
    place. A layout that gives with one hand at 3600 and takes with the other is
    worse than one that waits.
@@ -1322,8 +1333,9 @@ main section,
    The amount is the other side of that bargain, and it does not shrink at all.
    It is right-aligned, so a box a few pixels too narrow does not truncate at
    the end where a reader would notice: it scrolls the leading digit out of
-   sight, and a hundred thousand is read as ten. 108px is what the seven digits
-   the two comments above promise actually measure here — seven of a 10.9px
+   sight, and a hundred thousand is read as ten. 108px is what eight digits with room to spare measure here — eight tabular
+   figures of about 10.2px, plus the 8 and 12 of padding either side and 2 of
+   border, and a little slack for the ninth the caret sits on.9px
    tabular figure, plus the 8 and 12 of padding either side and 2 of border. A
    name that runs out of room truncates instead, which is what a name does, and
    the row's own aria-label still carries it whole. */
@@ -1690,10 +1702,12 @@ main section,
    dock are all fixed by the blocks in the layout section, so the reading column
    is a known number: four 320px cards and their three 16px gaps need 1,328px,
    which the column reaches at a 1830px window on the two-column shell and 3030
-   on the three-column one. Five need 1,664, reached at 3370.
+   on the three-column one. Five need 1,664 — reached at 3370 only with the
+   dock away; docked, the 620px rail keeps the column under 1,664 until 4352.
 
    The rail folding is the one thing a width query cannot see — and it does not
-   have to. Folding only ever *widens* the column, by 302px, so a count chosen
+   have to. Folding only ever *widens* the column — by 302px, or 568 once the
+   rail is 620 — so a count chosen
    with the rail open is never wrong with it shut. The `[data-rail="closed"]`
    rules are here to take the wider column earlier, not to keep it correct, and
    where both apply they agree.
@@ -1722,12 +1736,27 @@ main section,
 @media (min-width: 3060px) and (max-width: 4219px) {
   body[data-rail="closed"] .chart-grid[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
+/* Only WITHOUT the comparison docked. The 1,664 five cards need was worked
+   out against a 354px rail, but from 3300 the rail is 620, and with the
+   1,180px dock beside it the reading column is 1,442 at 3370 and never more
+   than 1,520 in this tier. Five across in 1,442 is 276px cards — under the
+   320px floor this ladder names for itself — and chart.js drops every end
+   label. Measured: 3369 -> three across at 470px, labels 6/6; 3370 -> five
+   at 275.6px, labels 0/6. With the dock away, or the rail folded (its own
+   rule above), the column really does reach 1,664 here. */
 @media (min-width: 3370px) {
-  .chart-grid[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  body:not([data-dock="on"]) .chart-grid[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 @media (min-width: 4220px) {
   .chart-grid[data-count="4"] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .chart-grid[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  body:not([data-dock="on"]) .chart-grid[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  /* Said outright rather than left to auto-fit, which at 1,532px seats four
+     and strands the fifth on a line of its own. */
+  body[data-dock="on"] .chart-grid[data-count="5"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* With the 1,940px dock the column is W − 2,868, and 1,664 arrives at 4352. */
+@media (min-width: 4352px) {
+  body[data-dock="on"] .chart-grid[data-count="5"] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 }
 
 /* ---- and how wide a card is allowed to get.

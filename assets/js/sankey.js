@@ -288,7 +288,7 @@ export function createSankey({ mount, id, title, description, labels, formatValu
       ribbon.path.style.fill = `var(${TONE_VAR[entry.tone]})`;
     });
 
-    // A name may be sixty characters; a gutter may be ninety-six pixels. The
+    // A name may be sixty characters; a gutter is at most 190 pixels. The
     // name gives way, never the amount — the number is what the ribbon is for,
     // and the table carries the name in full either way.
     const fitLabel = (node, label, room) => {

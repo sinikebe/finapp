@@ -339,8 +339,8 @@ the plan before it is shown, so the sentence is the app's own reading rather
 than the solver's arithmetic. And it **refuses** where the relationship is not
 monotonic — an amount and a rate are the only two figures it will solve for, and
 where a total climbs and falls again it says so instead of returning whichever
-crossing it found first. One of the app's own opening plans is a shape that
-wobbles, and a test holds it to refusing.
+crossing it found first. No plan the model can run produces that shape — the test that
+exercises the refusal has to fake a run to reach it.
 
 The answer is shown, never applied: applying it would write over what you typed.
 
@@ -435,7 +435,7 @@ worst failure available. Instead the plan is packed: attributes travel by
 position, only where they differ from the default, and an id — which means
 nothing on another device — travels as a slot number. Two synced fields share
 one slot, so *the sameness survives the trip even though the id must not*, and
-the far end mints its own ids. One plan of four fields is a 400-character link;
+the far end mints its own ids. One plan of four fields is a link of under 300 characters;
 the three the app opens with, which is the largest thing it can produce
 unaided, is under 2,500. A test holds both.
 

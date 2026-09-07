@@ -257,3 +257,60 @@ test('every layout that gives main its columns also says what the fold does to t
     );
   }
 });
+
+test('five cards go five across only where the column is really 1,664 wide', () => {
+  /*
+   * The five-across rules were worked out against a 354px rail, and the 3300
+   * tier had already widened it to 620. With the comparison docked beside it,
+   * the reading column is 1,442 at 3370 and never more than 1,520 below 4220
+   * — so five across meant 276px cards, under the 320px floor the ladder names
+   * for itself, with every end label dropped. Measured: 3369 -> three across
+   * at 470px, labels 6/6; 3370 -> five at 275.6px, labels 0/6.
+   *
+   * So below 4352 a five-across rule must exclude the docked state, and the
+   * one docked five-across rule must not start before 4352.
+   */
+  const tiers = [...css.matchAll(/@media \(min-width: (\d+)px\)[^{]*\{((?:[^{}]|\{[^{}]*\})*)\}/g)]
+    .map((m) => ({ from: Number(m[1]), body: m[2] }));
+  const five = tiers.flatMap((tier) => [...tier.body.matchAll(/([^{}\n]+)\{[^{}]*data-count="5"[^{}]*\}|([^{}\n]*data-count="5"[^{}\n]*)\{([^{}]*repeat\(5[^{}]*)\}/g)]
+    .map((m) => ({ from: tier.from, selector: (m[2] || m[1] || '').trim() }))
+    .filter((r) => r.selector.includes('data-count="5"')));
+  assert.ok(five.length >= 3, 'there are five-across rules to hold');
+  for (const rule of five) {
+    const docked = rule.selector.includes('[data-dock="on"]') && !rule.selector.includes(':not([data-dock="on"])');
+    const folded = rule.selector.includes('[data-rail="closed"]');
+    if (docked) {
+      assert.ok(rule.from >= 4352, `\`${rule.selector}\` seats five across from ${rule.from}, but the docked column is under 1,664 until 4352`);
+    } else if (!folded && rule.from >= 3300 && rule.from < 4352) {
+      assert.ok(rule.selector.includes(':not([data-dock="on"])'), `\`${rule.selector}\` at ${rule.from} seats five across with the dock on too`);
+    }
+  }
+});
+
+test('the assumptions can never squeeze the fields under their own sticky head', () => {
+  /*
+   * The rail is capped at the window and holds two panels. Give the second
+   * row `auto` and it takes whatever it asks for: on a 641px window with the
+   * money assumptions open and both toggles on, the fields were 134px tall
+   * under a 180px sticky head — every row pinned beneath it, reachable by no
+   * amount of scrolling. The second row is capped and scrolls past the cap.
+   */
+  const rows = css.match(/\.rail\s*\{[^}]*grid-template-rows:([^;]+)/);
+  assert.ok(rows, 'the rail sizes its rows');
+  const tracks = rows[1].trim().split(/\s+(?![^(]*\))/);
+  assert.equal(tracks.length, 2, `the rail has two rows, not ${tracks.length}`);
+  assert.notEqual(tracks[1], 'auto', 'the assumptions row is capped, never bare `auto`');
+  assert.match(tracks[1], /minmax\(0,\s*\d+%\)/, `the cap is a share of the column: ${tracks[1]}`);
+  assert.match(css, /\.assumptions-panel\s*\{[^}]*overflow-y:\s*auto/, 'and the assumptions scroll past their cap');
+});
+
+test('the fold reserves room for the pinned switcher only where that switcher can exist', () => {
+  // The bar shows with more than one plan, which is exactly when the comparison
+  // is docked. Keyed on the fold alone, a single plan's folded form left a 48px
+  // band above the app bar for a bar that never came.
+  const pad = [...css.matchAll(/(body\[data-rail="closed"\][^{]*)\{[^}]*padding-top:\s*48px/g)].map((m) => m[1].trim());
+  assert.ok(pad.length >= 1, 'the fold makes room for the pinned bar somewhere');
+  for (const selector of pad) {
+    assert.ok(selector.includes('[data-dock="on"]'), `\`${selector}\` pads for a bar that needs more than one plan`);
+  }
+});
