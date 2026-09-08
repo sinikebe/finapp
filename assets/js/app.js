@@ -13,7 +13,7 @@ import {
   runsDryAt, inTodaysMoney, shiftReturns, seriesOf, monthlyOf, extentOf,
   hasAmounts, hasDebt, hasOwned,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
-  fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf, swingsOf,
+  fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf, swingsOf, moversOf, swingOf, orderBySwing,
 } from './projection.js';
 import {
   addField, updateField, duplicateField, removeField, neighbourOf,
@@ -1285,6 +1285,16 @@ let ranked = { question: '', rows: [] };
  *  notes under the charts and the comparison already strike. */
 let rankTimer = 0;
 
+/** Which question the slices in flight are answering. Bumped whenever the
+ *  answer stops being wanted — a new question, or the plans thrown away — so a
+ *  job that is part way through a hundred fields drops what it is doing rather
+ *  than painting an answer to something nobody asked any more. */
+let rankJob = 0;
+
+/** How long one slice may hold the thread. Eight leaves the rest of a frame
+ *  for whatever the reader is doing while the answer is worked out. */
+const RANK_SLICE_MS = 8;
+
 /**
  * Everything a ranking depends on, written down. The fields carry their own
  * amounts and windows, and the rest of it is the horizon, the money the figures
@@ -1302,6 +1312,48 @@ function rankingQuestion(projection, key) {
  *  a ranking of something that is no longer on the device. */
 function forgetRanking() {
   ranked = { question: '', rows: [] };
+  rankJob += 1;
+}
+
+/**
+ * Work the swings out a slice at a time, and paint once they are all in.
+ *
+ * A hundred fields is two hundred projections, and on a long horizon that is
+ * seconds of arithmetic — measured at 5.8s on four plans of a hundred fields
+ * over fifty years. Done in one go it is a frozen tab: no scrolling, no typing,
+ * no theme button, and on a cold load it happened before the first paint, so
+ * the reader watched a blank page for all of it.
+ *
+ * So the fields are taken a few at a time, giving the thread back between
+ * slices. Nothing is painted until every row is in — a list that grew a row at
+ * a time would reorder itself under the reader's eye, because the order is the
+ * answer — and a job whose question has been superseded stops where it is.
+ */
+function workOutRanking(projection, key, question) {
+  const job = (rankJob += 1);
+  const movers = moversOf(projection);
+  const rows = [];
+  let next = 0;
+
+  const slice = () => {
+    if (job !== rankJob) return;
+    const until = performance.now() + RANK_SLICE_MS;
+    while (next < movers.length && performance.now() < until) {
+      rows.push(swingOf(projection, key, runPlain, movers[next]));
+      next += 1;
+    }
+    if (next < movers.length) {
+      rankTimer = window.setTimeout(slice, 0);
+      return;
+    }
+    ranked = { question, rows: orderBySwing(rows) };
+    paintRanking(projection, key);
+    // The section is held back until there is an answer in it, so this is the
+    // render that lets it in.
+    ui.rank.hidden = false;
+  };
+
+  slice();
 }
 
 /** The rows, and the line saying what they are. Split out from the deciding
@@ -1382,16 +1434,37 @@ function renderRanking(projection, projections) {
   // comparison itself would have opened on.
   const key = projections.length > 1 ? metric : preferredMetric(projections);
   const question = rankingQuestion(projection, key);
+  // Visible once it has something to say: either this question is already
+  // answered, or a previous answer is still on screen and worth keeping there
+  // while the new one is worked out. With neither, the section waits rather
+  // than showing an empty list under a line claiming nothing moves the figure.
+  ui.rank.hidden = !rankable || (question !== ranked.question && !ranked.rows.length);
+
   const answer = () => {
     if (question !== ranked.question) {
-      ranked = { question, rows: swingsOf(projection, key, projectionFor) };
+      // `runPlain`, not `projectionFor`: the projection handed in was built
+      // from the plan `schedule` already placed, so its months are settled and
+      // every swing is one projection instead of one full re-resolution.
+      //
+      // That is not only cheaper, it is what makes the reading true. The list
+      // tells the reader, in `rank.caveat.parts`, that the swings add up "to
+      // the cent" — which holds because the model is separable, and stops
+      // holding the moment a swing is allowed to move a target's month and
+      // drag every field waiting on it. Measured on a plan renting until a
+      // deposit is saved: re-resolving each swing put the pair 360 out; on the
+      // placed plan they add up exactly. A ranking whose own caveat is false
+      // is worse than a slow one.
+      workOutRanking(projection, key, question);
+      return;
     }
     paintRanking(projection, key);
   };
 
-  // Already answered, or nothing on screen yet that waiting could keep honest:
-  // either way there is nothing to be gained by making the reader wait for it.
-  if (question === ranked.question || !ranked.rows.length) answer();
+  // Already answered: nothing to wait for. Otherwise the wait stands even with
+  // nothing on screen — it used to be skipped in that case, which is exactly
+  // the cold load, so the whole ranking ran inside the first render and the
+  // page did not paint until it finished.
+  if (question === ranked.question) answer();
   else rankTimer = window.setTimeout(answer, 500);
 }
 
