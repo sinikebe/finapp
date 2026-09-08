@@ -847,20 +847,39 @@ export const SWING = 0.1;
  *   they are shown on.
  * @returns {Array<{field: object, swing: number}>} largest swing first
  */
+/**
+ * The fields whose swings are worth working out: an amount that was never
+ * entered moves nothing, and a row saying so for every half-filled field would
+ * bury the answer under the question.
+ */
+export function moversOf(projection) {
+  return projection.fields.filter((field) => toAmount(field.amount) > 0);
+}
+
+/**
+ * One field's weight: the distance between the plan with a tenth more of it and
+ * the plan with a tenth less.
+ *
+ * Separate from `swingsOf` so a caller with a hundred of them to do can spread
+ * the work over several frames instead of holding the main thread for all of
+ * it. Two projections, and nothing kept between calls.
+ */
+export function swingOf(projection, key, run, field) {
+  const at = (fraction) => run(
+    raiseAmount(projection.fields, field.id, fraction, toAmount),
+  ).totals[key];
+  // Signed, because which way the figure goes when there is more of this is
+  // half of what the reader came for. Only the size decides the order.
+  return { field, swing: roundMoney(at(SWING) - at(-SWING)) };
+}
+
+/** Largest swing first. */
+export function orderBySwing(rows) {
+  return [...rows].sort((a, b) => Math.abs(b.swing) - Math.abs(a.swing));
+}
+
 export function swingsOf(projection, key, run) {
-  return projection.fields
-    // An amount that was never entered moves nothing, and a row saying so for
-    // every half-filled field would bury the answer under the question.
-    .filter((field) => toAmount(field.amount) > 0)
-    .map((field) => {
-      const at = (fraction) => run(
-        raiseAmount(projection.fields, field.id, fraction, toAmount),
-      ).totals[key];
-      // Signed, because which way the figure goes when there is more of this is
-      // half of what the reader came for. Only the size decides the order.
-      return { field, swing: roundMoney(at(SWING) - at(-SWING)) };
-    })
-    .sort((a, b) => Math.abs(b.swing) - Math.abs(a.swing));
+  return orderBySwing(moversOf(projection).map((field) => swingOf(projection, key, run, field)));
 }
 
 /** Smallest and largest value across several series — the shared chart domain. */

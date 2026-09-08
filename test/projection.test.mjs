@@ -8,8 +8,10 @@ import {
   grownBy, yearsRunning, fieldTotalOf, loanPartsOf, shareOut,
   loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate,
   toAmount, toMonths, toNumber, roundMoney, MAX_MONTHS, MAX_AMOUNT,
-  swingsOf, SWING,
+  swingsOf, moversOf, swingOf, orderBySwing, SWING,
 } from '../assets/js/projection.js';
+import { schedule } from '../assets/js/schedule.js';
+import { defaultStrategies } from '../assets/js/strategies.js';
 import { createField, normalizeFields, raiseAmount } from '../assets/js/fields.js';
 
 const income = (amount) => createField({ direction: 'income', amount });
@@ -1467,4 +1469,58 @@ test('the month it runs dry survives being restated in today’s money', () => {
   const there = runsDryAt(real);
   assert.equal(there.month, here.month, 'the same month');
   assert.ok(there.worst > here.worst, 'and a shallower hole, because 20,000 then is less now');
+});
+
+test('the swings add up, which is only true on a plan whose months are settled', () => {
+  /*
+   * `rank.caveat.parts` tells the reader, in both languages, that the swings
+   * add up "to the cent". That holds because the model is separable — every
+   * field's contribution is worked out on its own and only then summed — and
+   * it stops holding the moment a swing is allowed to move a target's month
+   * and drag every field waiting on it along with it.
+   *
+   * The plan below rents until a deposit is saved, so the month the target
+   * lands decides how many months of rent are paid. Re-resolving the schedule
+   * inside each swing put the pair 360 apart; on the plan `schedule` already
+   * placed, they add up exactly. The ranking is worked out the second way, and
+   * this is the property that says why.
+   */
+  const milestones = [{ id: 'ms', name: 'Deposit saved', metric: 'net', amount: '12000' }];
+  const fields = [
+    { id: 'pay', label: 'Pay', kind: 'plain', direction: 'income', amount: '1000', periodMonths: 1, startMonth: 1 },
+    { id: 'rent', label: 'Rent', kind: 'plain', direction: 'expense', amount: '400', periodMonths: 1, startMonth: 1, endAt: 'ms' },
+  ];
+  const run = (list) => project({ fields: list, months: 60 });
+  const placed = schedule({ fields, milestones, run, read: toNumber });
+  const shown = run(placed.fields);
+  assert.equal(placed.months.get('ms'), 20, 'the target lands where the swings are measured against');
+
+  const KEY = 'net';
+  const total = (list) => run(list).totals[KEY];
+  const moved = (list, id, by) => raiseAmount(list, id, by, toAmount);
+  const swing = (id) => total(moved(shown.fields, id, SWING)) - total(moved(shown.fields, id, -SWING));
+  const together = total(moved(moved(shown.fields, 'pay', SWING), 'rent', SWING))
+    - total(moved(moved(shown.fields, 'pay', -SWING), 'rent', -SWING));
+
+  assert.equal(roundMoney(swing('pay') + swing('rent')), roundMoney(together));
+
+  // And the ranking's own rows are those swings, in size order.
+  const rows = swingsOf(shown, KEY, run);
+  assert.deepEqual(rows.map((row) => row.field.id), ['pay', 'rent']);
+  assert.equal(rows[0].swing, roundMoney(swing('pay')));
+});
+
+test('a ranking worked out a field at a time is the ranking worked out in one go', () => {
+  // The list is taken in slices so a hundred fields cannot freeze the tab, and
+  // the order is the answer — so the pieces have to reassemble into exactly
+  // what the whole-list version says, rows and order alike.
+  const fields = normalizeFields(defaultStrategies((key) => key)[1].fields);
+  const run = (list) => project({ fields: list, months: 240 });
+  const shown = run(fields);
+
+  const whole = swingsOf(shown, 'worth', run);
+  const sliced = orderBySwing(moversOf(shown).map((field) => swingOf(shown, 'worth', run, field)));
+
+  assert.ok(whole.length > 1, 'there is an order to get wrong');
+  assert.deepEqual(sliced.map((r) => [r.field.id, r.swing]), whole.map((r) => [r.field.id, r.swing]));
 });

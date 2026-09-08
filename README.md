@@ -395,7 +395,10 @@ Two things are said on the card rather than left to be discovered. It measures
 with reverse their order somewhere between year twenty and year forty. And the
 swings **do** add up, because the model is separable by construction, which is
 precisely why the list cannot tell you that a mortgage bought a house: it ranks
-the figures, not the reasons. Profit is the one exception, tax falling on the
+the figures, not the reasons. Keeping that true is why the swings are measured
+against the plan with its target months already settled: let a swing move the
+month a target lands on, and everything waiting on that target moves with it,
+and two swings stop summing to the pair. Profit is the one exception, tax falling on the
 aggregate gain rather than on each part of it.
 
 ## Taking something back
