@@ -177,6 +177,54 @@ above a chart showing it well ahead. In that view **colour means strategy**;
 the flow cards keep colour for series, and neither asks it to carry two things
 at once.
 
+## Projects
+
+A strategy is an answer; a **project is the question**. *How should I buy a
+home?* is not *rent, buy or lease a car?*, and putting one plan from each on the
+same axes compares nothing — which is what a project fixes. The form panel's
+heading **is** the project: press it and a sheet lists every project, names
+them, adds and removes them.
+
+A project carries **its own plans, its own horizon and its own targets**, and
+that boundary is drawn by the model rather than by taste:
+
+- **The horizon decides which fields exist.** A purchase waiting on *when what I
+  own reaches 12,000* is placed off a projection run over the horizon; read the
+  same plan over six months and the target is never met, so the purchase is not
+  in the plan at all. A number that changes which rows are on the chart is part
+  of the question. A five-year car decision and a twenty-five-year mortgage
+  cannot be read over one length.
+- **A field waits on a target by id.** Per project, a field and the target it
+  waits on are always in the same list, always removed together, and never
+  carried into another question — which is the only scoping under which the
+  solver stays sound, and not a line of it changed.
+
+**How money behaves stays shared** — inflation, tax, the range, today's money.
+Those are a belief about the world rather than about the question: a reader who
+thinks inflation is 3% thinks so on both sides of the car decision and the house
+one, and two copies would only let one belief quietly disagree with itself, in a
+panel that is folded shut by default.
+
+**Six is the ceiling**, for the reason six targets is: as many open questions as
+anybody weighs at once. Four plans remains the ceiling *per project*, because
+four is a fact about the palette and only one project is ever drawn.
+
+Adding a project is deliberately **not** a copy — a new project opens empty,
+because comparing means *the same, but…* while a new project means a different
+question, and carrying the last one's rent and mortgage into it would answer the
+wrong one. The horizon does come over, because a horizon is a habit rather than
+an answer.
+
+There is no *move this plan to another project*, and that is deliberate: a moved
+plan's fields would hold targets the destination does not have, and a field
+whose target does not resolve is dropped from the projection with nothing on
+screen saying so. A command that quietly deletes rows from your chart is worse
+than no command.
+
+**Everything already on your device becomes one project, exactly as it was** —
+unnamed, and an unnamed lone project is called what the panel above it has
+always been called, so nothing appears to have been named, because nothing has.
+
 ## What it computes
 
 The model lives in [`assets/js/projection.js`](assets/js/projection.js) and is
@@ -403,15 +451,23 @@ aggregate gain rather than on each part of it.
 
 ## Taking something back
 
-Five things throw work away: removing a field, removing a strategy, removing a
-target, *Start again*, and opening a shared plan over your own. **Undo** takes
-back the last ten of them.
+Six things throw work away: removing a field, removing a strategy, removing a
+target, removing a **project** — every plan in it at once, which is the largest
+of them — *Start again*, and opening a shared plan. **Undo** takes back the last
+ten of them.
 
 It is cheap because the model operations were already pure and already returned
 new lists, so a snapshot is the plan exactly as the store would have written it,
 deep-copied through the same serialisation. It does not step back through your
 typing: the snapshot is taken by the command rather than the keystroke, so Undo
 means *before I deleted that* and not *before I typed the 4*.
+
+**A snapshot knows which project it is of**, and is only ever offered back in
+that project. So changing subject hides the other question's history rather than
+destroying it: look at the car, come back, and the field you deleted in housing
+is still there to take back. Nothing a snapshot restores can reach a project you
+are not standing in — undoing a removal puts that project back and leaves every
+other one holding the work you have done since.
 
 **It lasts as long as the tab.** Nothing is written down, so closing the tab is
 still what makes a change final — which is why the confirms stay. And when
@@ -442,13 +498,21 @@ the far end mints its own ids. One plan of four fields is a link of under 300 ch
 the three the app opens with, which is the largest thing it can produce
 unaided, is under 2,500. A test holds both.
 
-Opening one **adds it beside your own plans rather than over them**. Comparing
-it against what you already have is the reason to open one at all, so replacing
-would throw away the very plan you wanted to compare against. Four plans is
-still the ceiling, so the panel says how many will fit, and a list already full
-is the one case where opening costs something — there the button says *Replace
-my plans* outright and is coloured like the one other button in the app that
-throws something away.
+Opening one **offers to open it as its own project** first, because a link is
+usually somebody else's *question* rather than another answer to yours, and
+dropping their car plans in beside your housing ones is the very thing projects
+exist to stop. Adding it beside your own plans is still offered — *the same,
+but…* is a real reason to send a link — and it is what happens anyway once your
+shelf is full. Four plans is still the ceiling per project, so the panel says how
+many will fit, and a list already full is the one case where opening costs
+something: there the button says *Replace my plans* outright and is coloured like
+the one other button in the app that throws something away.
+
+A link carries **one project — the one you are looking at** — and never the
+shelf. A project is a whole comparison, and sending somebody six of them is
+sending your device rather than your answer. The name rides along when there is
+one, as an optional pair the format simply gained: every link ever minted still
+opens, and a link minted today opens in an older build as the plan it is.
 
 The horizon and the assumptions *do* come from the shared plan, because
 strategies share one horizon by construction: there is no arrangement where both
@@ -467,9 +531,14 @@ say puts a value in the app that the app could not have made itself.
 
 ## Your data, and the app itself
 
-Four keys in `localStorage`, on your device only: your strategies, horizon and
-assumptions under one, your theme and language under two more, and the time the
-app last looked for a new version under the fourth. Older stores are migrated on
+Five keys in `localStorage`, on your device only: the project you are looking
+at — its plans, its horizon, its targets — with your assumptions under one, your
+other projects under a second, your theme and language under two more, and the
+time the app last looked for a new version under the fifth. **The plan on screen
+lives in one place and is never copied**, which is what keeps the two halves
+from disagreeing about it; the projects key is separate so that a build from
+before projects existed can read and write the first without ever touching the
+second. Older stores are migrated on
 first load and retired only after the new one is written, so a failed write
 leaves what you had typed where it was. **Nothing about you is sent anywhere**:
 after the app has loaded its own files, the only request it ever makes is the

@@ -40,14 +40,37 @@ import {
   neighbourOf as strategyNeighbourOf, normalizeStrategies, activeIdOf, nameOf,
   migrateFields, defaultStrategies, markShared, MAX_STRATEGIES,
 } from './strategies.js';
+import {
+  MAX_PROJECTS, normalizeProject, normalizeProjects, normalizePlan,
+  openIdOf, moveOpen, parkOpen, planOf,
+  addProject, updateProject, removeProject,
+  neighbourOf as projectNeighbourOf, nameOf as projectNameOf,
+} from './projects.js';
+import { createProjectSwitch, createProjectList } from './project-switch.js';
 import { schedule } from './schedule.js';
 import { decodePlan, linkFor, planInHash } from './share.js';
-import { remember, takeBack, nextBack } from './history.js';
+import { remember, takeBack, nextBack, restoreShelf, missingFrom } from './history.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
 import { BUILD } from './version.js';
 import { RELEASES } from './changelog.js';
 
 const STATE_KEY = 'finapp.state.v3';
+/**
+ * The shelf: every project, including the one on screen.
+ *
+ * A key of its own rather than a tenth field in `finapp.state.v3`, and that is
+ * the whole of the compatibility story. `finapp.state.v3` keeps exactly the
+ * shape it has had since v3 — the plans, the horizon and the targets of the
+ * project you are *in* — so a build from before projects opens this store and
+ * finds the plan the reader was last looking at, complete, and can edit and
+ * save it. Because it never learned this second key, it also never writes it,
+ * so the other projects survive an old tab untouched rather than being wiped by
+ * the first save it makes.
+ *
+ * Put the shelf inside `finapp.state.v3` and that same old tab, doing nothing
+ * more than saving a keystroke, would take seven projects with it.
+ */
+const PROJECTS_KEY = 'finapp.projects.v1';
 const LEGACY_FIELDS_KEY = 'finapp.state.v2';
 const LEGACY_INPUT_KEY = 'finapp.inputs.v1';
 const THEME_KEY = 'finapp.theme.v1';
@@ -88,6 +111,10 @@ const ui = {
   undoSaid: $('undo-said'),
   fields: $('fields'),
   strategies: $('strategies'),
+  inputsHeading: $('inputs-heading'),
+  projectsDialog: $('projects'),
+  projectsClose: $('projects-close'),
+  projectMount: $('project-mount'),
   railToggle: $('rail-toggle'),
   inputsBody: $('inputs-body'),
   strategyJump: $('strategy-jump'),
@@ -191,6 +218,7 @@ const ui = {
   sharedWhat: $('shared-what'),
   sharedRoom: $('shared-room'),
   sharedAsk: $('shared-ask'),
+  sharedNew: $('shared-new'),
   sharedOpen: $('shared-open'),
   sharedKeep: $('shared-keep'),
   updateToast: $('update-toast'),
@@ -297,6 +325,11 @@ function loadState() {
 function defaultState() {
   const strategies = normalizeStrategies(defaultStrategies());
   return {
+    // Not part of the plan and not stored: a one-shot note to `loadProjects`
+    // that these nine keys are the app's own worked example rather than
+    // somebody's work, which is the only case where naming a project for them
+    // is the app describing itself rather than putting words in their mouth.
+    fresh: true,
     strategies,
     activeId: strategies[0].id,
     months: DEFAULT_MONTHS,
@@ -335,7 +368,114 @@ function adopt(strategies, months, oldKey) {
   return next;
 }
 
+/** The coercions a project's own contents go through, whatever they arrive in.
+ *  Handed to `projects.js` rather than duplicated there, for the reason the
+ *  metric list is handed to `milestones.js`: they are the app's, not the
+ *  model's. */
+const projectCoerce = {
+  months: (value) => toMonths(value ?? DEFAULT_MONTHS),
+  milestones: (value) => normalizeMilestones(value, METRICS),
+};
+
+/**
+ * The shelf, and which project is open.
+ *
+ * The plan on screen lives in `finapp.state.v3` and **nowhere else**: the shelf
+ * never holds a copy for the open project. One copy means the two keys cannot
+ * disagree about the plan the reader is looking at, and it means an older
+ * build's write into `finapp.state.v3` is simply the truth rather than
+ * something to be reconciled against a second copy that might be fresher.
+ *
+ * `finapp.state.v3` grows one appended key, `projectId`, saying which project
+ * the nine belong to. It is a plain string on the end of a literal; every older
+ * build reads the store, ignores it, and drops it on the next write — which is
+ * the case step 2 below is for.
+ *
+ * The rule, every branch of it, because the branches are the whole feature's
+ * compatibility story:
+ *
+ *   1. **No shelf.** Every device in the world before this release, and a fresh
+ *      one. The nine keys become one project, holding exactly what was there.
+ *      Nothing is invented, nothing is named, and nothing is written: `nameOf`
+ *      renders a lone unnamed project as the form's own heading, so an
+ *      upgrading reader sees the words that were always there with a caret
+ *      beside them.
+ *   2. **A shelf, and the stamp names a project on it.** The ordinary case.
+ *      That project is the open one and the nine keys are its plan.
+ *   3. **A shelf, and no stamp.** An older build saved in between — it wrote the
+ *      nine keys it knows and dropped the tenth. What it wrote is the reader's
+ *      latest work, so it is adopted into whichever project the shelf says was
+ *      open, and every other project rides out the visit untouched.
+ *   4. **A shelf, and a stamp naming a project that is gone.** Removed in
+ *      another tab. The shelf's own `openProjectId` decides, and failing that
+ *      the first project.
+ *   5. **A shelf, and the nine keys are the app's own first-run plan** (`fresh`,
+ *      set only by `defaultState()`). `finapp.state.v3` was cleared and this key
+ *      was not. The shelf decides who is open rather than a worked example
+ *      replacing everything: the plan the reader was standing in went with the
+ *      key that held it — the price of keeping exactly one copy of it — but
+ *      every other project is still there, where a build before this one would
+ *      have shown a demonstration and nothing else.
+ *
+ * @param {object} flat the nine keys `loadState` produced, plus the stamp
+ * @param {boolean} fresh whether those nine are the app's own first-run plan
+ */
+function loadProjects(flat, fresh) {
+  const saved = readStore(PROJECTS_KEY, null);
+  if (saved && typeof saved === 'object' && Array.isArray(saved.projects) && saved.projects.length) {
+    const stamped = typeof flat.projectId === 'string' ? flat.projectId : '';
+    // Read with the stamp preferred and the shelf's own answer behind it, so
+    // that branches 2, 3 and 4 are one expression rather than three.
+    const wanted = saved.projects.some((project) => project && project.id === stamped)
+      ? stamped : saved.openProjectId;
+    const projects = normalizeProjects(saved.projects, projectCoerce, wanted);
+    const openProjectId = openIdOf(projects, wanted);
+    // Branch 5. `normalizeProjects` has already emptied the open record's plan,
+    // so the plan to put on screen is the one the store held for it.
+    if (fresh) {
+      const kept = saved.projects.find((project) => project && project.id === openProjectId);
+      return { openProjectId, projects, plan: normalizePlan(kept && kept.plan, projectCoerce) };
+    }
+    return { openProjectId, projects };
+  }
+  return { ...soleProject(fresh), plan: planOf(flat) };
+}
+
+/**
+ * One project holding exactly this plan, and nothing else on the shelf.
+ *
+ * The whole of the migration, and the whole of "Start again" — the two moments
+ * the shelf has to be a single entry rather than whatever was there.
+ *
+ * @param {boolean} named whether these are the app's own worked example. It
+ *   *is* a housing question, so the project it opens with is named the way its
+ *   three plans are — through the dictionary, so it follows the reader's
+ *   language and is forgotten the moment they type over it. A store that
+ *   arrived from an older build gets no name, because nothing here knows what
+ *   it was about.
+ */
+function soleProject(named) {
+  const only = normalizeProject(
+    { nameKey: named ? 'project.default.home' : '' }, projectCoerce, true,
+  );
+  return { projects: [only], openProjectId: only.id };
+}
+
 const state = loadState();
+{
+  const { plan, ...shelf } = loadProjects(state, state.fresh === true);
+  Object.assign(state, shelf);
+  // Branch 1 and branch 5 both hand back the plan that belongs on screen;
+  // branches 2 to 4 leave the nine keys exactly as the store had them.
+  if (plan) Object.assign(state, plan);
+  delete state.projectId;
+}
+delete state.fresh;
+
+/** The open project's record. */
+function openProject() {
+  return state.projects.find((project) => project.id === state.openProjectId) || state.projects[0];
+}
 
 /** The strategy being edited, and where it sits in the bar. */
 function activeIndex() {
@@ -359,9 +499,29 @@ function setActiveFields(next) {
 
 let saveTimer = 0;
 
+/**
+ * Write the store: the shelf first, then the plan on screen.
+ *
+ * **The order is the recovery rule, and it is why there is one.** `writeStore`
+ * fails soft and silent — a full quota means the app still works and just
+ * forgets — so two keys are two chances to write half a save. The half that
+ * matters is a switch, the only save where a plan moves between the two keys:
+ * the project being left has its plan written into the shelf and the one
+ * arriving has its plan written flat. Write the shelf first and a failure there
+ * stops the pair before the flat write can strand the departing project's work
+ * with no copy anywhere. Every other save changes nothing in the shelf but a
+ * name or an order, so a torn one costs at most a rename.
+ */
 function save() {
   window.clearTimeout(saveTimer);
   saveTimer = 0;
+  if (!writeStore(PROJECTS_KEY, {
+    projects: state.projects,
+    openProjectId: state.openProjectId,
+  })) return;
+  // Second, and under its own key, so that everything here stays exactly the
+  // store an older build knows how to read and write — nine keys it recognises
+  // and a tenth it ignores.
   writeStore(STATE_KEY, {
     strategies: state.strategies,
     activeId: state.activeId,
@@ -372,6 +532,7 @@ function save() {
     showRange: state.showRange,
     tax: state.tax,
     milestones: state.milestones,
+    projectId: state.openProjectId,
   });
 }
 
@@ -432,6 +593,12 @@ window.addEventListener('storage', (event) => {
     state.showRange = incoming.showRange === true;
     state.tax = toRateText(incoming.tax, DEFAULT_TAX);
     state.milestones = normalizeMilestones(incoming.milestones, METRICS);
+    // The nine that just arrived are the *open* project's, whichever build
+    // wrote them. Re-reading the shelf beside them keeps the two halves of one
+    // save together — and if the other window was an older build that has never
+    // heard of the shelf, this reads back the shelf it left alone and writes
+    // the work it did into the project it was standing in.
+    Object.assign(state, loadProjects(state, false));
     ui.months.value = String(state.months);
     ui.inflation.value = state.inflation;
     ui.spread.value = state.spread;
@@ -499,18 +666,60 @@ function clearUndoSaid() {
 
 /** Photograph the plan, before the caller takes a piece of it away. */
 function checkpoint(what) {
-  undoStack = remember(undoStack, what, state);
+  undoStack = remember(undoStack, what, state, state.openProjectId);
   // Something new to take back makes the last receipt out of date: it is still
   // true that the field came back, and it is no longer what just happened.
   clearUndoSaid();
 }
 
 /**
+ * Whether the shelf has room for everything a snapshot would put back.
+ *
+ * The shelf holds six, and undoing a removal asks for a seventh whenever the
+ * reader has started something new since. The button is gone rather than
+ * greyed, the same as it is with nothing to take back at all — a press that
+ * cannot do what it says is worse than no press, and this one would have to
+ * choose between the project coming back and the project just started.
+ */
+function roomToUndo(snapshot) {
+  return state.projects.length + missingFrom(snapshot, state.projects) <= MAX_PROJECTS;
+}
+
+/**
+ * Photograph a project the reader is about to lose, rather than the one they
+ * are standing in.
+ *
+ * The two moves that throw a project away are the only ones where those differ,
+ * and they are the only ones that need the shelf as well — everything else
+ * leaves it alone, so photographing it would be storing a copy of work still
+ * being done in order to write it back later.
+ *
+ * @param {string} what `'project'` or `'reset'`
+ * @param {object} plan the four keys of the project the snapshot is about
+ * @param {string} at the id of the project that is
+ * @param {string} [born] a project this move is about to create, which its undo
+ *   has to take away again
+ */
+function checkpointShelf(what, plan, at, born) {
+  // Parked, so that every record in a photograph carries a plan — including the
+  // open one, whose plan is the live state rather than anything on the shelf.
+  const shelf = parkOpen(state.projects, state.openProjectId, state);
+  undoStack = remember(undoStack, what, { ...state, ...plan }, at, shelf, born);
+  clearUndoSaid();
+}
+
+/**
  * Throw the whole stack away.
  *
- * One caller, and it is the reason this is a function rather than a line: the
- * cross-tab listener above, where the plans these snapshots are of have stopped
- * being this tab's business.
+ * Still one caller, and that is the point. The cross-tab listener above, where
+ * the plans these snapshots are of have stopped being this tab's business.
+ *
+ * Switching project is deliberately *not* here. A snapshot names the project it
+ * is a photograph of and is only ever offered back in that project, so changing
+ * subject hides the other question's history rather than destroying it —
+ * change back and the removal you made there is still yours to take back. That
+ * is what makes "switching is a way of looking, not a change" true in the code
+ * rather than only in a comment.
  */
 function forgetUndo() {
   undoStack = [];
@@ -535,12 +744,31 @@ function forgetUndo() {
  * plans in the store and the restored ones on screen.
  */
 function undo() {
-  const taken = takeBack(undoStack);
+  const taken = takeBack(undoStack, state.openProjectId, roomToUndo);
   if (!taken) return;
   // Asked before the redraw, because the redraw is what takes the button away.
   const held = document.activeElement === ui.undo;
   undoStack = taken.rest;
-  Object.assign(state, taken.snapshot.plan);
+  const { snapshot } = taken;
+  // Whatever is on screen belongs to the project on screen, and the snapshot may
+  // be about a different one — so park it before the shelf is rearranged under
+  // it. For the ordinary case the two are the same project and this writes back
+  // what was already there.
+  state.projects = parkOpen(state.projects, state.openProjectId, state);
+  // A snapshot carrying a shelf is one of the two moves that lost a project.
+  // `restoreShelf` puts back only what is missing: every project that still
+  // exists keeps the plan it has now, so undoing a removal cannot revert work
+  // done elsewhere since.
+  if (snapshot.shelf) state.projects = restoreShelf(snapshot.shelf, state.projects, snapshot.born);
+  // The nine keys are the photograph of `at`, so they go on screen and the
+  // reader goes with them — a plan restored off screen reads as a button that
+  // did nothing. The five assumptions in them are global and are written back
+  // whichever project this was, because two of the six moves change them.
+  state.openProjectId = openIdOf(state.projects, snapshot.at);
+  Object.assign(state, snapshot.plan);
+  state.projects = state.projects.map(
+    (project) => (project.id === state.openProjectId ? { ...project, plan: null } : project),
+  );
   // The kept ranking and the kept answer are both about the plan that was on
   // screen a moment ago. Each is held against a question it can be checked
   // against, so a stale one would only ever be recomputed rather than shown —
@@ -571,7 +799,7 @@ function undo() {
  * and this one has nothing to say for itself between removals.
  */
 function renderUndo() {
-  const next = nextBack(undoStack);
+  const next = nextBack(undoStack, state.openProjectId, roomToUndo);
   ui.undo.hidden = !next;
   // The word on the button is "Undo" in every case; which of the five it would
   // reverse is in the accessible name, where a reader who cannot see what just
@@ -1937,6 +2165,169 @@ function fieldLabels(placed) {
  * Without this, tabbing through the box (or typing the same word and never
  * leaving it) would pin the current language's word forever.
  */
+/**
+ * The shelf as the switcher and the sheet should read it: every project
+ * carrying a plan, including the open one.
+ *
+ * The one place the single-copy store is deliberately relaxed, and only for
+ * reading. "3 plans · 20 ans" beside a project's name is a fact about its plan,
+ * and the open project's plan is the live state rather than anything on the
+ * shelf — so it is put back for the length of a render, in a list of its own,
+ * and the shelf itself is left with the one copy it is supposed to have.
+ */
+function shownProjects() {
+  return parkOpen(state.projects, state.openProjectId, state);
+}
+
+function projectLabels() {
+  return {
+    switchAria: (name, count) => (count > 1
+      ? t('project.switchAria', name, count)
+      : t('project.switchAriaOnly', name)),
+    add: t('project.add'),
+    nameAria: t('project.nameAria'),
+    namePlaceholder: t('project.namePlaceholder'),
+    openNamed: (name) => t('project.openNamed', name),
+    removeNamed: (name) => t('project.removeNamed', name),
+    count: (plans, months) => t('project.count', plans, formatHorizon(months, t)),
+  };
+}
+
+/**
+ * Every move the sheet can ask for.
+ *
+ * `open` is the one that is deliberately **not** undoable, and it is the same
+ * decision switching strategy took: it destroys nothing, it is a way of looking
+ * rather than a change, and a reader who lands somewhere they did not mean to
+ * gets back by pressing the name they came from. Nor does it throw the undo
+ * stack away: a snapshot names the project it photographed and is only offered
+ * back there, so changing subject hides the other question's history rather
+ * than destroying it.
+ */
+function runProjectCommand(command) {
+  switch (command.type) {
+    case 'open': {
+      if (command.id === state.openProjectId) return;
+      // The one move that touches two records: everything on screen goes back
+      // into the project it belongs to as the next one's plan comes out. One
+      // expression, because the instant where two copies of a plan exist should
+      // not be a window between two statements.
+      {
+        const moved = moveOpen(state.projects, state.openProjectId, command.id, state);
+        state.projects = moved.projects;
+        state.openProjectId = openIdOf(state.projects, command.id);
+        Object.assign(state, moved.plan);
+      }
+      // The plans, the horizon and the targets have all just been replaced, so
+      // anything held about the last set is an answer to a question nobody is
+      // asking. The undo stack is deliberately *not* thrown away with them: a
+      // snapshot names the project it photographed and is only offered back
+      // there, so the removal made in the question being left is still waiting
+      // when the reader comes back to it.
+      forgetRanking();
+      forgetAsked();
+      metricChosen = false;
+      fillControls();
+      save();
+      render();
+      // The sheet's work is done, so it gets out of the way — it is a modal over
+      // the very page the reader just asked to see, and leaving it standing
+      // would make choosing a project a two-press move for no reason. (Measured
+      // by driving it: the answer was behind the sheet.) Adding and renaming
+      // leave it open, because neither of those is finished yet.
+      ui.projectsDialog.close();
+      projectSwitch.element.focus();
+      return;
+    }
+
+    case 'rename':
+      state.projects = updateProject(state.projects, command.id, { name: command.name });
+      break;
+
+    case 'settle': {
+      // A name box shows what the project is called when nothing has been
+      // typed, so typing that same word back means "still unnamed" — exactly
+      // the rule a strategy's name box follows, and for the same reason: a
+      // name the app gave it must go on following the language.
+      const index = state.projects.findIndex((project) => project.id === command.id);
+      const shown = projectNameOf(
+        { ...state.projects[index], name: '' }, index, state.projects.length, t,
+      );
+      const typed = String(command.name).trim();
+      state.projects = updateProject(state.projects, command.id, {
+        name: typed === shown ? '' : typed,
+      });
+      break;
+    }
+
+    case 'add': {
+      if (state.projects.length >= MAX_PROJECTS) return;
+      // Empty, not a copy. Adding a *strategy* copies what is on screen because
+      // comparing means "the same, but…"; adding a *project* means a different
+      // question, and carrying the last one's rent and mortgage into it would
+      // be an answer to the wrong one. The horizon comes over, because a
+      // horizon is a habit rather than an answer, and the slider is one drag.
+      const created = normalizeProject({}, projectCoerce, false);
+      state.projects = addProject(
+        parkOpen(state.projects, state.openProjectId, state), created,
+      );
+      state.openProjectId = created.id;
+      Object.assign(state, normalizePlan({ months: state.months }, projectCoerce));
+      state.projects = state.projects.map(
+        (project) => (project.id === created.id ? { ...project, plan: null } : project),
+      );
+      forgetRanking();
+      forgetAsked();
+      metricChosen = false;
+      fillControls();
+      save();
+      render();
+      projectList.focusName(created.id);
+      return;
+    }
+
+    case 'remove': {
+      // The largest thing one press can throw away in this app: every plan in
+      // the project, its horizon and its targets.
+      if (state.projects.length <= 1) return;
+      const leaving = command.id === state.openProjectId;
+      // The snapshot is of the project *going*, not of the one the reader is
+      // standing in — a removal is the one move made to a project rather than
+      // inside one, so its undo has to be offered wherever the reader ends up
+      // and has to put that project's own plan back.
+      {
+        const shelf = parkOpen(state.projects, state.openProjectId, state);
+        const going = shelf.find((project) => project.id === command.id);
+        state.projects = shelf;
+        checkpointShelf('project', going.plan, command.id);
+      }
+      const neighbour = projectNeighbourOf(state.projects, command.id);
+      state.projects = removeProject(state.projects, command.id);
+      if (leaving) {
+        state.openProjectId = openIdOf(state.projects, neighbour);
+        Object.assign(state, moveOpen(state.projects, '', state.openProjectId, state).plan);
+        state.projects = state.projects.map(
+          (project) => (project.id === state.openProjectId ? { ...project, plan: null } : project),
+        );
+        forgetRanking();
+        forgetAsked();
+        metricChosen = false;
+        fillControls();
+      }
+      save();
+      render();
+      projectList.focusAfterRemove();
+      return;
+    }
+
+    default:
+      return;
+  }
+
+  persist();
+  render();
+}
+
 function normalizeLabelPatch(patch, id) {
   if (!('label' in patch)) return patch;
   const field = fields().find((entry) => entry.id === id);
@@ -2260,6 +2651,12 @@ function render() {
   const labels = strategyLabels();
   bar.update(state.strategies, state.activeId, labels, t);
   jump.update(state.strategies, state.activeId, labels, t);
+  const projectText = projectLabels();
+  const shown = shownProjects();
+  projectSwitch.update(shown, state.openProjectId, t, projectText);
+  projectJump.update(shown, state.openProjectId, t, projectText);
+  jump.setProjects(state.projects.length);
+  if (ui.projectsDialog.open) projectList.update(shown, state.openProjectId, projectText, t);
   const comparing = state.strategies.length > 1;
   // The reader's own fields, deliberately NOT `projection.fields`: those are
   // the scheduled ones, and a field still waiting on a target that has not come
@@ -2560,8 +2957,23 @@ function resetToDefaults() {
   // Before the assignment, because after it there is nothing left to photograph.
   // The confirm stays: undo is a way back while this tab is open and not after,
   // which is a smaller promise than the one that would let the question go.
-  checkpoint('reset');
-  Object.assign(state, defaultState());
+  // The one move besides removing a project that throws a project away — every
+  // project, in this case — so its snapshot carries the shelf as well. It is a
+  // photograph of the project on screen, which is where undo puts the reader
+  // back.
+  // One project again, and the same one a new reader lands in — the button is
+  // only worth having if "start again" means the whole device rather than the
+  // corner of it you were standing in. Built rather than reloaded, because
+  // `loadProjects` would find the shelf that is being thrown away — and built
+  // *before* the snapshot, so the photograph can name the project this move
+  // creates and take it away again if the reader changes their mind.
+  const restarted = soleProject(true);
+  checkpointShelf('reset', planOf(state), state.openProjectId, restarted.openProjectId);
+  const fresh = defaultState();
+  delete fresh.fresh;
+  Object.assign(state, fresh);
+  state.projects = restarted.projects;
+  state.openProjectId = restarted.openProjectId;
   // Which column the comparison shows, and which of the two readings the cards
   // are in, are module state rather than stored state, so both survived the
   // reset: the button promises to land you exactly where a new reader lands,
@@ -2654,6 +3066,42 @@ const jump = createStrategyJump({
   t,
   onCommand: runStrategyCommand,
 });
+
+/**
+ * The project switch, in the two places the strategy switcher lives — and only
+ * those two, so there is never a third control claiming to say the same thing.
+ *
+ * In the form it *is* the panel's heading, which is why it takes no line of its
+ * own: the fields below belong to the question named here, and the panel has
+ * always been titled. In the pinned bar it stands ahead of the names, outside
+ * the row that scrolls, with a rule between them.
+ */
+const projectSwitch = createProjectSwitch({
+  mount: ui.inputsHeading,
+  className: 'project-switch',
+  onOpen: openProjects,
+});
+
+const projectJump = createProjectSwitch({
+  mount: jump.lead,
+  className: 'project-switch is-pinned',
+  onOpen: openProjects,
+});
+
+const projectList = createProjectList({
+  mount: ui.projectMount,
+  labels: projectLabels(),
+  t,
+  onCommand: runProjectCommand,
+});
+
+function openProjects() {
+  projectList.update(shownProjects(), state.openProjectId, projectLabels(), t);
+  ui.projectsDialog.showModal();
+}
+
+ui.projectsClose.addEventListener('click', () => ui.projectsDialog.close());
+closeOnBackdrop(ui.projectsDialog);
 
 const list = createFieldList({
   mount: ui.fields,
@@ -2918,7 +3366,8 @@ let offered = null;
 let replacing = false;
 
 function openShare() {
-  ui.shareLink.value = linkFor(state, window.location.href);
+  // The link carries the project on screen, name and all — never the shelf.
+  ui.shareLink.value = linkFor({ ...state, project: openProject() }, window.location.href);
   ui.shareSaid.textContent = '';
   ui.shareDialog.showModal();
   // Selected on opening, so the link is already in hand for a reader whose
@@ -3047,6 +3496,10 @@ function offerPlanFromLink() {
   ui.sharedRoom.hidden = broken;
   ui.sharedAsk.hidden = broken;
   ui.sharedOpen.hidden = broken;
+  // Offered while there is a shelf to put it on, and hidden when there is not —
+  // never disabled, because a button that cannot be pressed is a question the
+  // reader has to work out the answer to.
+  ui.sharedNew.hidden = broken || state.projects.length >= MAX_PROJECTS;
   ui.sharedKeep.textContent = t(broken ? 'share.brokenClose' : 'share.receivedNo');
 
   if (!broken) {
@@ -3071,6 +3524,56 @@ function offerPlanFromLink() {
   // thing — the rule "Start again" follows, for the same reason.
   ui.sharedKeep.focus();
 }
+
+/**
+ * Somebody else's question, opened as its own.
+ *
+ * The whole of the bug that put projects in the app, in the one place it bites
+ * a stranger rather than the owner: a link is usually a *different* question,
+ * and dropping its plans in beside yours puts a car on the same axes as a
+ * house. Here the arriving plan brings its own horizon and its own targets
+ * because they came with it, and it takes the reader's assumptions because
+ * those were never the sender's to set.
+ */
+function adoptAsProject(plan) {
+  const created = normalizeProject({
+    name: typeof plan.name === 'string' ? plan.name : '',
+    nameKey: typeof plan.nameKey === 'string' ? plan.nameKey : '',
+  }, projectCoerce, false);
+  // The third move that changes which projects there are, and the only one that
+  // *adds*. Its undo has to take the stranger's project away again and stand the
+  // reader back in their own, so the snapshot carries the shelf and the id of
+  // the project about to be made.
+  checkpointShelf('shared', planOf(state), state.openProjectId, created.id);
+  state.projects = addProject(
+    parkOpen(state.projects, state.openProjectId, state), created,
+  );
+  state.openProjectId = created.id;
+  Object.assign(state, normalizePlan({
+    strategies: markShared(plan.strategies),
+    months: plan.months,
+    milestones: plan.milestones,
+  }, projectCoerce));
+  state.projects = state.projects.map(
+    (project) => (project.id === created.id ? { ...project, plan: null } : project),
+  );
+  // The two toggles are the reader's way of looking and travel with a link
+  // today, so they keep doing exactly that.
+  state.realMoney = plan.realMoney === true;
+  state.showRange = plan.showRange === true;
+  metricChosen = false;
+  forgetRanking();
+  forgetAsked();
+  fillControls();
+  save();
+  render();
+}
+
+ui.sharedNew.addEventListener('click', () => {
+  if (offered) adoptAsProject(offered);
+  offered = null;
+  ui.sharedDialog.close();
+});
 
 ui.sharedOpen.addEventListener('click', () => {
   if (offered) adoptPlan(offered, { replacing });

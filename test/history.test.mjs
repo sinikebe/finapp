@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 import {
   MAX_UNDO, SNAPSHOT_KEYS, UNDOABLE, nextBack, remember, takeBack,
+  restoreShelf, missingFrom,
 } from '../assets/js/history.js';
 import { LANGUAGES, STRINGS } from '../assets/js/i18n.js';
 
@@ -43,14 +44,47 @@ test('a snapshot holds exactly what save() writes, and nothing else', async () =
   assert.ok(body, 'app.js declares save()');
   const written = body.split('writeStore(STATE_KEY, {')[1].split('});')[0];
   const keys = [...written.matchAll(/(\w+):\s*state\.(\w+)/g)];
+  // The tenth is the stamp: the project the nine belong to. It is written and
+  // never snapshotted, because a snapshot already names its project in `at` and
+  // a stamp inside the plan would be a second answer to the same question.
+  const stamp = keys.pop();
+  assert.deepEqual(stamp.slice(1), ['projectId', 'openProjectId']);
   assert.deepEqual(keys.map((match) => match[1]), SNAPSHOT_KEYS);
   for (const [, key, from] of keys) {
     assert.equal(key, from, `save() writes state.${from} under its own name`);
   }
 });
 
+test('the shelf is written first, and it is written under its own key', () => {
+  /*
+   * Both halves of one sentence about a torn write. Two keys are two chances
+   * for a full quota to write half a save, and the half that matters is a
+   * switch — the only save where a plan moves between the keys. The shelf takes
+   * the departing project's plan, so it goes first: fail there and the pair
+   * stops before the flat write can strand that plan with no copy anywhere.
+   *
+   * And the shelf lives under a key of its own so that `finapp.state.v3` stays
+   * exactly the store a build from before projects knows how to read and write.
+   * Move the shelf into it and one keystroke in a stale tab takes every project
+   * with it, because that build writes the keys it knows and drops the rest.
+   */
+  const body = app.split('function save() {')[1].split('\n}')[0];
+  assert.ok(
+    body.indexOf('writeStore(PROJECTS_KEY') < body.indexOf('writeStore(STATE_KEY'),
+    'the shelf is written before the plan on screen',
+  );
+  assert.ok(
+    /if \(!writeStore\(PROJECTS_KEY/.test(body),
+    'and a shelf that would not write stops the pair',
+  );
+  assert.ok(
+    !app.includes("PROJECTS_KEY = 'finapp.state.v3'") && app.includes("PROJECTS_KEY = 'finapp.projects.v1'"),
+    'the shelf is not inside the store an older build rewrites',
+  );
+});
+
 test('what a snapshot leaves out is everything that is not the plan', () => {
-  const [snapshot] = remember([], 'field', planLike());
+  const [snapshot] = remember([], 'field', planLike(), 'p');
   assert.deepEqual(Object.keys(snapshot.plan), SNAPSHOT_KEYS);
   assert.ok(!('monthly' in snapshot.plan), 'the reading on the cards is not part of a plan');
   assert.equal(snapshot.what, 'field');
@@ -61,7 +95,7 @@ test('a snapshot is a photograph, not a second name for the same lists', () => {
   // references to lists the app goes on editing would hand back the state it
   // was asked to take the reader away from.
   const state = planLike();
-  const [snapshot] = remember([], 'strategy', state);
+  const [snapshot] = remember([], 'strategy', state, 'p');
 
   state.strategies[0].fields[0].amount = '999';
   state.milestones.push({ id: 'later', metric: 'net', amount: '1' });
@@ -77,7 +111,7 @@ test('a snapshot is a photograph, not a second name for the same lists', () => {
 test('the stack is bounded, and it is the oldest that goes over the side', () => {
   let stack = [];
   for (let move = 0; move < MAX_UNDO + 5; move += 1) {
-    stack = remember(stack, 'field', { ...planLike(), months: move });
+    stack = remember(stack, 'field', { ...planLike(), months: move }, 'p');
   }
   assert.equal(stack.length, MAX_UNDO);
   // The last ten moves, in order, with the five oldest gone: undo walks back
@@ -87,12 +121,12 @@ test('the stack is bounded, and it is the oldest that goes over the side', () =>
 
 test('nothing here edits the stack it was handed', () => {
   const state = planLike();
-  const stack = remember(remember([], 'field', state), 'reset', state);
+  const stack = remember(remember([], 'field', state, 'p'), 'reset', state, 'p');
   const before = JSON.parse(JSON.stringify(stack));
 
-  const longer = remember(stack, 'shared', state);
-  const { rest } = takeBack(stack);
-  nextBack(stack);
+  const longer = remember(stack, 'shared', state, 'p');
+  const { rest } = takeBack(stack, 'p');
+  nextBack(stack, 'p');
 
   assert.deepEqual(stack, before, 'the original is untouched throughout');
   assert.equal(longer.length, 3);
@@ -101,38 +135,54 @@ test('nothing here edits the stack it was handed', () => {
 
 test('the top is peeked at without being taken, and taken with the rest handed back', () => {
   const state = planLike();
-  const stack = remember(remember([], 'field', state), 'milestone', state);
+  const stack = remember(remember([], 'field', state, 'p'), 'milestone', state, 'p');
 
-  assert.equal(nextBack(stack).what, 'milestone', 'the control names the move it would reverse');
-  assert.equal(nextBack(stack).what, 'milestone', 'and asking twice takes nothing');
+  assert.equal(nextBack(stack, 'p').what, 'milestone', 'the control names the move it would reverse');
+  assert.equal(nextBack(stack, 'p').what, 'milestone', 'and asking twice takes nothing');
 
-  const taken = takeBack(stack);
+  const taken = takeBack(stack, 'p');
   assert.equal(taken.snapshot.what, 'milestone');
   assert.deepEqual(taken.rest.map((entry) => entry.what), ['field']);
 });
 
 test('an empty stack has nothing to offer and nothing to give', () => {
-  assert.equal(nextBack([]), null);
-  assert.equal(takeBack([]), null);
+  assert.equal(nextBack([], 'p'), null);
+  assert.equal(takeBack([], 'p'), null);
   // Whatever a caller has, rather than only what a caller should have.
-  assert.equal(nextBack(undefined), null);
-  assert.equal(takeBack('nonsense'), null);
+  assert.equal(nextBack(undefined, 'p'), null);
+  assert.equal(takeBack('nonsense', 'p'), null);
 });
 
 /* ------------------------------------------------------------- and in the app */
 
 test('every move that throws work away photographs the plan first', () => {
   /*
-   * Five, not the four the gap was filed as — removing a target destroys a
-   * figure somebody typed exactly the way removing a field does. A branch that
-   * grows a `checkpoint` later than its first statement would snapshot a plan
-   * that has already lost the thing being taken back, so the call is held to
-   * the case as well as to being present.
+   * Six, not the four the gap was filed as — removing a target destroys a
+   * figure somebody typed exactly the way removing a field does, and removing a
+   * project destroys every plan in it. A branch that grows a `checkpoint` later
+   * than its first statement would snapshot a plan that has already lost the
+   * thing being taken back, so the call is held to the case as well as to being
+   * present.
    */
   for (const what of UNDOABLE) {
-    assert.ok(app.includes(`checkpoint('${what}')`), `app.js checkpoints before ${what}`);
+    assert.ok(
+      app.includes(`checkpoint('${what}')`) || app.includes(`checkpointShelf('${what}'`),
+      `app.js checkpoints before ${what}`,
+    );
   }
-  const taken = [...app.matchAll(/checkpoint\('(\w+)'\)/g)].map((match) => match[1]);
+  // Three of the six go through the other door, and it is the three that change
+  // which projects there are: removing one, starting again, and opening a link
+  // as a project of its own. They are the only moves whose snapshot carries the
+  // shelf, because they are the only ones whose undo has to put a record back
+  // or take one away.
+  assert.deepEqual(
+    [...new Set([...app.matchAll(/checkpointShelf\('(\w+)'/g)].map((match) => match[1]))].sort(),
+    ['project', 'reset', 'shared'],
+  );
+  // A set rather than the list: one of the six has two doors into it now — a
+  // shared plan can be added to the project you are in or opened as one of its
+  // own — and two calls for one move is not two moves.
+  const taken = [...new Set([...app.matchAll(/checkpoint(?:Shelf)?\('(\w+)'/g)].map((match) => match[1]))];
   assert.deepEqual(taken.slice().sort(), UNDOABLE.slice().sort(), 'and checkpoints nothing else');
 });
 
@@ -204,4 +254,98 @@ test('the button ships hidden, and the app bar can wrap around it', async () => 
   const css = await readFile(new URL('../assets/css/app.css', import.meta.url), 'utf8');
   const actions = css.split('.app-bar-actions {')[1].split('}')[0];
   assert.match(actions, /flex-wrap:\s*wrap/);
+});
+
+/* -------------------------------------------------- a snapshot names a project */
+
+/** A shelf of three, with a plan on every record but the open one. */
+const shelfLike = (open = 'p1') => ['p1', 'p2', 'p3'].map((id) => ({
+  id,
+  name: id.toUpperCase(),
+  nameKey: '',
+  plan: id === open ? null : { strategies: [], activeId: '', months: 240, milestones: [] },
+}));
+
+test('a snapshot taken in one project is not offered in another', () => {
+  /*
+   * The whole reason `at` exists. A photograph of the housing plans restored
+   * over the car plans is not an undo — it is one question's answers written
+   * over another's — so it waits until the reader is back where it was taken.
+   */
+  const stack = remember([], 'strategy', planLike(), 'p1');
+
+  assert.equal(nextBack(stack, 'p1').what, 'strategy', 'offered where it was taken');
+  assert.equal(nextBack(stack, 'p2'), null, 'and nowhere else');
+});
+
+test('changing subject hides the way back, and changing back returns it', () => {
+  /*
+   * The measured failure this replaced: emptying the stack on a switch is safe
+   * and costs the reader the removal they made a moment ago. Nothing here is
+   * thrown away, so a reader who looks at the car question and comes back finds
+   * the field they deleted in housing still waiting to be restored.
+   */
+  const stack = remember([], 'field', planLike(), 'p1');
+  assert.equal(nextBack(stack, 'p2'), null);
+  assert.equal(nextBack(stack, 'p1').what, 'field', 'still there on the way back');
+});
+
+test('the stack holds two questions at once, each offering only its own', () => {
+  let stack = remember([], 'field', planLike(), 'p1');
+  stack = remember(stack, 'milestone', planLike(), 'p2');
+
+  assert.equal(nextBack(stack, 'p1').what, 'field');
+  assert.equal(nextBack(stack, 'p2').what, 'milestone');
+
+  // Taking one back leaves the other exactly where it was, rather than taking
+  // the stack with it.
+  const taken = takeBack(stack, 'p1');
+  assert.equal(taken.snapshot.what, 'field');
+  assert.equal(taken.rest.length, 1);
+  assert.equal(nextBack(taken.rest, 'p2').what, 'milestone');
+});
+
+test('a snapshot that lost a project is offered wherever the reader ends up', () => {
+  // Removing a project is the one move made *to* a project rather than inside
+  // one: the reader is standing somewhere else by the time it is over, so an
+  // undo that waited for them to go back would wait for ever.
+  const stack = remember([], 'project', planLike(), 'p3', shelfLike());
+  assert.equal(nextBack(stack, 'p1').what, 'project');
+  assert.equal(nextBack(stack, 'p2').what, 'project');
+});
+
+test('restoring a shelf puts back what is gone and touches nothing else', () => {
+  /*
+   * The line that makes carrying a shelf safe. A photograph taken before a
+   * removal holds every other project as it was at that moment; writing it back
+   * whole would revert whatever the reader has done in them since.
+   */
+  const photograph = shelfLike();
+  const worked = { ...photograph[1], plan: { strategies: [], activeId: '', months: 77, milestones: [] } };
+  const live = [photograph[0], worked];
+
+  const back = restoreShelf(photograph, live);
+
+  assert.deepEqual(back.map((project) => project.id), ['p1', 'p2', 'p3'], 'and in the order it had');
+  assert.equal(back[1].plan.months, 77, 'the work done since is the work that stands');
+  assert.equal(back[2].id, 'p3', 'and only the one that went comes out of the picture');
+});
+
+test('a project started since the photograph is kept, not overwritten', () => {
+  const photograph = shelfLike();
+  const started = { id: 'p4', name: 'New', nameKey: '', plan: { strategies: [], activeId: '', months: 12, milestones: [] } };
+  const back = restoreShelf(photograph, [photograph[0], photograph[1], started]);
+
+  assert.deepEqual(back.map((project) => project.id), ['p1', 'p2', 'p3', 'p4']);
+  assert.equal(missingFrom({ shelf: photograph }, [photograph[0], started]), 2, 'two to put back');
+  assert.equal(missingFrom({ at: 'p1', plan: {} }, []), 0, 'and none without a shelf');
+});
+
+test('an undo with nowhere to put a project back is not offered', () => {
+  // The shelf holds six. A reader who removes one and starts another has no
+  // room for the seventh, and a button that cannot do what it says is worse
+  // than no button — the same rule "Start another project" follows at six.
+  const stack = remember([], 'project', planLike(), 'p3', shelfLike());
+  assert.equal(nextBack(stack, 'p1', () => false), null, 'no room, no offer');
+  assert.equal(nextBack(stack, 'p1', () => true).what, 'project', 'room, offered');
 });

@@ -30,13 +30,22 @@
  */
 
 /**
- * Exactly the keys `save()` writes, in the order it writes them.
+ * Exactly the keys `save()` writes into `finapp.state.v3`, in the order it
+ * writes them.
  *
  * A snapshot is the plan as the store would have held it a moment ago, so this
  * list and that call are one fact said in two places — which is why a test
  * greps `save()` and holds the two together, rather than trusting anyone to
  * remember. Nine of them: the eight a plan has carried since strategies
  * arrived, and the targets marked on it.
+ *
+ * Projects did not lengthen this list, and that is the point. Four of the nine
+ * are the open project's plan and five are the assumptions, and a snapshot is a
+ * photograph of **one project** — named by `at` — rather than of the shelf.
+ * A photograph of the shelf would have to be restored over work done in another
+ * project since, which is not an undo; it is somebody else's plan written over
+ * yours. Only the two moves that actually throw a project away carry the shelf
+ * as well, and even they put back only what is missing (see `restoreShelf`).
  */
 export const SNAPSHOT_KEYS = [
   'strategies', 'activeId', 'months', 'inflation',
@@ -47,16 +56,18 @@ export const SNAPSHOT_KEYS = [
  * The moves a reader can take back, and the only values a snapshot's `what`
  * ever holds.
  *
- * Five, not the four the gap was filed as: a target is removed by the same kind
- * of button a field is, and it takes a figure somebody typed with it. Every one
- * of these throws something away — which is what puts them on the list and
- * keeps an edit off it, because an edit can be typed back and a removal cannot.
+ * Six now, and the new one is the largest of them: a project is every plan in
+ * it, its horizon and its targets, thrown away by one press.
  *
- * The names are cases rather than sentences: the wording follows the language
- * and the case does not, so what is remembered is which of the five happened
- * and the words are found again on every render.
+ * Every one of these throws something away — which is what puts them on the
+ * list and keeps a keystroke off it.
+ *
+ * They are here rather than in the app because the list is a fact about the
+ * feature and the wording is not: the strings move with the language and the
+ * case does not, so what is remembered is which of the six happened and the
+ * words are found again on every render.
  */
-export const UNDOABLE = ['field', 'strategy', 'milestone', 'reset', 'shared'];
+export const UNDOABLE = ['field', 'strategy', 'project', 'milestone', 'reset', 'shared'];
 
 /**
  * How far back the app can go.
@@ -72,52 +83,151 @@ export const MAX_UNDO = 10;
 /* All of these return a new list; none mutate the one they are given. */
 
 /**
- * Photograph the plan before something takes a piece of it away.
+ * Photograph one project before something takes a piece of it away.
+ *
+ * `at` is the whole of what projects added here: the id of the project this is
+ * a photograph of. Not its position as well — a shelf snapshot restores the
+ * order it photographed, so every project goes back where it sat and the one
+ * that returns needs no coordinates of its own. Everything else about a
+ * snapshot is what it always was.
+ *
+ * `shelf` is handed in only by the three moves that change which projects there
+ * are — removing one, starting again, and opening somebody's link as a project
+ * of its own — because they are the only ones whose undo has to put a record
+ * back or take one away. Every other move leaves the shelf exactly as it found
+ * it, so photographing it would be storing a copy of work the reader is still
+ * doing in order to overwrite it later.
  *
  * @param {Array<object>} stack the snapshots so far, oldest first
  * @param {string} what which of `UNDOABLE` is about to happen
- * @param {object} state the live state object
+ * @param {object} source the nine keys, as the store would hold them — the live
+ *   state for a move made in the project on screen, and the departing project's
+ *   own plan for a removal, which is a move made *to* a project rather than in
+ *   one
+ * @param {string} at the id of the project it is a photograph of
+ * @param {Array<object>} [shelf] the projects list, for the three moves that
+ *   change which projects there are
+ * @param {string} [born] a project this move is about to create, so undoing it
+ *   takes that project away again rather than leaving it behind
  * @returns {Array<object>} a new stack with the snapshot on top, bounded
  */
-export function remember(stack, what, state) {
+export function remember(stack, what, source, at, shelf, born) {
   const list = Array.isArray(stack) ? stack : [];
   const plan = {};
-  for (const key of SNAPSHOT_KEYS) plan[key] = state[key];
+  for (const key of SNAPSHOT_KEYS) plan[key] = source[key];
   // Through JSON because the store is JSON: a snapshot is byte-for-byte what
   // `save()` would have written, so nothing can go into one that could not have
   // come back out of the store — and the copy is deep, which is what makes the
   // snapshot a photograph rather than another name for the live lists.
-  const snapshot = { what, plan: JSON.parse(JSON.stringify(plan)) };
+  const snapshot = { what, at, plan: JSON.parse(JSON.stringify(plan)) };
+  if (shelf) snapshot.shelf = JSON.parse(JSON.stringify(shelf));
+  if (born) snapshot.born = born;
   // The oldest goes over the side. Ten moves back is the promise; holding the
   // eleventh would quietly turn a bounded stack into a growing one.
   return [...list, snapshot].slice(-MAX_UNDO);
 }
 
 /**
- * The snapshot the next press would restore, without taking it.
+ * Whether a snapshot is one the reader can be offered right now.
  *
- * What the control is drawn from: whether there is anything to undo at all, and
- * which of the five it would be — the button names the move it takes back
- * rather than offering a bare "Undo" and letting the reader find out.
- *
- * @returns {object|null} the top snapshot, or null when there is nothing back
+ * A snapshot that carries a shelf is about the shelf, so it is always
+ * offerable: the project it would put back is, by definition, not the one on
+ * screen. Every other snapshot is a photograph of one project's plan, and
+ * restoring it while standing somewhere else would write that plan over a
+ * different question — so it waits, on the stack, until the reader is back in
+ * the project it is about. **It is not thrown away.** Changing subject and
+ * changing back is a way of looking rather than a change, and it now costs the
+ * reader nothing: the removal they made in the first project is still there to
+ * take back when they return to it.
  */
-export function nextBack(stack) {
-  const list = Array.isArray(stack) ? stack : [];
-  return list.length ? list[list.length - 1] : null;
+function offerable(snapshot, openId, fits) {
+  if (snapshot.shelf) return fits(snapshot);
+  return snapshot.at === openId;
+}
+
+/** Where the top offerable snapshot sits, or -1. */
+function topIndex(list, openId, fits) {
+  for (let index = list.length - 1; index >= 0; index -= 1) {
+    if (offerable(list[index], openId, fits)) return index;
+  }
+  return -1;
 }
 
 /**
- * Take the top snapshot off, and hand back both halves.
+ * The snapshot the next press would restore, without taking it.
+ *
+ * What the control is drawn from: whether there is anything to undo *here* at
+ * all, and which of the six it would be — the button names the move it takes
+ * back rather than offering a bare "Undo" and letting the reader find out.
+ *
+ * @returns {object|null} the top offerable snapshot, or null when there is none
+ */
+export function nextBack(stack, openId, fits = () => true) {
+  const list = Array.isArray(stack) ? stack : [];
+  const index = topIndex(list, openId, fits);
+  return index === -1 ? null : list[index];
+}
+
+/**
+ * Take the top offerable snapshot off, and hand back both halves.
  *
  * Both, rather than mutating the stack, for the reason every operation in this
  * project hands back a new list: the caller decides when its own stack becomes
  * the new one, and a half-applied undo is not a state anything here can be in.
  *
+ * The snapshots below it are kept, including any belonging to other projects —
+ * taking one back is not a reason to forget the rest.
+ *
  * @returns {{snapshot: object, rest: Array<object>}|null} null when empty
  */
-export function takeBack(stack) {
+export function takeBack(stack, openId, fits = () => true) {
   const list = Array.isArray(stack) ? stack : [];
-  if (!list.length) return null;
-  return { snapshot: list[list.length - 1], rest: list.slice(0, -1) };
+  const index = topIndex(list, openId, fits);
+  if (index === -1) return null;
+  return { snapshot: list[index], rest: [...list.slice(0, index), ...list.slice(index + 1)] };
+}
+
+/**
+ * The shelf a snapshot restores: its own order, and everybody else's *current*
+ * contents.
+ *
+ * The line that makes carrying a shelf in a snapshot safe. A photograph taken
+ * before a removal also contains every other project as it was at that moment,
+ * and writing that back would revert whatever the reader has done in them
+ * since — which is the exact bug a whole-store snapshot has. So the photograph
+ * supplies only what is *missing*: a project that still exists keeps the plan
+ * it has now, and one that is gone comes back from the picture.
+ *
+ * The order is the photograph's, so a project returns to the place it sat in
+ * rather than to the end of the list — and a project *started* since the
+ * photograph was taken is kept, on the end, because it is work too and the
+ * picture simply predates it. Which is why this can hand back a longer list
+ * than either of the two it was given, and why the caller has to know whether
+ * there is room before it offers the undo at all.
+ *
+ * The exception is the project the photographed move *itself* created, named by
+ * `born`. Starting again makes one, and opening a link as its own project makes
+ * one, and taking either move back has to take its project with it — otherwise
+ * undoing "open as its own project" would leave the stranger's plans sitting on
+ * the shelf, which is most of what the reader was undoing.
+ *
+ * @param {Array<object>} shelf the projects as the snapshot has them
+ * @param {Array<object>} live the projects as they are now
+ * @param {string} [born] a project the move created, which goes back with it
+ */
+export function restoreShelf(shelf, live, born = '') {
+  const now = new Map(live.map((project) => [project.id, project]));
+  const pictured = new Set(shelf.map((project) => project.id));
+  return [
+    ...shelf.map((project) => now.get(project.id) || project),
+    ...live.filter((project) => !pictured.has(project.id) && project.id !== born),
+  ];
+}
+
+/** How many projects a snapshot's shelf would put back that are not there now.
+ *  What the caller weighs against the room it has. */
+export function missingFrom(snapshot, live) {
+  if (!snapshot.shelf) return 0;
+  const now = new Set(live.map((project) => project.id));
+  return snapshot.shelf.filter((project) => !now.has(project.id)).length;
 }
