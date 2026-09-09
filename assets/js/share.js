@@ -143,6 +143,22 @@ export function encodePlan(state) {
       (strategy.fields || []).map((field) => encodeField(field, slotOf)),
     ]),
   };
+  // What the question was called, when it was called anything.
+  //
+  // A link carries **one project — the one you are looking at** — and never the
+  // shelf. Not a size decision: a project is a whole comparison, and sending
+  // somebody seven of them is sending them your device rather than your
+  // answer. So the format does not change shape at all; it grows one optional
+  // pair, which a build that has never heard of projects ignores exactly as it
+  // ignores anything it does not name. Every link ever minted still decodes
+  // into what it always decoded into, and a link minted today opens in v59 as
+  // the plan it is.
+  //
+  // The pair, not the name alone, for the reason a strategy sends its
+  // `nameKey`: a project the app named follows the *reader's* language rather
+  // than arriving frozen in the sender's.
+  const project = state.project || {};
+  if (project.name || project.nameKey) plan.p = [project.name || '', project.nameKey || ''];
   // The two toggles are written only when they are on, which is the common
   // plan's saving and matches how a field omits its defaults.
   if (state.realMoney) plan.r = 1;
@@ -206,8 +222,13 @@ export function decodePlan(text) {
     };
   }));
 
+  const [projectName, projectNameKey] = Array.isArray(plan.p) ? plan.p : [];
   return {
     strategies,
+    // Shaped but not judged, like everything else here: `projects.js` holds a
+    // name to its own length and a key to its own pattern.
+    name: typeof projectName === 'string' ? projectName : '',
+    nameKey: typeof projectNameKey === 'string' ? projectNameKey : '',
     months: plan.m,
     inflation: plan.i,
     spread: plan.sp,

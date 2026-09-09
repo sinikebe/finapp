@@ -78,6 +78,10 @@ sw.js                        offline shell
 assets/css/app.css           design tokens (light + dark), shell, chart chrome
 assets/js/fields.js          the field model — shape, coercion, operations
 assets/js/strategies.js      the strategy model — a named set of fields
+assets/js/projects.js        the project model — one comparison each, and the
+                             shelf the others wait on
+assets/js/project-switch.js  the heading that names the project, and the
+                             sheet that switches, renames and removes them
 assets/js/projection.js      fields + horizon → the cumulative series
 assets/js/field-list.js      the editable list of fields
 assets/js/milestones.js      targets, and the month each one is met
@@ -155,6 +159,32 @@ running total to the loop in `project()` and returns `0` from `contributionOf`.
 the same shape one level up: `strategies.js` owns the shape and the operations,
 `app.js` owns the storage version and the migration into it, and the comparison
 view reads whatever `project()` returns.
+
+**Something a project carries** (a note, a currency, a colour of its own) is the
+same shape one level further up: `projects.js` owns the shape and the
+operations, `app.js` owns the store and the migration into it, and
+`project-switch.js` owns the two controls. Two rules hold that layer down and
+both are pinned by tests:
+
+- **The plan on screen lives in `finapp.state.v3` and nowhere else.** The shelf,
+  under `finapp.projects.v1`, carries no plan for the open project — one copy,
+  so the two keys cannot disagree. Do not move the shelf into `finapp.state.v3`
+  to "simplify" it: a build from before projects writes a fresh nine-key literal
+  on the first keystroke and drops everything it does not know, so a stale tab
+  would take every project with it, silently. The tenth key it writes,
+  `projectId`, is a stamp such a build harmlessly drops; `loadProjects` reads its
+  absence as "an older build saved here" and adopts that work.
+- **A snapshot is a photograph of one project**, named by `at`, and is only
+  offered back in that project. Only the three moves that change which projects
+  there are — removing one, starting again, and opening a link as its own
+  project — carry the shelf as well, and even they put back only what is
+  missing. A whole-store snapshot silently reverts another project's work; that
+  was measured before this shape was chosen.
+
+**Going backwards is a supported thing to do.** A reader who rolls back to a
+build from before projects finds `finapp.state.v3` live and correct and lands in
+the project they were last in, with the others sitting unread under a key that
+build has never heard of. Rolling forward again picks them all up.
 
 **A new language** is a block in `STRINGS` in
 [`assets/js/i18n.js`](assets/js/i18n.js) — the English block is the key list to

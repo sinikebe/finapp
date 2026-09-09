@@ -2486,6 +2486,168 @@ main section,
  * still a phone, and a touchscreen laptop is still touched. Nothing here
  * changes what the app looks like under a mouse.
  */
+
+/* --------------------------------------------------------------- projects
+
+   The project switch is the panel's heading, and everything about it is chosen
+   so that it can never be mistaken for the strategy tabs two lines below.
+
+   The tabs are pills, in a row, of equal weight, one of them selected, and one
+   of them a text box. This is a single left-aligned control with the weight of
+   the heading it replaced and a chevron on the end — the same chevron as the
+   button that folds the form and the same one a <summary> carries, which is
+   this app's one mark for "there is more behind this". It never takes a
+   strategy colour, never a swatch and never an origin edge: four strategy
+   colours are spoken for by the curves in the comparison, and a fifth mark up
+   here would be read as a fifth legend entry. Its only colour is text. */
+
+.project-heading {
+  /* Takes the room the fold button leaves rather than only its own content's:
+     a project's name is what tells the reader which figures these are, so it
+     gets every pixel there is before it has to truncate. */
+  flex: 1 1 auto;
+  min-width: 0;
+  /* The heading is the button. `display: contents` would take the h2 out of the
+     box tree and with it the accessible name the section is labelled by in a
+     couple of engines, so it stays a box and simply carries no styling of its
+     own beyond letting the button fill it. */
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+}
+
+.project-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  margin-left: -8px;   /* so the text still lines up with the heading it replaced */
+  padding: 4px 8px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: left;
+  cursor: pointer;
+}
+.project-switch-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The caret is the affordance, so it is the part that answers to the hover
+   rather than the name — the name is the heading and headings do not light up.
+   Solid and 8px against the fold button's stroked 24px chevron on the same
+   line: two marks that could be mistaken for each other would be worse than
+   none. */
+.project-switch .project-caret {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  fill: var(--text-muted);
+  transition: fill 140ms ease;
+}
+.project-switch:hover {
+  border-color: var(--border);
+  background: var(--surface-2);
+}
+.project-switch:hover .project-caret { fill: var(--text-secondary); }
+
+/* Pinned, it is a label first and a control second: the row beside it is what
+   the reader came for, so this shrinks to the smaller type of that row and
+   keeps only as much width as a name needs. */
+.strategy-jump-lead {
+  display: flex;
+  align-items: center;
+  flex: none;
+  min-width: 0;
+  /* The rule is the whole of the separation, and it is doing real work: it says
+     the button on its left and the pills on its right are two different kinds
+     of thing rather than one row of six. */
+  padding-right: 8px;
+  margin-right: 8px;
+  border-right: 1px solid var(--border);
+}
+.project-switch.is-pinned {
+  margin-left: 0;
+  padding: 3px 6px;
+  /* Measured, and the vw term is the one that matters. At 42vw the lead took
+     159 of a 390px bar and left the three names 197px to scroll in, against
+     366 before it existed — one and a bit names visible instead of two and a
+     bit. At 30vw it takes 130 and leaves 226. The name truncates, and that is
+     the right thing to spend: "Acheter u…" is enough to know which question
+     these plans answer, and the pills beside it are what the reader came to
+     press. */
+  max-width: min(30vw, 220px);
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+.project-switch.is-pinned:hover { color: var(--text-primary); }
+
+/* The sheet. Rows rather than pills, because the choice here is a list you read
+   down and not a row you flick along — and because the row carries what a name
+   alone cannot: how many plans are in it, and how far they run. */
+.project-list {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+}
+.project-row[data-open="true"] {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.project-open,
+.project-list .project-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 10px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 14.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.project-open:hover { background: var(--surface-2); color: var(--text-primary); }
+/* The open project *is* its name box, exactly as the active strategy tab is. */
+.project-list .project-name {
+  background: var(--surface-1);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: text;
+}
+
+.project-count {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.project-add { margin-top: 12px; }
+
 @media (pointer: coarse) {
   .ghost-button,
   .preset,
@@ -2509,6 +2671,19 @@ main section,
   .assumptions-fold > summary { padding: 13px 0; }
 
   .icon-button { width: 44px; }
+
+  /* The project switch is a heading you press, so it takes no height of its own
+     on a mouse — under a thumb it has to. Padding rather than min-height, so
+     the name still sits on the heading's own baseline and the row does not grow
+     a step the pointer layout does not have. */
+  .project-switch {
+    min-height: 44px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .project-switch.is-pinned { min-height: 36px; }
+  .project-open,
+  .project-list .project-name { min-height: 44px; }
 
   /* Wide as well as tall: "In" is a two-letter chip, and 44 is a square. */
   .preset { min-width: 44px; }

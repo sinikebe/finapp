@@ -213,6 +213,10 @@ export function createStrategyJump(options) {
   let t = options.t;
 
   const bar = html('div', 'strategy-jump', mount);
+  // Where the project switch stands, ahead of the pills and outside the row
+  // that scrolls: on a phone the names slide under your thumb, and the one
+  // thing that must never slide away is which question they are answers to.
+  const lead = html('div', 'strategy-jump-lead', bar);
   const tabs = html('div', 'strategy-jump-tabs', bar);
   tabs.setAttribute('role', 'group');
   bar.hidden = true;
@@ -220,6 +224,7 @@ export function createStrategyJump(options) {
   const entries = new Map();
   let comparing = false;
   let away = false;
+  let many = false;
   let current = null;
 
   /** Scroll the row — never the page — so the name you are on is on screen.
@@ -235,9 +240,18 @@ export function createStrategyJump(options) {
 
   // Two conditions, one answer: there has to be something to switch between,
   // and the switch that is already on screen has to be off it.
+  //
+  // "Something to switch between" grew a second half when projects arrived. A
+  // reader with one plan and two projects has nothing to switch *here* and
+  // still needs to be told which project the figures they have scrolled down to
+  // belong to — which is precisely the reading mistake projects exist to
+  // prevent. With one project this is exactly the condition it always was.
   function settle() {
     const was = bar.hidden;
-    bar.hidden = !(comparing && away);
+    bar.hidden = !((comparing || many) && away);
+    // The pills are hidden rather than the bar when there is only one plan:
+    // a single pill with nothing to switch to is a control that does nothing.
+    tabs.hidden = !comparing;
     // Nothing can be measured while it is hidden, so the first look at the row
     // has to wait until it is not.
     if (was && !bar.hidden) reveal(current);
@@ -273,6 +287,15 @@ export function createStrategyJump(options) {
 
   return {
     element: bar,
+    /** Where the project switch mounts, ahead of the names. */
+    lead,
+
+    /** How many projects there are, which is the other half of whether this
+     *  bar has anything to say. */
+    setProjects(count) {
+      many = count > 1;
+      settle();
+    },
 
     update(strategies, activeId, nextLabels, nextT) {
       if (nextLabels) labels = nextLabels;

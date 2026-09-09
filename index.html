@@ -77,7 +77,14 @@
     <section class="panel inputs-panel" aria-labelledby="inputs-heading">
       <div class="panel-head">
         <div class="panel-title">
-          <h2 id="inputs-heading" data-i18n="inputs.heading">What comes in and goes out</h2>
+          <!-- The panel's heading *is* the project, because the panel is the
+               project: these fields belong to the question named here. With one
+               unnamed project it reads what this heading has always read, so a
+               store written before projects existed shows nothing new but the
+               chevron. Not a pill and never coloured — four strategy colours
+               are spoken for by the curves, and a fifth mark up here would be
+               read as a fifth legend swatch. -->
+          <h2 id="inputs-heading" class="project-heading"></h2>
           <!-- No data-i18n: its label alternates between two phrases depending
                on which way it would go, so setRail writes it. -->
           <button type="button" class="icon-button rail-toggle" id="rail-toggle"
@@ -448,6 +455,21 @@
        says how much room there is, since four plans is the most the app can
        chart and a full list is the one case where opening a link costs
        something. -->
+  <!-- The sheet, over the page rather than on it. Switching project replaces
+       every plan, every target and the horizon at once, so it is a deliberate
+       move on a plane of its own — never a second row of tabs above the first,
+       which is the one arrangement in which the two could be mistaken for each
+       other. Renaming, adding and removing live here and only here, exactly as
+       they do for strategies: one name, one box. -->
+  <dialog id="projects" class="about" aria-labelledby="projects-heading">
+    <div class="about-head">
+      <h2 id="projects-heading" data-i18n="project.heading">Projects</h2>
+      <button type="button" id="projects-close" class="ghost-button" data-i18n="about.close">Close</button>
+    </div>
+    <p class="hint" data-i18n="project.note">A project is one question with several answers in it: its own plans, its own horizon, its own targets. How money behaves is shared by all of them.</p>
+    <div id="project-mount"></div>
+  </dialog>
+
   <dialog id="shared" class="about" aria-labelledby="shared-heading">
     <div class="about-head">
       <h2 id="shared-heading" data-i18n="share.received">A plan was shared with you</h2>
@@ -456,6 +478,13 @@
     <p id="shared-room"></p>
     <p class="hint" id="shared-ask" data-i18n="share.receivedAsk"></p>
     <div class="about-confirm-actions">
+      <!-- First, and the default, because the usual link is somebody else's
+           question rather than another answer to yours: dropping their car
+           plans in beside your housing ones is the very thing projects exist
+           to stop. Adding them here is still offered — "the same, but…" is a
+           real reason to send a link — and it is what happens anyway once the
+           shelf is full. -->
+      <button id="shared-new" class="ghost-button" type="button" aria-describedby="shared-ask" data-i18n="share.receivedProject">Open as its own project</button>
       <button id="shared-open" class="ghost-button is-grave" type="button" aria-describedby="shared-ask" data-i18n="share.receivedYes">Add to my plans</button>
       <button id="shared-keep" class="ghost-button" type="button" aria-describedby="shared-ask" data-i18n="share.receivedNo">Keep my own</button>
     </div>
