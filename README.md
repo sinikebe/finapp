@@ -259,6 +259,31 @@ before you press it, and there to be typed over. The app cannot know your city,
 your rate or your tax bracket; what it can do is arrive with a complete set of
 rows so that changing four of them is a five-minute job.
 
+The second is the car: **the same car over four years, paid for four ways** —
+outright, on a loan, on a lease with an option to buy (LOA), and on a long lease
+(LLD). Every plan drives the same car with the same insurance and fuel, so what
+is compared is the financing and nothing else.
+
+It carries the three costs that get left out of the comparison people actually
+make:
+
+- **The registration**, which only the two plans that buy it pay.
+- **The servicing**, which a long lease bundles into its monthly payment and a
+  lease with an option leaves to you — most of why the LOA monthly looks lower.
+- **The bill for handing a leased car back**: wear beyond normal, missing
+  equipment, kilometres over the allowance. Commonly around a thousand euros,
+  and on nobody's advertisement.
+
+Nobody sells the car and nothing needs to: at four years the two plans that
+bought it own something worth about 13,700 and the two that leased it own
+nothing, and that difference is already in what you are worth.
+
+Unlike the housing template this one carries **no salary and no everyday costs**,
+and that is deliberate. Housing compares where you live, which only means
+something inside a household. This compares four ways of paying for one car, so
+a household would shift all four plans by the same number; leave it out and the
+total at the horizon is exactly what the car cost you.
+
 ## What it computes
 
 The model lives in [`assets/js/projection.js`](assets/js/projection.js) and is

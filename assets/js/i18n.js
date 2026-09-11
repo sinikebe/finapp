@@ -124,12 +124,24 @@ const STRINGS = {
     'field.default.coproLiving': 'Service charges you cannot pass on',
     'field.default.homeInsurance': 'Home insurance',
     'field.default.rentElsewhere': 'Rent you pay elsewhere',
+    // -------------------------------------------------- the car template
+    'field.default.car': 'The car',
+    'field.default.carPurchase': 'Buying the car',
+    'field.default.carCredit': 'Car loan',
+    'field.default.registration': 'Registration',
+    'field.default.carInsurance': 'Car insurance',
+    'field.default.fuel': 'Fuel',
+    'field.default.servicing': 'Servicing and tyres',
+    'field.default.firstRent': 'First payment',
+    'field.default.leaseRent': 'Monthly payment',
+    'field.default.returnFees': 'Charges for handing it back',
     // -------------------------------------------------------- the projects
     // A project is the question; a strategy is an answer to it. The copy holds
     // that line everywhere, because it is the whole of what a reader has to
     // learn to use this.
     'project.default.home': 'Buying a home',
     'project.default.liveOrLet': 'Live in it, or let it out',
+    'project.default.car': 'Buy the car, or lease it',
     'project.heading': 'Projects',
     'project.note': 'A project is one question with several answers in it: its own plans, its own horizon, its own targets. How money behaves is shared by all of them.',
     'project.defaultName': (position) => `Project ${position}`,
@@ -149,6 +161,10 @@ const STRINGS = {
     'strategy.default.letLmnp': 'Let it out, writing it down',
     'strategy.default.letMicro': 'Let it out, flat allowance',
     'strategy.default.letScheme': 'Let it out, on the scheme',
+    'strategy.default.carCash': 'Buy it outright',
+    'strategy.default.carCredit': 'Buy it on a loan',
+    'strategy.default.carLoa': 'Lease it, with an option (LOA)',
+    'strategy.default.carLld': 'Lease it long-term (LLD)',
     // ------------------------------------------------------- the templates
     // A template is the list of things worth putting a number against, with a
     // plausible number already there to argue with. The note says the figures
@@ -156,6 +172,7 @@ const STRINGS = {
     // looked authoritative would be worse than no template.
     'template.from': 'Or start from a template',
     'template.housing.note': 'One flat bought with a loan, and the two things you can do with it: live in it, or let it out and rent somewhere smaller yourself. Same property in all four plans; the three that let it out differ only in the tax regime. Every figure is a round example to type over.',
+    'template.car.note': 'The same car over four years, paid for four ways: outright, on a loan, on a lease with an option to buy, and on a long lease. It carries the three costs people forget — the registration on the two that buy it, the servicing a long lease bundles and a lease with an option does not, and the bill for handing it back. Every figure is a round example to type over.',
     'template.target.debtClear': 'Loan cleared',
     'template.target.worth': 'Net worth',
     'template.startedAria': (name) => `Start a project from the ${name} template`,
@@ -616,9 +633,20 @@ const STRINGS = {
     'field.default.coproLiving': 'Charges non récupérables',
     'field.default.homeInsurance': 'Assurance habitation',
     'field.default.rentElsewhere': 'Loyer que vous payez ailleurs',
+    'field.default.car': 'La voiture',
+    'field.default.carPurchase': 'Achat de la voiture',
+    'field.default.carCredit': 'Crédit auto',
+    'field.default.registration': 'Carte grise',
+    'field.default.carInsurance': 'Assurance auto',
+    'field.default.fuel': 'Carburant',
+    'field.default.servicing': 'Entretien et pneus',
+    'field.default.firstRent': 'Premier loyer majoré',
+    'field.default.leaseRent': 'Loyer mensuel',
+    'field.default.returnFees': 'Frais de restitution',
     // -------------------------------------------------------- les projets
     'project.default.home': 'Acheter un logement',
     'project.default.liveOrLet': 'Y habiter ou le louer',
+    'project.default.car': 'Acheter la voiture ou la louer',
     'project.heading': 'Projets',
     'project.note': 'Un projet, c’est une question et les réponses qu’on lui donne : ses plans, son horizon, ses objectifs. Le comportement de l’argent, lui, est commun à tous.',
     'project.defaultName': (position) => `Projet ${position}`,
@@ -638,8 +666,13 @@ const STRINGS = {
     'strategy.default.letLmnp': 'Louer, au réel (LMNP)',
     'strategy.default.letMicro': 'Louer, au micro-BIC',
     'strategy.default.letScheme': 'Louer, avec amortissement',
+    'strategy.default.carCash': 'Acheter comptant',
+    'strategy.default.carCredit': 'Acheter à crédit',
+    'strategy.default.carLoa': 'Louer en LOA',
+    'strategy.default.carLld': 'Louer en LLD',
     'template.from': 'Ou partir d’un modèle',
     'template.housing.note': 'Un logement acheté à crédit, et les deux choses qu’on peut en faire : y habiter, ou le louer et se loger plus petit ailleurs. Le même bien dans les quatre plans ; les trois qui louent ne diffèrent que par le régime fiscal. Chaque chiffre est un exemple arrondi, à remplacer par le vôtre.',
+    'template.car.note': 'La même voiture sur quatre ans, payée de quatre façons : comptant, à crédit, en LOA et en LLD. Elle porte les trois postes qu’on oublie — la carte grise pour les deux qui l’achètent, l’entretien que la LLD comprend et que la LOA laisse à votre charge, et les frais de restitution. Chaque chiffre est un exemple arrondi, à remplacer par le vôtre.',
     'template.target.debtClear': 'Crédit remboursé',
     'template.target.worth': 'Patrimoine net',
     'template.startedAria': (name) => `Créer un projet à partir du modèle ${name}`,
