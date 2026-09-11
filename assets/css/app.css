@@ -67,6 +67,59 @@
      not a mark. Dark mode steps the other way for the same reason. */
   --origin-edited: #1d616e;   /* the same, gone on since it arrived */
 
+  /* --- type ---------------------------------------------------------------
+
+     Nine sizes, where the file had thirteen: 11, 11.5, 12, 12.5, 13, 13.5, 14,
+     14.5, 15, 16, 17, 22 and 64. Six of those were half-pixel neighbours of
+     another, and half a pixel is not a step — at this size it moves no glyph a
+     reader can see, it only makes two sizes that look identical impossible to
+     tell apart in a diff. Each pair is one step here, snapped to the integer,
+     so every collapse made the text smaller or left it alone and nothing on the
+     page could newly outgrow its box. 15 went the same way for the same reason:
+     a section's name is told from the prose under it by weight, letter-spacing
+     and position, never by the pixel that used to be between them.
+
+     A 1px ladder from 11 to 17 rather than a ratio, because a ratio at this end
+     lands between pixels and this app is dense — every reading on the page is a
+     figure beside a name, and the names have to stack without fighting. The
+     ratio starts above the body size, where the figures are.
+
+     16px is not a taste: under it a phone zooms the page in on focus and does
+     not zoom back out, so every box you type in wears --type-md and nothing
+     smaller. */
+  --type-3xs: 11px;  /* a mark inside a drawing: axis ticks, flow names on a phone */
+  --type-2xs: 12px;  /* what annotates a figure: derived lines, captions, legends, the footer */
+  --type-xs: 13px;   /* secondary reading: hints, chips, small pills, a table's body */
+  --type-sm: 14px;   /* what you press, scan or are told: buttons, tabs, card and section names */
+  --type-md: 16px;   /* the document, and every box you type in */
+  --type-lg: 17px;   /* the title over the one dialog */
+  --type-xl: 22px;   /* a tile's answer */
+  --type-2xl: clamp(40px, 8vw, 56px);  /* the one figure the whole page is about */
+  --type-3xl: 64px;  /* the same figure, on a shell 3,000px wide */
+
+  /* --- space --------------------------------------------------------------
+
+     Eleven steps: a 2px grid to 12, a 4px grid to 24, an 8px grid above that.
+     The grid gets coarser as the distances get longer because that is the only
+     range in which a reader can see the difference — 2px between a label and
+     its figure is a relationship, 2px between two panels is nothing at all.
+
+     The scale governs gap, and the padding and margin that hold content off its
+     own edges. It does not govern measurements: a control's height, the room
+     reserved for a unit printed inside a box, the height of the pinned bar. A
+     handful of those stay literal and each says why where it stands. */
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 6px;
+  --space-sm: 8px;
+  --space-md: 10px;
+  --space-lg: 12px;
+  --space-xl: 16px;
+  --space-2xl: 20px;
+  --space-3xl: 24px;
+  --space-4xl: 32px;
+  --space-5xl: 40px;
+
   --radius: 14px;
   --radius-sm: 9px;
   --font: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -181,7 +234,7 @@ body {
   background: var(--plane);
   color: var(--text-primary);
   font-family: var(--font);
-  font-size: 16px;
+  font-size: var(--type-md);
   line-height: 1.5;
   min-height: 100svh;
   padding-bottom: env(safe-area-inset-bottom);
@@ -211,7 +264,7 @@ button, input, output { font: inherit; color: inherit; }
   position: absolute;
   left: 8px; top: -48px;
   z-index: 10;
-  padding: 8px 14px;
+  padding: var(--space-sm) var(--space-lg);
   background: var(--surface-1);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -227,16 +280,16 @@ button, input, output { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-xl);
   max-width: var(--shell);
   margin: 0 auto;
-  padding: 18px 20px 6px;
+  padding: var(--space-xl) var(--space-2xl) var(--space-xs);
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: var(--space-sm);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -256,7 +309,7 @@ button, input, output { font: inherit; color: inherit; }
    to start scrolling sideways — and it does: at 320px the sixth button pushed
    the document 34px wider in English and 76px in French, where every one of
    the labels is longer. */
-.app-bar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.app-bar-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 
 /* The receipt for a press of Undo. It takes the whole line under the buttons
    rather than a place among them: it is a sentence and they are words, and a
@@ -269,12 +322,12 @@ button, input, output { font: inherit; color: inherit; }
 
 .ghost-button {
   min-height: 36px;
-  padding: 6px 13px;
+  padding: var(--space-xs) var(--space-lg);
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: var(--type-sm);
   cursor: pointer;
 }
 .ghost-button:hover { border-color: var(--border-strong); color: var(--text-primary); }
@@ -285,9 +338,9 @@ button, input, output { font: inherit; color: inherit; }
 main {
   max-width: var(--shell);
   margin: 0 auto;
-  padding: 10px 20px 40px;
+  padding: var(--space-md) var(--space-2xl) var(--space-5xl);
   display: grid;
-  gap: 20px;
+  gap: var(--space-2xl);
 }
 
 .panel {
@@ -299,20 +352,20 @@ main {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 22px;
+  padding: var(--space-2xl);
   display: grid;
-  gap: 16px;
+  gap: var(--space-xl);
 }
 
 .panel h2 {
-  font-size: 15px;
+  font-size: var(--type-sm);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 /* The panel is a container so the field rows can be laid out against the width
    they actually have rather than the window's. Docked as a rail on a 1440px
-   screen it is 308px wide, which is a phone-shaped space no width query can
+   screen it is 312px wide, which is a phone-shaped space no width query can
    see. */
 .inputs-panel {
   container-type: inline-size;
@@ -325,7 +378,7 @@ main {
    form is for. */
 .panel-head {
   display: grid;
-  gap: 12px;
+  gap: var(--space-lg);
   min-width: 0;
 }
 
@@ -333,7 +386,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-lg);
   min-width: 0;
 }
 .panel-title h2 { min-width: 0; }
@@ -346,7 +399,7 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
 
 .panel-body {
   display: grid;
-  gap: 16px;
+  gap: var(--space-xl);
   min-width: 0;
 }
 
@@ -358,15 +411,15 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
 .section-notes { min-width: 0; }
 .panel-notes > summary,
 .section-notes > summary {
-  padding: 6px 0;
-  font-size: 13px;
+  padding: var(--space-xs) 0;
+  font-size: var(--type-xs);
   color: var(--text-secondary);
   cursor: pointer;
 }
 .panel-notes > summary:hover,
 .section-notes > summary:hover { color: var(--text-primary); }
 .panel-notes > * + *,
-.section-notes > * + * { margin-top: 8px; }
+.section-notes > * + * { margin-top: var(--space-sm); }
 /* The paragraphs inside carry the section's own note margins, which were sized
    to stand between blocks rather than inside one. */
 .section-notes > .section-note,
@@ -377,7 +430,7 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
    scope of each is visible without reading a word. */
 .rail {
   display: grid;
-  gap: 20px;
+  gap: var(--space-2xl);
   min-width: 0;
   /* The fields take what is left and the assumptions take what they need. */
   align-content: start;
@@ -388,20 +441,20 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
    made inline instead and the marker keeps its place. */
 .assumptions-fold > summary {
   cursor: pointer;
-  padding: 2px 0;
+  padding: var(--space-3xs) 0;
 }
 .assumptions-fold > summary h2 { display: inline; }
 .assumptions-fold > summary:hover h2 { color: var(--text-secondary); }
-.assumptions-fold > * + * { margin-top: 12px; }
+.assumptions-fold > * + * { margin-top: var(--space-lg); }
 
 /* Side by side where there is room, stacked where there is not. Below the
    breakpoint this panel is the width of the page and the two groups read as the
-   row they used to be; docked in a 308px rail they become a short list. auto-fit
+   row they used to be; docked in a 312px rail they become a short list. auto-fit
    rather than a query because the wrap is the whole rule. */
 .assumption-groups {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-  gap: 12px 20px;
+  gap: var(--space-lg) var(--space-2xl);
   min-width: 0;
 }
 
@@ -409,7 +462,7 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
    five, that was only ever legible because the row was 986px wide. */
 .assumption-group {
   display: grid;
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
 }
 .assumptions-panel .money-filter { min-width: 0; }
@@ -420,7 +473,7 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
    sticky against siblings it does not have. */
 .output {
   display: grid;
-  gap: 20px;
+  gap: var(--space-2xl);
   min-width: 0;
 }
 /* These sections have never had to opt out of `min-width: auto`, because the
@@ -441,7 +494,7 @@ body[data-rail="closed"] .rail-toggle .action-icon { transform: rotate(-90deg); 
    back. */
 .dock {
   display: grid;
-  gap: 20px;
+  gap: var(--space-2xl);
   min-width: 0;
   align-content: start;
 }
@@ -528,15 +581,15 @@ body[data-dock="off"] .dock { display: none; }
     z-index: 1;
     background: var(--surface-1);
     /* A scrollport's padding is inside it and scrolls with everything else, so
-       the panel's own 22px sat above a head pinned at `top: 0` — a strip that
+       the panel's own --space-2xl sat above a head pinned at `top: 0` — a strip that
        rows slid up through. Measured at a 900px window: a colour key and the
        three action buttons of a row that had already gone, floating over the
        panel's top edge. So the head holds that padding instead of the panel
        (which gives it up, above), and what it pins against is the top of the
        box rather than the top of the text inside it. */
-    padding-top: 22px;
-    padding-bottom: 12px;
-    margin-bottom: -4px;
+    padding-top: var(--space-2xl);
+    padding-bottom: var(--space-lg);
+    margin-bottom: calc(-1 * var(--space-2xs));
   }
 
   /* Folded, the rail keeps its place in the grid as a gutter still holding the
@@ -557,7 +610,7 @@ body[data-dock="off"] .dock { display: none; }
   .assumptions-panel { overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
   body[data-rail="closed"] .inputs-panel {
     overflow: visible;
-    padding: 8px 4px;
+    padding: var(--space-sm) var(--space-2xs);
   }
   body[data-rail="closed"] .inputs-panel > :not(.panel-head),
   body[data-rail="closed"] .panel-head > :not(.panel-title),
@@ -699,7 +752,7 @@ body[data-dock="off"] .dock { display: none; }
 
   /* The one figure the whole page is about, on a screen where 56px is a
      footnote. The clamp's 8vw term died above a 700px window years ago. */
-  .hero-value { font-size: 64px; }
+  .hero-value { font-size: var(--type-3xl); }
 }
 
 /* ---- 4220: the dock takes the comparison chart beside its table.
@@ -757,14 +810,14 @@ body[data-dock="off"] .dock { display: none; }
    it reads as space rather than as a hole. */
 @media (min-width: 3300px) {
   /* The form has been in phone mode on every screen this app has ever run on.
-     The rail is 354px, so the panel's content box is 308 — under the 554px
+     The rail is 354px, so the panel's content box is 312 — under the 558px
      `@container inputs` threshold — and it has been since the rail was built.
      Measured on a 5120px screen before this line existed: the plan switcher
-     scrolling 277px sideways inside a 308px box, field names clipped to 133px,
+     scrolling 277px sideways inside a 312px box, field names clipped to 133px,
      and 1,600px of empty screen beside it.
 
-     620 is the first rail whose content box (620 − 44 of padding − 2 of border
-     = 574) clears that threshold, so the row layout the container rules were
+     620 is the first rail whose content box (620 − 40 of padding − 2 of border
+     = 578) clears that threshold, so the row layout the container rules were
      written for finally arrives. Filed here rather than with the dock at 2400
      because it has to be paid for: at the bottom of that tier the shell is
      2,352px, and a 620px rail would leave the cards 472px — one column. Here
@@ -811,7 +864,7 @@ body[data-dock="off"] .dock { display: none; }
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
 }
 
@@ -819,7 +872,7 @@ body[data-dock="off"] .dock { display: none; }
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   min-width: 0;
 }
 
@@ -829,12 +882,12 @@ body[data-dock="off"] .dock { display: none; }
 .strategy-tab,
 .strategy-name {
   min-height: 36px;
-  padding: 6px 14px;
+  padding: var(--space-xs) var(--space-lg);
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: var(--type-sm);
   cursor: pointer;
 }
 .strategy-tab:hover { border-color: var(--border-strong); color: var(--text-primary); }
@@ -848,7 +901,9 @@ body[data-dock="off"] .dock { display: none; }
 .strategy-tab[data-origin],
 .strategy-name[data-origin],
 .strategy-jump-tab[data-origin] {
-  padding-left: 18px;
+  /* The pill's own inline padding plus the 4 the shadow paints over, said as
+     the sum it is so the two cannot drift apart. */
+  padding-left: calc(var(--space-lg) + 4px);
   box-shadow: inset 4px 0 0 var(--origin-own);
 }
 
@@ -887,7 +942,7 @@ body[data-dock="off"] .dock { display: none; }
   min-width: 0;
 }
 
-.strategy-actions { display: flex; gap: 2px; }
+.strategy-actions { display: flex; gap: var(--space-3xs); }
 
 /* Fixed, not sticky: a sticky bar keeps its place in the flow, so revealing one
    while the reader is halfway down the page shoves everything they are looking
@@ -907,7 +962,7 @@ main section,
   display: flex;
   justify-content: center;
   /* Installed on a phone this sits under the notch, so the inset is the top one. */
-  padding: calc(6px + env(safe-area-inset-top, 0px)) 12px 6px;
+  padding: calc(var(--space-xs) + env(safe-area-inset-top, 0px)) var(--space-lg) var(--space-xs);
   /* Opaque, not a translucent pane: the page scrolls underneath it, and any
      transparency puts a moving line of body text behind the names. */
   background: var(--plane);
@@ -917,11 +972,13 @@ main section,
 .strategy-jump-tabs {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   width: 100%;
   max-width: var(--shell);
   overflow-x: auto;
   scrollbar-width: none;
+  /* Room for a focus ring inside a scrollport, not spacing — see the twins in
+     the strategies section. */
   padding: 1px;
 }
 .strategy-jump-tabs::-webkit-scrollbar { display: none; }
@@ -932,12 +989,12 @@ main section,
      a 7680px screen. The px term is what holds above a 670px window. */
   max-width: min(42vw, 280px);
   min-height: 32px;
-  padding: 4px 12px;
+  padding: var(--space-2xs) var(--space-lg);
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text-secondary);
-  font-size: 13.5px;
+  font-size: var(--type-xs);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -956,12 +1013,12 @@ main section,
 
 .add-strategy {
   min-height: 36px;
-  padding: 6px 14px;
+  padding: var(--space-xs) var(--space-lg);
   background: none;
   border: 1px dashed var(--border-strong);
   border-radius: 999px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: var(--type-sm);
   cursor: pointer;
 }
 .add-strategy:hover:not([disabled]) { border-color: var(--text-muted); color: var(--text-primary); }
@@ -970,20 +1027,22 @@ main section,
 /* The twin of the strategy half of the `@media (max-width: 640px)` block in the
    field-list section, for the one case a width query cannot see: a narrow
    column of form on a wide screen, which is what this panel becomes when it is
-   docked as a rail. 554px is what the panel's content box measures inside a
+   docked as a rail. 558px is what the panel's content box measures inside a
    640px window, so every window keeps exactly the layout it had.
 
    Both exist on purpose. Container queries want Chrome 105 / Firefox 110 /
    Safari 16 and this app's floor is Chrome 88 / Firefox 98 / Safari 15.4, so
    the media query is the floor-safe baseline a real phone must keep, and this
    is the tidying a browser either understands or ignores. They never fight: a
-   phone is never inside a wide container, and a 308px rail is never inside a
+   phone is never inside a wide container, and a 312px rail is never inside a
    640px window. Do not fold one into the other. */
-@container inputs (max-width: 554px) {
+@container inputs (max-width: 558px) {
   .strategy-tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
+    /* Not a step: a scrollport clips its own children, and a tab at the edge
+       would lose the outer pixel of its focus ring without this. */
     padding: 1px;
   }
   .strategy-tabs::-webkit-scrollbar { display: none; }
@@ -994,7 +1053,7 @@ main section,
 
 /* --------------------------------------------------------------- comparing */
 
-.compare-table { max-height: none; margin-top: 4px; }
+.compare-table { max-height: none; margin-top: var(--space-2xs); }
 /* Sticky and unwrapped: the table scrolls sideways on a phone, and a name is
    what makes a row of figures mean anything — scroll the numbers out from under
    it and you are reading an anonymous row. Unwrapped because a flex item
@@ -1003,7 +1062,7 @@ main section,
 .compare-table th[scope="row"] {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   font-weight: 600;
   position: sticky;
   left: 0;
@@ -1040,13 +1099,13 @@ main section,
 
 /* ------------------------------------------------------------- field list */
 
-.field-list { display: grid; gap: 14px; min-width: 0; }
-.field-rows { display: grid; gap: 8px; min-width: 0; }
+.field-list { display: grid; gap: var(--space-lg); min-width: 0; }
+.field-rows { display: grid; gap: var(--space-sm); min-width: 0; }
 
 .field-row {
   display: flex;
   align-items: stretch;
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
 }
 
@@ -1057,7 +1116,7 @@ main section,
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-xs);
 }
 
 /* A key in the row's own series colour, so a line here ties to a chart below.
@@ -1079,11 +1138,11 @@ main section,
 .field-row select {
   min-width: 0;
   min-height: 44px;
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-lg);
   background: var(--surface-1);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  font-size: 16px;
+  font-size: var(--type-md);
 }
 .field-row input:hover,
 .field-row select:hover { border-color: var(--text-muted); }
@@ -1111,7 +1170,7 @@ main section,
   right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 12.5px;
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
   pointer-events: none;
 }
@@ -1136,7 +1195,7 @@ main section,
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 12.5px;
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
   pointer-events: none;
 }
@@ -1146,9 +1205,9 @@ main section,
    than pushing its last button off the edge, which is what it did at 320 once
    the buttons were sized for a thumb. */
 @media (max-width: 380px) {
-  main { padding-left: 12px; padding-right: 12px; }
-  .app-bar { padding-left: 12px; padding-right: 12px; }
-  .panel { padding: 16px; }
+  main { padding-left: var(--space-lg); padding-right: var(--space-lg); }
+  .app-bar { padding-left: var(--space-lg); padding-right: var(--space-lg); }
+  .panel { padding: var(--space-xl); }
 }
 
 .app-bar { flex-wrap: wrap; }
@@ -1169,6 +1228,8 @@ main section,
     flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
+    /* Not a step: a scrollport clips its own children, and a tab at the edge
+       would lose the outer pixel of its focus ring without this. */
     padding: 1px;
   }
   .strategy-tabs::-webkit-scrollbar { display: none; }
@@ -1202,7 +1263,7 @@ main section,
    above, and both are read as figures, so both want the same ink. */
 .field-derived {
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -1219,7 +1280,7 @@ main section,
 /* Scoped to out-specify `.field-row input` above, which sets the padding
    shorthand. The value is right-aligned, so its left padding is decoration —
    trimming it is what lets a seven-digit amount fit on a phone. */
-.field-row .field-amount { padding-left: 8px; }
+.field-row .field-amount { padding-left: var(--space-sm); }
 
 .field-amount::-webkit-outer-spin-button,
 .field-amount::-webkit-inner-spin-button {
@@ -1237,7 +1298,7 @@ main section,
    the rest of the grid, further down. */
 .field-actions {
   display: flex;
-  gap: 2px;
+  gap: var(--space-3xs);
 }
 
 .icon-button {
@@ -1277,12 +1338,12 @@ main section,
 .add-field {
   justify-self: start;
   min-height: 40px;
-  padding: 8px 14px;
+  padding: var(--space-sm) var(--space-lg);
   background: none;
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: var(--type-sm);
   font-weight: 500;
   cursor: pointer;
 }
@@ -1292,16 +1353,16 @@ main section,
 }
 
 .fields-empty {
-  font-size: 13px;
+  font-size: var(--type-xs);
   color: var(--text-secondary);
 }
 
 .hint {
-  font-size: 13px;
+  font-size: var(--type-xs);
   color: var(--text-secondary);
 }
 
-.currency-note { color: var(--text-secondary); font-size: 12.5px; }
+.currency-note { color: var(--text-secondary); font-size: var(--type-2xs); }
 
 /* What sets a month: the box, or a target it waits on. The picker is hidden
    outright until some target has a name, so a reader who never names one never
@@ -1326,7 +1387,7 @@ main section,
    back to being the arithmetic. Everything from here to the end of the section
    is that arrangement, and it comes last so it out-orders the base rules above
    without any of them needing an override written against it. */
-.field-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.field-head { display: flex; align-items: center; gap: var(--space-sm); min-width: 0; }
 /* The name takes all the slack: it runs to 60 characters and the amount does
    not. The name needs the explicit `min-width: 0` — a flex item floors at its
    own min-content otherwise, and a long name would push the amount off the row.
@@ -1353,7 +1414,7 @@ main section,
 .field-detail {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
+  gap: var(--space-sm);
   align-items: center;
   min-width: 0;
 }
@@ -1373,7 +1434,7 @@ main section,
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
 }
 /* A month box was sized for a world without the picker, and beside one the
@@ -1390,7 +1451,7 @@ main section,
    left, so the leading word comes out of its overlay and stands in the line:
    "from · Deposit ready · not yet" rather than a word printed across a name.
    It was legible only as long as the picker was too narrow to say anything. */
-.field-when.is-said { gap: 6px; align-items: center; }
+.field-when.is-said { gap: var(--space-xs); align-items: center; }
 .field-when.is-said .when-word { position: static; transform: none; }
 
 /* Last in the fold and at its end, where the row's own tab order leaves them:
@@ -1404,7 +1465,7 @@ main section,
 
 /* The twin of the `@media (max-width: 640px)` block above, for the one case a
    width query cannot see: a narrow column of form on a wide screen, which is
-   what the panel becomes when it is docked as a rail. 554px is what that
+   what the panel becomes when it is docked as a rail. 558px is what that
    panel's content box measures inside a 640px window, so every window keeps
    exactly the layout it had.
 
@@ -1414,7 +1475,7 @@ main section,
    the browser understands it, which is precisely what makes it safe to add.
    They never fight: a phone is never inside a wide container, and a narrow
    column is never inside a 640px window. Do not fold one into the other. */
-@container inputs (max-width: 554px) {
+@container inputs (max-width: 558px) {
   /* Half a row leaves ~40px for the number once the unit is in the box, so the
      unit says "%" rather than "% a year" — the label still spells it out. */
   .field-unit .unit-full { display: none; }
@@ -1461,19 +1522,19 @@ main section,
 
 /* ---------------------------------------------------------------- summary */
 
-.summary { gap: 20px; }
+.summary { gap: var(--space-2xl); }
 
-.hero { display: grid; gap: 4px; justify-items: start; }
+.hero { display: grid; gap: var(--space-2xs); justify-items: start; }
 
 .hero-label {
-  font-size: 13px;
+  font-size: var(--type-xs);
   font-weight: 500;
   color: var(--text-secondary);
   text-transform: none;
 }
 
 .hero-value {
-  font-size: clamp(40px, 8vw, 56px);
+  font-size: var(--type-2xl);
   font-weight: 650;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -1490,9 +1551,9 @@ main section,
 .status-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 2px;
-  font-size: 13.5px;
+  gap: var(--space-xs);
+  margin-top: var(--space-3xs);
+  font-size: var(--type-xs);
   font-weight: 500;
 }
 .status-chip.is-good { color: var(--status-good); }
@@ -1511,7 +1572,7 @@ main section,
 
 .kpi-row {
   display: grid;
-  gap: 12px;
+  gap: var(--space-lg);
   /* 140px, and it is a ceiling as much as a floor. Four pixels is not a taste:
      at 148 a 360px phone drops to one tile a line, and at 148 the six tiles
      stop fitting on one line in the 986px reading column, which costs 78px of
@@ -1525,20 +1586,20 @@ main section,
      shorter as the column grows. */
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   margin: 0;
-  padding-top: 4px;
+  padding-top: var(--space-2xs);
   border-top: 1px solid var(--border);
 }
 
-.stat-tile { display: grid; gap: 2px; padding-top: 12px; }
+.stat-tile { display: grid; gap: var(--space-3xs); padding-top: var(--space-lg); }
 
 .stat-tile dt {
-  font-size: 13px;
+  font-size: var(--type-xs);
   color: var(--text-secondary);
 }
 
 .stat-tile dd {
   margin: 0;
-  font-size: 22px;
+  font-size: var(--type-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -1549,14 +1610,14 @@ main section,
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: 14px 24px;
-  padding: 0 2px;
+  gap: var(--space-lg) var(--space-3xl);
+  padding: 0 var(--space-3xs);
 }
 
-.filter { display: grid; gap: 6px; min-width: 260px; flex: 1 1 260px; }
+.filter { display: grid; gap: var(--space-xs); min-width: 260px; flex: 1 1 260px; }
 
 .filter label {
-  font-size: 14px;
+  font-size: var(--type-sm);
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -1565,7 +1626,7 @@ main section,
    to 299px — three more than a 320px phone has once the shell's padding is
    taken out, which is exactly the three pixels the page used to scroll
    sideways by. */
-.range-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.range-line { display: flex; align-items: center; gap: var(--space-lg); flex-wrap: wrap; }
 
 .range-line input[type="range"] {
   flex: 1 1 auto;
@@ -1575,23 +1636,23 @@ main section,
 }
 
 .range-line #months-readout {
-  font-size: 13.5px;
+  font-size: var(--type-xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   color: var(--text-secondary);
 }
 
-.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
 
 .preset {
   min-height: 34px;
-  padding: 4px 12px;
+  padding: var(--space-2xs) var(--space-lg);
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text-secondary);
-  font-size: 13.5px;
+  font-size: var(--type-xs);
   cursor: pointer;
 }
 .preset:hover { border-color: var(--border-strong); color: var(--text-primary); }
@@ -1604,10 +1665,10 @@ main section,
 
 /* --------------------------------------------------------------- charts */
 
-.charts-section { display: grid; gap: 10px; }
+.charts-section { display: grid; gap: var(--space-md); }
 
 .charts-section h2 {
-  font-size: 15px;
+  font-size: var(--type-sm);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -1634,15 +1695,15 @@ main section,
 .panel-notes p,
 .section-notes p { max-width: 72ch; }
 
-.section-note { font-size: 14px; color: var(--text-secondary); min-height: 1.5em; }
+.section-note { font-size: var(--type-sm); color: var(--text-secondary); min-height: 1.5em; }
 
-.scale-note { font-size: 12.5px; color: var(--text-secondary); }
+.scale-note { font-size: var(--type-2xs); color: var(--text-secondary); }
 
 /* The money row sits under the horizon row and carries one toggle plus, once
    it is on, the assumption behind it. Its own row so the horizon presets keep
    their line on a narrow screen. */
 .money-row {
-  margin-top: -4px;
+  margin-top: calc(-1 * var(--space-2xs));
 }
 
 .money-filter {
@@ -1650,28 +1711,28 @@ main section,
 }
 
 .money-filter .range-line {
-  gap: 6px;
+  gap: var(--space-xs);
 }
 
 .money-filter input {
   /* Wide enough for "12.5", no wider: it is a rate, not an amount. */
   width: 5.5ch;
   text-align: right;
-  padding: 6px 8px;
+  padding: var(--space-xs) var(--space-sm);
   font: inherit;
   color: inherit;
   background: var(--surface-1);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
 }
 
 .money-filter .rate-unit {
   color: var(--text-muted);
-  font-size: 0.9rem;
+  font-size: var(--type-sm);
 }
 
 .money-note {
-  margin: -2px 0 2px;
+  margin: calc(-1 * var(--space-3xs)) 0 var(--space-3xs);
 }
 
 /* A pressed link reads as a state, not a hover: the field is joined to its
@@ -1683,11 +1744,11 @@ main section,
 
 .chart-grid {
   display: grid;
-  gap: 16px;
+  gap: var(--space-xl);
   /* min() keeps the floor from outgrowing the viewport itself: a bare 320px
      minimum makes the grid wider than a 320px screen and scrolls the page. */
   grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
-  margin: 4px 0 2px;
+  margin: var(--space-2xs) 0 var(--space-3xs);
 }
 
 /* Four cards read better two-by-two than as three and a lonely fourth. */
@@ -1813,29 +1874,29 @@ main section,
 
 .chart-card {
   margin: 0;
-  padding: 18px 16px 14px;
+  padding: var(--space-xl) var(--space-xl) var(--space-lg);
   background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   display: grid;
-  gap: 10px;
+  gap: var(--space-md);
   align-content: start;
   min-width: 0;
 }
 
-.chart-head { display: grid; gap: 2px; }
+.chart-head { display: grid; gap: var(--space-3xs); }
 
 .chart-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14.5px;
+  gap: var(--space-sm);
+  font-size: var(--type-sm);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .chart-desc {
-  font-size: 12.5px;
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
   /* Two lines' worth, so a longer translation doesn't push one plot out of
      alignment with the small multiples beside it. */
@@ -1863,13 +1924,13 @@ main section,
 
 .tick-label {
   fill: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--type-3xs);
   font-variant-numeric: tabular-nums;
 }
 
 /* ------------------------------------------------------------ the flow */
 
-.sankey-card { margin: 4px 0 2px; }
+.sankey-card { margin: var(--space-2xs) 0 var(--space-3xs); }
 .sankey-plot { min-height: 340px; }
 .sankey-svg { width: 100%; display: block; overflow: visible; }
 
@@ -1900,7 +1961,7 @@ main section,
 /* Text wears text tokens, never the series colour — the node beside it carries
    the identity. */
 .sankey-label {
-  font-size: 12.5px;
+  font-size: var(--type-2xs);
   fill: var(--text-primary);
   dominant-baseline: auto;
 }
@@ -1909,7 +1970,7 @@ main section,
 @media (max-width: 640px) {
   /* Names and amounts stop fitting the gutters long before the ribbons stop
      being readable, so the phone gets the shape and the table gets the rest. */
-  .sankey-label { font-size: 11px; }
+  .sankey-label { font-size: var(--type-3xs); }
   .sankey-amount { display: none; }
 }
 
@@ -1941,7 +2002,7 @@ main section,
 
 .end-label {
   fill: var(--text-primary);
-  font-size: 12px;
+  font-size: var(--type-2xs);
   font-weight: 600;
 }
 
@@ -1950,9 +2011,9 @@ main section,
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 0 24px;
+  padding: 0 var(--space-3xl);
   text-align: center;
-  font-size: 13px;
+  font-size: var(--type-xs);
   color: var(--text-secondary);
 }
 
@@ -1961,9 +2022,9 @@ main section,
   z-index: 2;
   transform: translate(-50%, calc(-100% - 14px));
   display: grid;
-  gap: 1px;
+  gap: var(--space-3xs);
   min-width: 96px;
-  padding: 7px 10px;
+  padding: var(--space-xs) var(--space-md);
   background: var(--surface-1);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -1977,8 +2038,8 @@ main section,
 .chart-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  margin: -2px 0 0;
+  gap: var(--space-2xs) var(--space-lg);
+  margin: calc(-1 * var(--space-3xs)) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -1986,8 +2047,8 @@ main section,
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
+  gap: var(--space-xs);
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
 }
 
@@ -1998,7 +2059,7 @@ main section,
   background: var(--series);
 }
 
-.chart-tip-rows { display: grid; gap: 2px; }
+.chart-tip-rows { display: grid; gap: var(--space-3xs); }
 
 .chart-tip-row {
   display: grid;
@@ -2006,7 +2067,7 @@ main section,
      1fr floors at min-content, and the label in the middle is a plan's name. */
   grid-template-columns: 14px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .chart-tip-row .chart-tip-key {
@@ -2017,28 +2078,28 @@ main section,
 }
 
 .chart-tip-label {
-  font-size: 12px;
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .chart-tip-value {
-  font-size: 15px;
+  font-size: var(--type-sm);
   font-weight: 650;
   letter-spacing: -0.01em;
 }
 
-.chart-tip-month { font-size: 11.5px; color: var(--text-secondary); }
+.chart-tip-month { font-size: var(--type-3xs); color: var(--text-secondary); }
 
 /* ----------------------------------------------------------- table view */
 
 .table-toggle {
   justify-self: start;
-  padding: 4px 0;
+  padding: var(--space-2xs) 0;
   background: none;
   border: none;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--type-xs);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
@@ -2050,17 +2111,17 @@ main section,
 .data-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--type-xs);
   font-variant-numeric: tabular-nums;
 }
 .data-table caption {
-  padding: 8px 0 6px;
+  padding: var(--space-sm) 0 var(--space-xs);
   text-align: left;
-  font-size: 12.5px;
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
 }
 .data-table th, .data-table td {
-  padding: 4px 8px;
+  padding: var(--space-2xs) var(--space-sm);
   text-align: left;
   border-bottom: 1px solid var(--grid-line);
   font-weight: 400;
@@ -2084,7 +2145,7 @@ main section,
  */
 .rank-list {
   display: grid;
-  gap: 6px;
+  gap: var(--space-xs);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -2101,9 +2162,9 @@ main section,
   display: grid;
   grid-template-columns: minmax(0, 240px) minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-md);
   min-width: 0;
-  font-size: 13.5px;
+  font-size: var(--type-xs);
 }
 
 /* One line, ellipsed: a field can be named up to sixty characters and the
@@ -2148,7 +2209,7 @@ main section,
 @media (max-width: 420px) {
   .rank-row {
     grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 2px;
+    row-gap: var(--space-3xs);
   }
   .rank-name { grid-column: 1 / -1; }
 }
@@ -2173,15 +2234,15 @@ main section,
   shape-rendering: crispEdges;
 }
 
-.milestone-list { display: grid; gap: 14px; min-width: 0; }
-.milestone-rows { display: grid; gap: 10px; min-width: 0; }
+.milestone-list { display: grid; gap: var(--space-lg); min-width: 0; }
+.milestone-rows { display: grid; gap: var(--space-md); min-width: 0; }
 
 /* The question on one line, its answer under it — the shape a field row takes
    for what a loan works out to, because it is the same relationship. */
 .milestone-row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--space-2xs);
   min-width: 0;
 }
 
@@ -2191,7 +2252,7 @@ main section,
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
 }
 
@@ -2199,11 +2260,11 @@ main section,
 .milestone-row select {
   min-width: 0;
   min-height: 44px;
-  padding: 8px 12px;
+  padding: var(--space-sm) var(--space-lg);
   background: var(--surface-1);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  font-size: 16px;
+  font-size: var(--type-md);
 }
 .milestone-row input:hover,
 .milestone-row select:hover { border-color: var(--text-muted); }
@@ -2236,20 +2297,20 @@ main section,
   max-width: 220px;
   /* The value is right-aligned, so its left padding is decoration — trimming
      it is what lets a seven-digit target fit on a phone. */
-  padding-left: 8px;
+  padding-left: var(--space-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-.milestone-actions { flex: 0 0 auto; display: flex; gap: 2px; }
+.milestone-actions { flex: 0 0 auto; display: flex; gap: var(--space-3xs); }
 
 /* The answer, in the same ink and the same size as everything else the app
    derives rather than asks for. */
 .milestone-said {
   margin: 0;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -2261,7 +2322,7 @@ main section,
    margin does the spacing instead, and an empty answer gives that up. */
 .milestone-ask {
   min-width: 0;
-  margin-top: 2px;
+  margin-top: var(--space-3xs);
 }
 
 /* Wraps as a group, the way the boxes above it do: on a phone the picker takes
@@ -2270,7 +2331,7 @@ main section,
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
 }
 
@@ -2282,9 +2343,9 @@ main section,
 /* The one thing on the row the reader asked for outright, so it is in the
    reading ink rather than the derived grey the line above it wears. */
 .milestone-answer {
-  margin: 6px 0 0;
+  margin: var(--space-xs) 0 0;
   min-width: 0;
-  font-size: 12.5px;
+  font-size: var(--type-2xs);
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
@@ -2297,8 +2358,8 @@ main section,
 .app-footer {
   max-width: var(--shell);
   margin: 0 auto;
-  padding: 0 20px 32px;
-  font-size: 12.5px;
+  padding: 0 var(--space-2xl) var(--space-4xl);
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
 }
 
@@ -2310,13 +2371,13 @@ main section,
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px 10px 16px;
+  gap: var(--space-lg);
+  padding: var(--space-md) var(--space-lg) var(--space-md) var(--space-xl);
   background: var(--surface-1);
   border: 1px solid var(--border-strong);
   border-radius: 999px;
   box-shadow: var(--shadow);
-  font-size: 14px;
+  font-size: var(--type-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2333,11 +2394,11 @@ main section,
 .about {
   width: min(560px, calc(100vw - 32px));
   max-height: min(72vh, 720px);
-  padding: 20px;
+  padding: var(--space-2xl);
   background: var(--surface-1);
   color: var(--text-primary);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: auto;
   overscroll-behavior: contain;
@@ -2348,13 +2409,13 @@ main section,
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
 }
-.about-head h2 { margin: 0; font-size: 17px; }
+.about-head h2 { margin: 0; font-size: var(--type-lg); }
 .about h3 {
-  margin: 20px 0 8px;
-  font-size: 13px;
+  margin: var(--space-2xl) 0 var(--space-sm);
+  font-size: var(--type-xs);
   font-weight: 600;
   color: var(--text-secondary);
 }
@@ -2364,34 +2425,36 @@ main section,
 .about-build {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px 16px;
+  gap: var(--space-sm) var(--space-xl);
   margin: 0;
 }
 .about-build div { min-width: 0; }
-.about-build dt { font-size: 12px; color: var(--text-secondary); }
+.about-build dt { font-size: var(--type-2xs); color: var(--text-secondary); }
 .about-build dd {
   margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
+  font-size: var(--type-xs);
   /* A branch name is one long token; let it break rather than overflow. */
   overflow-wrap: anywhere;
 }
 
 /* The caveat belongs with the facts it qualifies, not crowded against them. */
-#about-note { margin: 10px 0 0; }
+#about-note { margin: var(--space-md) 0 0; }
 
 .about-log { margin: 0; padding: 0; list-style: none; }
 
 .about-release {
-  padding: 10px 0;
+  padding: var(--space-md) 0;
   border-top: 1px solid var(--grid-line);
 }
 .about-release:first-child { border-top: none; }
 /* The one being run, marked in ink rather than colour alone: the strip is a
    second cue, not the only one. */
 .about-release[aria-current="true"] {
-  margin-left: -12px;
-  padding-left: 9px;
+  /* Out by a step and back by the same step: the 3px rule is drawn in the
+     room the negative margin opened, so the text never moves. */
+  margin-left: calc(-1 * var(--space-lg));
+  padding-left: calc(var(--space-lg) - 3px);
   border-left: 3px solid var(--accent);
 }
 
@@ -2399,40 +2462,40 @@ main section,
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
-  gap: 8px;
-  margin: 0 0 2px;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-3xs);
 }
-.about-version { font-weight: 600; font-size: 13.5px; }
-.about-when { font-size: 12px; color: var(--text-secondary); }
+.about-version { font-weight: 600; font-size: var(--type-xs); }
+.about-when { font-size: var(--type-2xs); color: var(--text-secondary); }
 .about-commit-ref {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
+  font-size: var(--type-2xs);
   color: var(--text-secondary);
 }
-.about-what { margin: 0; font-size: 13.5px; color: var(--text-secondary); }
+.about-what { margin: 0; font-size: var(--type-xs); color: var(--text-secondary); }
 
 .about-update,
 .about-reset {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-lg);
   flex-wrap: wrap;
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: var(--space-xl);
+  padding-top: var(--space-xl);
   border-top: 1px solid var(--grid-line);
 }
 .about-update .hint,
 .about-reset .hint { margin: 0; flex: 1 1 220px; }
 
 .about-confirm {
-  margin-top: 16px;
-  padding: 12px 14px;
+  margin-top: var(--space-xl);
+  padding: var(--space-lg) var(--space-lg);
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius);
 }
-.about-confirm p { margin: 0 0 10px; font-size: 13.5px; }
-.about-confirm-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.about-confirm p { margin: 0 0 var(--space-md); font-size: var(--type-xs); }
+.about-confirm-actions { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
 
 /* The link being handed over. Monospace because it is an address rather than
    prose, and read to check it, not for pleasure; `text-overflow` rather than a
@@ -2440,24 +2503,24 @@ main section,
    the box is selected on opening so the whole of it is copied either way. */
 .share-link {
   width: 100%;
-  margin-top: 12px;
-  padding: 10px 12px;
+  margin-top: var(--space-lg);
+  padding: var(--space-md) var(--space-lg);
   font: inherit;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-size: var(--type-xs);
   color: var(--text-primary);
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   text-overflow: ellipsis;
 }
 
 .share-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-lg);
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: var(--space-lg);
 }
 
 .share-actions .hint { margin: 0; }
@@ -2519,11 +2582,11 @@ main section,
 .project-switch {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   min-width: 0;
   max-width: 100%;
-  margin-left: -8px;   /* so the text still lines up with the heading it replaced */
-  padding: 4px 8px;
+  margin-left: calc(-1 * var(--space-sm));   /* so the text still lines up with the heading it replaced */
+  padding: var(--space-2xs) var(--space-sm);
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -2569,13 +2632,13 @@ main section,
   /* The rule is the whole of the separation, and it is doing real work: it says
      the button on its left and the pills on its right are two different kinds
      of thing rather than one row of six. */
-  padding-right: 8px;
-  margin-right: 8px;
+  padding-right: var(--space-sm);
+  margin-right: var(--space-sm);
   border-right: 1px solid var(--border);
 }
 .project-switch.is-pinned {
   margin-left: 0;
-  padding: 3px 6px;
+  padding: var(--space-2xs) var(--space-xs);
   /* Measured, and the vw term is the one that matters. At 42vw the lead took
      159 of a 390px bar and left the three names 197px to scroll in, against
      366 before it existed — one and a bit names visible instead of two and a
@@ -2584,7 +2647,7 @@ main section,
      these plans answer, and the pills beside it are what the reader came to
      press. */
   max-width: min(30vw, 220px);
-  font-size: 13.5px;
+  font-size: var(--type-xs);
   color: var(--text-secondary);
 }
 .project-switch.is-pinned:hover { color: var(--text-primary); }
@@ -2594,8 +2657,8 @@ main section,
    alone cannot: how many plans are in it, and how far they run. */
 .project-list {
   display: grid;
-  gap: 6px;
-  margin: 12px 0 0;
+  gap: var(--space-xs);
+  margin: var(--space-lg) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -2603,9 +2666,9 @@ main section,
 .project-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   min-width: 0;
-  padding: 4px;
+  padding: var(--space-2xs);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
 }
@@ -2619,12 +2682,12 @@ main section,
   flex: 1 1 auto;
   min-width: 0;
   min-height: 40px;
-  padding: 6px 10px;
+  padding: var(--space-xs) var(--space-md);
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 14.5px;
+  font-size: var(--type-sm);
   text-align: left;
   cursor: pointer;
 }
@@ -2641,12 +2704,12 @@ main section,
 .project-count {
   flex: none;
   color: var(--text-muted);
-  font-size: 12.5px;
+  font-size: var(--type-2xs);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.project-add { margin-top: 12px; }
+.project-add { margin-top: var(--space-lg); }
 
 /* ---------------------------------------------------------- the templates */
 
@@ -2658,17 +2721,17 @@ main section,
    are said to be examples, and that has to be read before the button is pressed
    rather than discovered after. */
 .template-shelf {
-  margin-top: 16px;
-  padding-top: 14px;
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
   border-top: 1px solid var(--border);
 }
 
 .template-from {
-  margin: 0 0 8px;
+  margin: 0 0 var(--space-sm);
 }
 
 .template-row + .template-row {
-  margin-top: 10px;
+  margin-top: var(--space-md);
 }
 
 .template-start {
@@ -2678,7 +2741,7 @@ main section,
 }
 
 .template-note {
-  margin: 5px 2px 0;
+  margin: var(--space-2xs) var(--space-3xs) 0;
 }
 
 @media (pointer: coarse) {
@@ -2711,8 +2774,8 @@ main section,
      a step the pointer layout does not have. */
   .project-switch {
     min-height: 44px;
-    padding-top: 8px;
-    padding-bottom: 8px;
+    padding-top: var(--space-sm);
+    padding-bottom: var(--space-sm);
   }
   .project-switch.is-pinned { min-height: 36px; }
   .project-open,
@@ -2739,7 +2802,7 @@ main section,
      neither did the box holding a share link, which is focused and selected the
      moment the panel opens, so it would zoom before the reader touched it. */
   .strategy-name,
-  .share-link { font-size: 16px; }
+  .share-link { font-size: var(--type-md); }
 
   .share-link { min-height: 44px; }
 
