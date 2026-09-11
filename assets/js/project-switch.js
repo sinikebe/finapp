@@ -22,6 +22,7 @@
 import { html } from './dom.js';
 import { actionIcon } from './field-list.js';
 import { nameOf, MAX_NAME_LENGTH, MAX_PROJECTS } from './projects.js';
+import { TEMPLATES } from './templates.js';
 
 /**
  * The mark that says a list opens here — and deliberately **not** the chevron.
@@ -98,6 +99,30 @@ export function createProjectList(options) {
   add.type = 'button';
   add.addEventListener('click', () => onCommand({ type: 'add' }));
 
+  /*
+   * The templates, under the blank one rather than instead of it.
+   *
+   * "Start another project" keeps doing exactly what it did — one press, no
+   * decision, an empty form — because a reader who knows what they are asking
+   * should not have to decline a menu first. The templates are the second line,
+   * for the reader who does not yet know which questions the subject *has*.
+   *
+   * Each is a button carrying the template's name, with its note underneath in
+   * hint type. The note is not a tooltip: it is where the figures are said to
+   * be examples, and that has to be legible before the button is pressed rather
+   * than after.
+   */
+  const shelf = html('div', 'template-shelf', mount);
+  const fromLine = html('p', 'hint template-from', shelf);
+  const buttons = TEMPLATES.map((template) => {
+    const row = html('div', 'template-row', shelf);
+    const button = html('button', 'ghost-button template-start', row);
+    button.type = 'button';
+    button.addEventListener('click', () => onCommand({ type: 'template', template: template.id }));
+    const note = html('p', 'hint template-note', row);
+    return { template, button, note };
+  });
+
   const entries = new Map();
 
   function createEntry(id) {
@@ -137,6 +162,18 @@ export function createProjectList(options) {
       if (nextT) t = nextT;
       add.textContent = labels.add;
       add.disabled = projects.length >= MAX_PROJECTS;
+      // The whole shelf goes when there is no room, rather than sitting there
+      // greyed: at six projects it is not a choice the reader can make, and a
+      // row of disabled buttons with their notes under them is a paragraph of
+      // copy about something that cannot happen.
+      shelf.hidden = projects.length >= MAX_PROJECTS;
+      fromLine.textContent = labels.templateFrom;
+      for (const entry of buttons) {
+        const name = t(entry.template.nameKey);
+        entry.button.textContent = name;
+        entry.button.setAttribute('aria-label', labels.templateAria(name));
+        entry.note.textContent = t(entry.template.noteKey);
+      }
 
       let cursor = list.firstChild;
       const present = new Set();

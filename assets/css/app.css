@@ -2648,6 +2648,39 @@ main section,
 
 .project-add { margin-top: 12px; }
 
+/* ---------------------------------------------------------- the templates */
+
+/* Under the blank one, and separated by a rule rather than by space alone: the
+   two are not alternatives of the same weight. "Start another project" is the
+   fast path and keeps the button shape it always had; a template is a second
+   thought, for a reader who does not yet know which questions the subject has.
+   The note under each is hint type and always visible — it is where the figures
+   are said to be examples, and that has to be read before the button is pressed
+   rather than discovered after. */
+.template-shelf {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.template-from {
+  margin: 0 0 8px;
+}
+
+.template-row + .template-row {
+  margin-top: 10px;
+}
+
+.template-start {
+  display: block;
+  width: 100%;
+  text-align: left;
+}
+
+.template-note {
+  margin: 5px 2px 0;
+}
+
 @media (pointer: coarse) {
   .ghost-button,
   .preset,
@@ -2684,6 +2717,7 @@ main section,
   .project-switch.is-pinned { min-height: 36px; }
   .project-open,
   .project-list .project-name { min-height: 44px; }
+  .template-start { min-height: 44px; }
 
   /* Wide as well as tall: "In" is a two-letter chip, and 44 is a square. */
   .preset { min-width: 44px; }

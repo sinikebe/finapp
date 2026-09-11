@@ -47,6 +47,7 @@ import {
   neighbourOf as projectNeighbourOf, nameOf as projectNameOf,
 } from './projects.js';
 import { createProjectSwitch, createProjectList } from './project-switch.js';
+import { templateOf } from './templates.js';
 import { schedule } from './schedule.js';
 import { decodePlan, linkFor, planInHash } from './share.js';
 import { remember, takeBack, nextBack, restoreShelf, missingFrom } from './history.js';
@@ -2190,6 +2191,8 @@ function projectLabels() {
     openNamed: (name) => t('project.openNamed', name),
     removeNamed: (name) => t('project.removeNamed', name),
     count: (plans, months) => t('project.count', plans, formatHorizon(months, t)),
+    templateFrom: t('template.from'),
+    templateAria: (name) => t('template.startedAria', name),
   };
 }
 
@@ -2283,6 +2286,46 @@ function runProjectCommand(command) {
       save();
       render();
       projectList.focusName(created.id);
+      return;
+    }
+
+    case 'template': {
+      /*
+       * A project that arrives with its figures already in it.
+       *
+       * Everything below the first two lines is what `add` does, and on purpose:
+       * a template is not a different kind of project, it is the same empty one
+       * with rows already typed into it. So it takes the same route — parked,
+       * added, opened — and the reader can rename it, remove it or undo their
+       * way out of it exactly as they can any other.
+       *
+       * The sheet closes rather than staying open on the name box. `add` keeps
+       * it open because an empty project has nothing to show and a name is the
+       * only thing to give it; a template has thirteen rows and three plans to
+       * look at, and standing a modal over them would be standing it over the
+       * answer the reader just asked for.
+       */
+      if (state.projects.length >= MAX_PROJECTS) return;
+      const template = templateOf(command.template);
+      if (!template) return;
+      const built = template.build(t);
+      const created = normalizeProject({ nameKey: built.nameKey }, projectCoerce, false);
+      state.projects = addProject(
+        parkOpen(state.projects, state.openProjectId, state), created,
+      );
+      state.openProjectId = created.id;
+      Object.assign(state, normalizePlan(built, projectCoerce));
+      state.projects = state.projects.map(
+        (project) => (project.id === created.id ? { ...project, plan: null } : project),
+      );
+      forgetRanking();
+      forgetAsked();
+      metricChosen = false;
+      fillControls();
+      save();
+      render();
+      ui.projectsDialog.close();
+      projectSwitch.element.focus();
       return;
     }
 
