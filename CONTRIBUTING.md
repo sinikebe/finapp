@@ -75,7 +75,8 @@ index.html                   markup + i18n hooks (data-i18n)
 manifest.webmanifest         installability (manifest.fr.webmanifest: the same
                              app, named in French)
 sw.js                        offline shell
-assets/css/app.css           design tokens (light + dark), shell, chart chrome
+assets/css/app.css           design tokens (light + dark), shell, chart chrome —
+                             described in docs/design-system.md
 assets/js/fields.js          the field model — shape, coercion, operations
 assets/js/strategies.js      the strategy model — a named set of fields
 assets/js/projects.js        the project model — one comparison each, and the
@@ -105,7 +106,9 @@ tools/generate-icons.mjs     icon set, rendered from a vector description
 tools/serve.mjs              development server (never deployed)
 tools/stamp-version.mjs      writes version.js from sw.js and the git checkout
 test/                        node:test unit tests
-docs/                        the screenshots the README shows
+docs/design-system.md        the design system: tokens, the two scales, what
+                             colour is allowed to mean, the tier ladder
+docs/                        and the screenshots the README shows
 ```
 
 ## Extending it
