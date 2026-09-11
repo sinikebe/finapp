@@ -2567,13 +2567,26 @@ main section,
    so that it can never be mistaken for the strategy tabs two lines below.
 
    The tabs are pills, in a row, of equal weight, one of them selected, and one
-   of them a text box. This is a single left-aligned control with the weight of
-   the heading it replaced and a chevron on the end — the same chevron as the
-   button that folds the form and the same one a <summary> carries, which is
-   this app's one mark for "there is more behind this". It never takes a
-   strategy colour, never a swatch and never an origin edge: four strategy
-   colours are spoken for by the curves in the comparison, and a fifth mark up
-   here would be read as a fifth legend entry. Its only colour is text. */
+   of them a text box. This is a single left-aligned control carrying the weight
+   of the heading it replaced, in a **field-shaped box with a caret in its own
+   compartment** — which is this app's other mark for "a list opens here", worn
+   by every <select> in the form below. (It is not the fold button's chevron and
+   never was: that one is stroked, 20px and out at the panel's edge, and
+   `project-switch.js` says at length why two marks that could be mistaken for
+   each other would be worse than none.)
+
+   Shape is what tells the two switchers apart, and it is doing real work. A
+   stadium means *a peer you switch between*, and there is a row of them below.
+   A 9px rectangle with a hairline outline means *a control that takes a value*,
+   and every input and select in the panel is one. So the project switch is the
+   second kind and never the first: same radius as the boxes under it, same
+   `--border-strong` hairline, and a divided caret cell no field wears — because
+   this one opens a sheet rather than a keyboard.
+
+   It never takes a strategy colour, never a swatch and never an origin edge:
+   four strategy colours are spoken for by the curves in the comparison, and a
+   fifth mark up here would be read as a fifth legend entry. Its only colour is
+   text and chrome. */
 
 .project-heading {
   /* Takes the room the fold button leaves rather than only its own content's:
@@ -2593,13 +2606,37 @@ main section,
 .project-switch {
   display: inline-flex;
   align-items: center;
+  /* 6 before the rule and 8 after it, which is not a slip: the caret needs the
+     room to sit off the box's edge, the name does not, and the two pixels are
+     the difference between the upgrade store's heading fitting a 390px phone
+     and ending in an ellipsis. */
   gap: var(--space-xs);
   min-width: 0;
-  max-width: 100%;
-  margin-left: calc(-1 * var(--space-sm));   /* so the text still lines up with the heading it replaced */
+  /* The box hangs into the panel's own padding so that the *name* still starts
+     on the column every label, hint and heading below it starts on. Aligning
+     the box edge instead would put the one word that says which figures these
+     are eight pixels right of everything under it. The panel has 16px of
+     padding at its narrowest, so the hang never reaches the panel's edge, and
+     the focus ring at 2px offset does not either.
+
+     The max-width takes those same eight pixels back as measure, because they
+     are room the button really has: hanging left and stopping at 100% would
+     leave the fold button's gap eight pixels wider than it was drawn and spend
+     them on nothing. Measured on the upgrade store, where the switch carries
+     the panel's own heading — "What comes in and goes out" comes to 263.6px in
+     a 312px rail, which fits in the 268 this gives it and not in the 260 the
+     heading alone is. */
+  max-width: calc(100% + var(--space-sm));
+  margin-left: calc(-1 * var(--space-sm));
   padding: var(--space-2xs) var(--space-sm);
-  background: none;
-  border: 1px solid transparent;
+  /* The chrome of a control that takes a value, which is what the form below is
+     made of: the same fill, the same hairline and the same 9px corner as every
+     input and select in it. Transparent-until-hover was the whole of the
+     reported fault — 14px/600 near-black on nothing reads as a heading, because
+     that is exactly what it looks like, and a reader cannot hover what they
+     have not noticed. */
+  background: var(--surface-1);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: inherit;
   font: inherit;
@@ -2614,23 +2651,39 @@ main section,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-/* The caret is the affordance, so it is the part that answers to the hover
-   rather than the name — the name is the heading and headings do not light up.
-   Solid and 8px against the fold button's stroked 24px chevron on the same
+/* The caret's own cell, divided from the name by a hairline and running the
+   full height of the box. That division is the part that says *a list*: a box
+   with a mark loose inside it is a button, a box with a mark behind a rule is
+   the thing a <select> looks like on every platform this app runs on. It is
+   also why the mark can stay small — it no longer has to carry the whole cue by
+   itself. Stretched rather than centred, so a 44px box under a thumb gets a
+   44px rule and not a 10px one floating in it. */
+.project-switch-mark {
+  display: flex;
+  flex: none;
+  align-items: center;
+  align-self: stretch;
+  padding-left: var(--space-sm);
+  border-left: 1px solid var(--border);
+}
+/* Solid and 10px against the fold button's stroked 20px chevron on the same
    line: two marks that could be mistaken for each other would be worse than
-   none. */
+   none, and the 8px this was could not be seen at all — `--text-muted` at that
+   size was the only thing on screen saying the heading was pressable. */
 .project-switch .project-caret {
   flex: none;
-  width: 8px;
-  height: 8px;
-  fill: var(--text-muted);
+  width: 10px;
+  height: 10px;
+  fill: var(--text-secondary);
   transition: fill 140ms ease;
 }
+/* Hover confirms rather than announces, now that the resting state says it:
+   the same step an input takes when the pointer is over it. */
 .project-switch:hover {
-  border-color: var(--border);
+  border-color: var(--text-muted);
   background: var(--surface-2);
 }
-.project-switch:hover .project-caret { fill: var(--text-secondary); }
+.project-switch:hover .project-caret { fill: var(--text-primary); }
 
 /* Pinned, it is a label first and a control second: the row beside it is what
    the reader came for, so this shrinks to the smaller type of that row and
@@ -2647,9 +2700,21 @@ main section,
   margin-right: var(--space-sm);
   border-right: 1px solid var(--border);
 }
+/* Pinned, the box comes off again, and that is measured rather than taste. The
+   fault this fixes is a control standing alone above a form, where nothing
+   around it is pressable and only its own chrome can say that it is; in the
+   pinned bar it stands in a row of controls, behind a rule, with four pills
+   beside it, and the row is the cue. What a box would cost there is width: the
+   button is capped at `min(30vw, 220px)` and full at every width below about
+   730px, so a border and a divided caret cell come out of the name — 11 of the
+   117px a 390px phone gives it, which is the difference between "Acheter u…"
+   and "Achete…". The name is the only thing saying which question these plans
+   answer, so it keeps the pixels. The caret is the same mark in both places. */
 .project-switch.is-pinned {
   margin-left: 0;
   padding: var(--space-2xs) var(--space-xs);
+  background: none;
+  border-color: transparent;
   /* Measured, and the vw term is the one that matters. At 42vw the lead took
      159 of a 390px bar and left the three names 197px to scroll in, against
      366 before it existed — one and a bit names visible instead of two and a
@@ -2661,7 +2726,18 @@ main section,
   font-size: var(--type-xs);
   color: var(--text-secondary);
 }
-.project-switch.is-pinned:hover { color: var(--text-primary); }
+.project-switch.is-pinned .project-switch-mark {
+  padding-left: 0;
+  border-left: 0;
+}
+/* Restated because `.is-pinned` has just turned the shared hover off, and the
+   two selectors weigh the same — the pinned copy still has to answer a pointer,
+   in the lighter chrome the bar is drawn in. */
+.project-switch.is-pinned:hover {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
 
 /* Of the three dialogs this one is the only one whose content *grows*: the
    project list gets a row per project, and the template shelf under it gets a

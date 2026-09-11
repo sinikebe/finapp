@@ -14,6 +14,7 @@ import { readFile } from 'node:fs/promises';
 
 const css = await readFile(new URL('../assets/css/app.css', import.meta.url), 'utf8');
 const markup = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+const switchJs = await readFile(new URL('../assets/js/project-switch.js', import.meta.url), 'utf8');
 
 test('the coarse-pointer block is the last at-rule in the stylesheet', () => {
   /*
@@ -313,4 +314,52 @@ test('the fold reserves room for the pinned switcher only where that switcher ca
   for (const selector of pad) {
     assert.ok(selector.includes('[data-dock="on"]'), `\`${selector}\` pads for a bar that needs more than one plan`);
   }
+});
+
+test('the two switchers stay two kinds of control', () => {
+  /*
+   * A project is switched a handful of times a session and switching it
+   * replaces every plan on screen; a strategy is switched constantly while
+   * comparing. So one is a row of pills and the other is a single control that
+   * opens a sheet, and the thing that says which is which — at a glance, before
+   * anything is pressed or hovered — is **shape**.
+   *
+   * A stadium means a peer you switch between. A 9px box with a hairline and a
+   * divided caret cell means a control that opens a list, which is what every
+   * <select> in the form below is. The project switch is the second kind. Give
+   * it the pill's 999px and there are six pills on the screen, two of them
+   * meaning entirely different things, which is the failure the whole design of
+   * this control is built around.
+   *
+   * The other half is that the caret has a cell to sit in: the divider is what
+   * says *list* rather than merely *button*, and it is drawn by a span that
+   * `project-switch.js` builds. Drop the span and the stylesheet keeps a rule
+   * for an element nobody makes.
+   */
+  const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .map(([, selector, body]) => ({ selector: selector.trim(), body }))
+    .filter((rule) => /\.project-switch\b/.test(rule.selector));
+  assert.ok(rules.length >= 2, 'the stylesheet draws the project switch');
+
+  const radii = rules
+    .map((rule) => [rule.selector, rule.body.match(/border-radius:([^;]+)/)])
+    .filter(([, found]) => found);
+  assert.ok(radii.length >= 1, 'the project switch is given a corner');
+  for (const [selector, found] of radii) {
+    const radius = found[1].trim();
+    assert.ok(
+      !/999px|50%/.test(radius),
+      `\`${selector}\` gives the project switch \`${radius}\`: that shape is a strategy tab, `
+      + 'and two switchers wearing it is the confusion this control exists to avoid',
+    );
+    assert.match(
+      radius,
+      /var\(--radius-sm\)/,
+      `\`${selector}\` corners the project switch with ${radius}; it wears the control radius`,
+    );
+  }
+
+  assert.match(css, /\.strategy-tab,\s*\n\.strategy-name \{[^}]*border-radius:\s*999px/, 'and the tabs are still pills');
+  assert.match(css, /\.project-switch-mark \{[^}]*border-left:/, 'the caret has a cell of its own, divided from the name');
+  assert.match(switchJs, /html\('span', 'project-switch-mark'/, 'and something builds that cell');
 });

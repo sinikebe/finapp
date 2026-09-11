@@ -223,6 +223,96 @@ do with the surfaces.
 `--shadow` is one two-layer shadow, used on every raised surface and nowhere
 else, and it is the only shadow in the file. Depth is not a meaning here.
 
+### Two switchers, two shapes
+
+There are two switchers on one screen and they are not the same kind of control.
+A strategy is switched constantly while you compare, so it is a row of pills you
+can hit without aiming. A project is switched a handful of times a session, and
+switching it replaces every plan, every target and the horizon at once, so it is
+one button carrying the current name, and pressing it opens a sheet.
+
+Colour cannot tell them apart — the palette is full, and a coloured mark up
+beside the heading would read as a fifth legend swatch. **Shape does the work,
+and the rule is worth stating on its own:**
+
+- **A stadium is a peer you switch between.** Tabs, presets, ghost buttons.
+- **A 9px box with a hairline is a control that takes a value**, and the form
+  below is made of them — every input, every select.
+- **A 9px box with a caret behind a divider is a control that opens a list.**
+  It is the shape a `<select>` takes on every platform this app runs on, and the
+  project switch is the only thing in the app that wears it.
+
+So the project switch is a `--surface-1` box with a `--border-strong` hairline
+and a `--radius-sm` corner — the chrome of the fields under it — with the name
+ellipsised and the caret in a cell of its own, divided by a `--border` hairline
+that runs the full height of the box (all 44px of it under a thumb). The caret
+is a **solid 10px** triangle against the fold button's **stroked 20px** chevron
+40px to its right: filled where that one is stroked, half its size, and in a
+compartment where that one is bare. The two must never read as a pair, and that
+sentence is older than this paragraph.
+
+Before this, the resting state was 14px/600 near-black text on nothing with an
+8px caret at `--text-muted` beside it, and a box that appeared on hover. It read
+as a heading, because that is exactly what it looked like — and a reader cannot
+hover what they have not noticed. Hover now confirms rather than announces: the
+fill steps to `--surface-2` and the hairline to `--text-muted`, which is the step
+an input takes under a pointer.
+
+**The cue that clears the contrast floor is the caret, not the box.**
+`--border-strong` on `--surface-1` is 1.49:1 in light and 1.90:1 in dark, under
+the 3:1 this file names for a mark that is not text — but it is the same hairline
+every input and select in the form wears, and making this one control's outline
+darker than the boxes it sits above would say it was the emphatic thing on the
+page. So the box is the family resemblance and the caret carries the meaning: a
+solid triangle in `--text-secondary`, 7.73:1 light and 9.72:1 dark. If that
+hairline is too faint it is too faint everywhere, which is a decision about the
+form, not about this control.
+
+**The box hangs 8px into the panel's padding and takes those 8px back as
+measure.** The hang is so the *name* still starts on the column every label and
+hint below it starts on; aligning the box edge instead would push the one word
+that says which figures these are 8px right of everything under it. The
+`max-width: calc(100% + var(--space-sm))` is the other half: the 8px is room the
+button really has, and stopping at `100%` spends it on a wider gap to the fold
+chevron instead of on the name. Measured on the upgrade store, where the switch
+carries the panel's own heading — *What comes in and goes out* comes to 263.6px
+in a 312px rail, which fits in the 268 this gives it and not in the 260 the
+heading alone is.
+
+What it cost: the control is **11px wider** (147.6 → 158.6 at 1440 in English,
+195.4 → 206.4 in French). The panel head's height did not move at a single rung,
+measured in both languages and in all three shelf states — one project named,
+one unnamed, three:
+
+| | 320 | 390 | 768 | 1024 | 1280–2560 | 3440–5120 |
+|---|---|---|---|---|---|---|
+| EN | 146 | 146 | 144 | 100 | 178 | 176 |
+| FR | 146 | 146 | 186 | 144 | 178 | 218 |
+
+**These are the numbers, and an earlier release note got them wrong.** The pull
+request that introduced the type scale claimed the panel head was "identical to
+v59 to the pixel" at 180 and 220. It was not: the scale moved 1280–2560 from 180
+to 178, and at 3440 it took English from 220 to 176 — a whole line, because the
+strategy tabs stopped wrapping once their text lost a pixel — while French, whose
+names are longer, still wraps and reads 218. Measured across the releases: v59
+and v61 give 180/220, and v62 onwards gives the table above. Nothing since has
+moved them. If you are checking a layout against a remembered figure, check it
+against this table instead, and measure the baseline you actually served.
+
+No name truncates that did not truncate before, in either language, in any of
+those states, and the gap to the fold chevron never falls below 12px — the
+`--space-lg` the title row is laid out on.
+
+**Pinned, the box comes off again.** In the bar at the top of the window the
+switch stands in a row of controls, behind a rule, with the pills beside it, and
+the row is the cue that nothing around a lone heading above a form can give. What
+a box would cost there is width: the button is capped at `min(30vw, 220px)` and
+full at every width below about 730px, so a border and a divided cell come
+straight out of the name — 11 of the 117px a 390px phone gives it, which is the
+difference between *Acheter u…* and *Achete…*. The name is the only thing saying
+which question these plans answer, so it keeps the pixels. The caret is the same
+mark in both places.
+
 ---
 
 ## Comparing plans
@@ -546,6 +636,9 @@ From [`test/layout.test.mjs`](../test/layout.test.mjs):
 14. A five-across rule below 4352 excludes the docked state.
 15. The fold only reserves room for the pinned bar where that bar can exist —
     which is to say, where there is more than one plan.
+16. The project switch never wears the pill's radius, and the caret keeps the
+    cell that tells a list from a button — see
+    [Two switchers, two shapes](#two-switchers-two-shapes).
 
 Elsewhere: `test/docs.test.mjs` holds `CONTRIBUTING.md`'s Layout block to the
 files the project actually ships, and `test/about.test.mjs` holds the changelog

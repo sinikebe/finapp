@@ -15,8 +15,12 @@
  * The button is deliberately *not* a pill and never coloured. The palette has
  * four strategy colours and every one of them is spoken for by a curve in the
  * comparison; a fifth mark that looked like a legend swatch would be read as
- * one. What it has instead is a chevron, the weight of a heading, and — where
- * it stands beside the pills, in the pinned bar — a rule between them.
+ * one. What it has instead is shape: the hairline box, the 9px corner and the
+ * divided caret cell that every <select> in the form below wears, against the
+ * stadium a strategy tab wears. Colour says which plan; shape says which kind
+ * of control. Where it stands beside the pills, in the pinned bar, it drops the
+ * box and takes a rule between them instead — there the row is already the cue,
+ * and the pixels a border would cost come out of the name.
  */
 
 import { html } from './dom.js';
@@ -32,8 +36,16 @@ import { TEMPLATES } from './templates.js';
  * would put two identical marks on one line meaning two entirely different
  * things, which was the first thing the prototype got wrong and the screenshot
  * showed. So this is a small solid caret — filled where the other is stroked,
- * eight pixels where the other is twenty-four, and hard against the name rather
- * than out at the edge. The two do not read as a pair.
+ * ten pixels where the other is twenty, and in a cell of its own hard against
+ * the name rather than out at the edge. The two do not read as a pair.
+ *
+ * The cell is the second half of the mark and the reason the caret can stay
+ * this small. A caret loose in a box says "something happens"; a caret behind a
+ * hairline, in its own compartment at the end of a field, is the shape every
+ * <select> on every platform this app runs on takes, and it says *a list*. It
+ * is an element rather than a border on the caret because it has to run the
+ * full height of the box — 44px of it under a thumb — and an SVG asked to
+ * stretch is an SVG asked to scale its own drawing.
  */
 function caret(parent) {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -60,7 +72,7 @@ export function createProjectSwitch(options) {
   button.setAttribute('aria-haspopup', 'dialog');
   button.setAttribute('aria-controls', 'projects');
   const label = html('span', 'project-switch-name', button);
-  caret(button);
+  caret(html('span', 'project-switch-mark', button));
   button.addEventListener('click', onOpen);
 
   return {
