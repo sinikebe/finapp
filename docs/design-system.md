@@ -299,6 +299,69 @@ one language and moves it in the other.
 
 ---
 
+## A shelf that grows
+
+The projects sheet holds two lists. One is bounded — six projects, and at six
+the template shelf goes away entirely rather than sitting there greyed. The
+other grows by a row every time the app learns a new subject, and that is the
+one with a layout problem in it.
+
+Measured at 320×720 with two templates: the sheet came to 836px in French inside
+a 518px box, the shelf alone to 521, and the second template's button sat below
+the fold with the project list above it. A reader on the smallest phone the app
+supports saw one template and nothing to suggest there was another.
+
+**It scrolls, and that is the right answer.** Each template carries a paragraph
+saying what is in it, and that paragraph has to be readable *before* the button
+is pressed — a figure claimed to be an example only after you have pressed is
+worse than no claim — so it is never behind a disclosure at any width. Three
+such paragraphs do not fit on a 320px phone at any size worth reading, and
+shrinking them to make them fit would spend the one thing the shelf is careful
+about. What was broken was never the scroll. It was that nothing said the list
+continued.
+
+So the shelf is built to **read as a list of n** rather than to fit:
+
+- **The lead counts them.** "Or start from one of 3 templates", in the same shape
+  the project switch's own label counts plans. It is the only cue that survives
+  the fold, it scales to any number, and it costs no height at all.
+- **The claim is said once**, in the shelf's head, above every button — not at
+  the end of every note, where it was word for word the same sentence and where
+  a reader has already stopped. Hoisted, it is read before anything can be
+  pressed, which is the whole of what it was for.
+- **A hairline between rows**, in `--grid-line` rather than the `--border` that
+  opens the shelf: that one says "a new section", this one says "another of the
+  same". A rule arriving at the bottom edge of the sheet is itself a "there is
+  more below"; ten pixels of nothing never was.
+- **The sheet takes 88vh**, where the About panel and the shared-plan dialog take
+  72. Both numbers are measured. 72 is desktop-dialog sizing and left 101px of
+  dimmed page above and below on a 720px-tall phone while the sheet was 318px
+  too long; 88 leaves 43px, which still plainly reads as a card over a page. What it
+  spends is backdrop to dismiss by tapping — the Close button is the real exit
+  and is 44px under a thumb.
+- **Its cap is 900px, not the About panel's 720.** That cap is for a changelog
+  with no end to it; this sheet's content is bounded. Measured at the 560px the
+  dialog is wide, two templates and one project come to 576, a third takes that
+  to 731 and two projects with three templates to 791. 720 would put the sheet
+  on a scroll the day a third template lands, on a desktop. The cap never bites
+  below an 1,023px-tall window, where 88vh is the smaller of the two.
+
+What this buys, measured at 320×720 with two templates: both buttons inside the
+visible box in both languages, the second ending at 592 of 632 in English and
+612 of 632 in French. What it does not buy is a third — at 320 the third button
+lands at 825 (EN) and 844 (FR), and at 390 it peeks. **That is the design, not a
+shortfall:** past two templates the shelf is a list you scroll, and the lead is
+what tells you so.
+
+The type steps are worth naming, because the temptation here is the wrong one.
+The lead is `--type-xs` at weight 600, the same shape the About panel's
+sub-headings take — told from the prose under it by weight and position, not by
+a size of its own. The claim stays at `--type-xs` with the rest of the reading
+and is deliberately *not* stepped down to `--type-2xs` on a phone: it would have
+saved about 4px, and it is the one sentence that has to be read.
+
+---
+
 ## The tier ladder
 
 Twelve `min-width` rungs and four `max-width` ones. The shell grows **in order to
@@ -333,7 +396,7 @@ And the four narrow ones, which are `max-width` and so apply *at* the number:
 |---|---|
 | **640** | the strategy tabs become a sideways scroller instead of wrapping onto three full-width lines; the unit inside a rate box says `%` rather than `% a year` |
 | **420** | the ranked row drops to two columns, the name on its own line |
-| **380** | the page and header margins come down from 20 to 12, and the panel padding from 20 to 16 |
+| **380** | the page and header margins come down from 20 to 12, and the padding of a panel *and of a dialog* from 20 to 16 — a dialog is a surface like a panel and had been left out of this rung. The eight pixels it gives back are eight of measure, and measure is what decides how many lines a paragraph takes: in French the first template's note falls from 137px to 117px, a whole line, and the sheet's content comes down 28px in English and 27 in French. The dialog's own height does not move, because it is at its cap either way. **The rule sits beside `.about` rather than in this block**, and has to: `.about`'s padding is declared *after* the block, so the copy that first shipped inside it lost the cascade and did nothing — computed padding stayed 20px at 320. If you move it back up here, measure it before you believe it. |
 | **358** | a field's head wraps: the name takes the line and the amount and the toggle share the next |
 
 ### The two floors the whole ladder is built on
@@ -487,6 +550,10 @@ From [`test/layout.test.mjs`](../test/layout.test.mjs):
 Elsewhere: `test/docs.test.mjs` holds `CONTRIBUTING.md`'s Layout block to the
 files the project actually ships, and `test/about.test.mjs` holds the changelog
 to having an entry for the running build and to the French spacing rule.
+`test/templates.test.mjs` holds the two rules that keep
+[the template shelf](#a-shelf-that-grows) readable as it grows: no template's
+note repeats the claim the shelf's head already makes, and the lead that counts
+the templates actually names the number it is given, in both languages.
 
 ---
 
