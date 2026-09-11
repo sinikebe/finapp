@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 import {
   MAX_UNDO, SNAPSHOT_KEYS, UNDOABLE, nextBack, remember, takeBack,
-  restoreShelf, missingFrom,
+  restoreShelf, missingFrom, fitsAfterUndo,
 } from '../assets/js/history.js';
 import { LANGUAGES, STRINGS } from '../assets/js/i18n.js';
 
@@ -348,4 +348,55 @@ test('an undo with nowhere to put a project back is not offered', () => {
   const stack = remember([], 'project', planLike(), 'p3', shelfLike());
   assert.equal(nextBack(stack, 'p1', () => false), null, 'no room, no offer');
   assert.equal(nextBack(stack, 'p1', () => true).what, 'project', 'room, offered');
+});
+
+test('a move that made several projects takes all of them back', () => {
+  /*
+   * `born` is a list rather than one id because "Start again" makes as many
+   * projects as a first run does — the worked example and one per template.
+   * With a single id, undoing it would put the old shelf back and leave the
+   * templates it had just created sitting beside them.
+   */
+  const photograph = shelfLike();
+  const made = ['n1', 'n2', 'n3'].map((id) => ({
+    id, name: '', nameKey: '', plan: { strategies: [], activeId: '', months: 240, milestones: [] },
+  }));
+  const back = restoreShelf(photograph, made, made.map((project) => project.id));
+  assert.deepEqual(back.map((project) => project.id), ['p1', 'p2', 'p3'], 'the shelf as it was, and nothing else');
+
+  // And one the reader made themselves, in among them, still survives.
+  const mine = { id: 'mine', name: 'Mine', nameKey: '', plan: null };
+  const kept = restoreShelf(photograph, [...made, mine], made.map((project) => project.id));
+  assert.deepEqual(kept.map((project) => project.id), ['p1', 'p2', 'p3', 'mine']);
+});
+
+test('an undo is weighed against the shelf it would leave, not the one it replaces', () => {
+  /*
+   * The bug this exists for: "Start again" builds a first run's worth of
+   * projects, and the old arithmetic counted those against the ceiling as
+   * though its undo would sit them *beside* the shelf coming back. With a
+   * six-project ceiling and three built by the restart, the sum never fitted
+   * and the Undo button simply never appeared — no message, no greyed control,
+   * nothing to notice.
+   */
+  const photograph = shelfLike();                       // three, all gone now
+  const made = ['n1', 'n2', 'n3'].map((id) => ({ id, name: '', nameKey: '', plan: null }));
+  const restart = { at: 'p1', plan: {}, shelf: photograph, born: made.map((p) => p.id) };
+
+  assert.equal(fitsAfterUndo(restart, made, 6), true, 'three back, three away: four fits');
+  // Without the born list it would have read as 3 live + 3 returning = 6 > ...
+  assert.equal(fitsAfterUndo({ ...restart, born: [] }, made, 5), false, 'and this is what it used to compute');
+
+  // A removal, which makes nothing: the returning project needs real room.
+  const shelved = (n) => Array.from({ length: n }, (_, i) => ({ id: `f${i}`, name: '', nameKey: '', plan: null }));
+  const gone = { id: 'gone', name: '', nameKey: '', plan: null };
+  // Six live, and a seventh wanting to come back.
+  assert.equal(fitsAfterUndo({ at: 'gone', plan: {}, shelf: [...shelved(6), gone] }, shelved(6), 6), false,
+    'a seventh does not fit');
+  // Five live, and the sixth coming back.
+  assert.equal(fitsAfterUndo({ at: 'gone', plan: {}, shelf: [...shelved(5), gone] }, shelved(5), 6), true,
+    'with room, it does');
+
+  // And a snapshot with no shelf at all asks for nothing.
+  assert.equal(fitsAfterUndo({ at: 'p1', plan: {} }, shelved(6), 6), true);
 });

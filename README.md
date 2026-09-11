@@ -225,6 +225,28 @@ than no command.
 unnamed, and an unnamed lone project is called what the panel above it has
 always been called, so nothing appears to have been named, because nothing has.
 
+### What a new device opens with
+
+Three projects, not one: the **worked example** — three ways of affording a
+house, which is what the app has opened on since it had more than one plan — and
+behind it both **templates**, already built and named.
+
+They are loaded rather than only offered, and the reason is a discoverability
+one. The line that offers a template lives inside the projects sheet, and the
+sheet is behind a control a reader can miss entirely. A template nobody finds is
+a template that does not exist, so the app stops asking you to find it: press a
+name, and there it is.
+
+**A device with work on it is never given projects it did not ask for.** Every
+store that arrived from an earlier build keeps exactly the one project holding
+exactly what was already there. Putting the templates on somebody's shelf would
+be answering a question they never asked, on a screen they had already arranged.
+A test pins both halves of that.
+
+*Start again* returns a device to the same three, because that button is only
+worth having if it lands you exactly where a new reader lands — and undoing it
+takes those three away again along with putting your own shelf back.
+
 ### Starting from a template
 
 *Start another project* still gives you a blank one in a single press. Under it,

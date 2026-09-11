@@ -107,8 +107,9 @@ export const MAX_UNDO = 10;
  * @param {string} at the id of the project it is a photograph of
  * @param {Array<object>} [shelf] the projects list, for the three moves that
  *   change which projects there are
- * @param {string} [born] a project this move is about to create, so undoing it
- *   takes that project away again rather than leaving it behind
+ * @param {Array<string>} [born] the projects this move is about to create, so
+ *   undoing it takes them away again rather than leaving them behind. A list,
+ *   not one id: starting again makes as many as a first run does.
  * @returns {Array<object>} a new stack with the snapshot on top, bounded
  */
 export function remember(stack, what, source, at, shelf, born) {
@@ -121,7 +122,7 @@ export function remember(stack, what, source, at, shelf, born) {
   // snapshot a photograph rather than another name for the live lists.
   const snapshot = { what, at, plan: JSON.parse(JSON.stringify(plan)) };
   if (shelf) snapshot.shelf = JSON.parse(JSON.stringify(shelf));
-  if (born) snapshot.born = born;
+  if (born && born.length) snapshot.born = born;
   // The oldest goes over the side. Ten moves back is the promise; holding the
   // eleventh would quietly turn a bounded stack into a growing one.
   return [...list, snapshot].slice(-MAX_UNDO);
@@ -205,29 +206,49 @@ export function takeBack(stack, openId, fits = () => true) {
  * than either of the two it was given, and why the caller has to know whether
  * there is room before it offers the undo at all.
  *
- * The exception is the project the photographed move *itself* created, named by
- * `born`. Starting again makes one, and opening a link as its own project makes
- * one, and taking either move back has to take its project with it — otherwise
- * undoing "open as its own project" would leave the stranger's plans sitting on
- * the shelf, which is most of what the reader was undoing.
+ * The exception is the projects the photographed move *itself* created, named by
+ * `born`. Opening a link as its own project makes one and starting again makes
+ * a first run's worth, and taking either move back has to take them with it —
+ * otherwise undoing "open as its own project" would leave the stranger's plans
+ * sitting on the shelf, which is most of what the reader was undoing.
  *
  * @param {Array<object>} shelf the projects as the snapshot has them
  * @param {Array<object>} live the projects as they are now
- * @param {string} [born] a project the move created, which goes back with it
+ * @param {Array<string>} [born] projects the move created, which go back with it
  */
-export function restoreShelf(shelf, live, born = '') {
+export function restoreShelf(shelf, live, born = []) {
+  const made = new Set(born);
   const now = new Map(live.map((project) => [project.id, project]));
   const pictured = new Set(shelf.map((project) => project.id));
   return [
     ...shelf.map((project) => now.get(project.id) || project),
-    ...live.filter((project) => !pictured.has(project.id) && project.id !== born),
+    ...live.filter((project) => !pictured.has(project.id) && !made.has(project.id)),
   ];
 }
 
-/** How many projects a snapshot's shelf would put back that are not there now.
- *  What the caller weighs against the room it has. */
+/** How many projects a snapshot's shelf would put back that are not there now. */
 export function missingFrom(snapshot, live) {
   if (!snapshot.shelf) return 0;
   const now = new Set(live.map((project) => project.id));
   return snapshot.shelf.filter((project) => !now.has(project.id)).length;
+}
+
+/**
+ * Whether the shelf would still be a legal size once this snapshot is restored.
+ *
+ * Two halves, and the second is the one that was got wrong. What comes *back*
+ * is every photographed project that is gone now. What **stays** is everything
+ * live except the projects the move itself made — `born` — because taking the
+ * move back takes those away in the same breath. Count them as staying and
+ * "Start again" looks like it needs room for its own new shelf beside the old
+ * one, which it never has, so its undo is silently never offered.
+ *
+ * @param {object} snapshot the snapshot that would be restored
+ * @param {Array<object>} live the projects as they are now
+ * @param {number} max how many the shelf may hold
+ */
+export function fitsAfterUndo(snapshot, live, max) {
+  const born = new Set(snapshot.born || []);
+  const staying = live.filter((project) => !born.has(project.id)).length;
+  return staying + missingFrom(snapshot, live) <= max;
 }

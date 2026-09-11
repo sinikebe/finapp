@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 
 import { TEMPLATES, templateOf, HOUSING_PLAN } from '../assets/js/templates.js';
 import { STRINGS, LANGUAGES, makeTranslator } from '../assets/js/i18n.js';
@@ -350,4 +351,49 @@ test('the shelf says how many templates there are', () => {
     // And the singular stays a sentence rather than "one of 1 templates".
     assert.equal(typeof STRINGS[language]['template.from'], 'string');
   }
+});
+
+/* ------------------------------------------------- what a first run opens on */
+
+test('a fresh device gets the worked example and every template', async () => {
+  /*
+   * The templates are loaded rather than only offered, because the line that
+   * offers them is inside the sheet and the sheet is behind the one control
+   * readers miss. So the shelf a first run opens with is the worked example
+   * plus one project per template, and adding a template to `TEMPLATES` puts it
+   * on that shelf without another edit.
+   */
+  const app = await readFile(new URL('../assets/js/app.js', import.meta.url), 'utf8');
+  const body = app.split('function firstRunProjects(')[1].split('\n}')[0];
+  assert.ok(body, 'app.js declares firstRunProjects()');
+  assert.ok(
+    /TEMPLATES\.map\(/.test(body),
+    'it builds one project per template rather than naming them',
+  );
+  assert.ok(
+    /nameKey: 'project\.default\.home'/.test(body),
+    'and opens on the worked example',
+  );
+});
+
+test('a device with work on it is never given projects it did not ask for', async () => {
+  /*
+   * The dangerous regression this guards. A reader upgrading from any earlier
+   * build has one project holding exactly what was already there; putting the
+   * templates on their shelf would be answering a question they did not ask, on
+   * a screen they had already arranged. So `soleProject` takes no argument that
+   * could make it do anything else, and the fresh branch is the only caller of
+   * `firstRunProjects`.
+   */
+  const app = await readFile(new URL('../assets/js/app.js', import.meta.url), 'utf8');
+  assert.ok(/function soleProject\(\)/.test(app), 'soleProject takes nothing to vary');
+  const sole = app.split('function soleProject()')[1].split('\n}')[0];
+  assert.ok(!sole.includes('TEMPLATES'), 'and knows nothing about templates');
+
+  const loader = app.split('function loadProjects(')[1].split('\n}\n')[0];
+  assert.ok(
+    /fresh\s*\n?\s*\?\s*firstRunProjects/.test(loader),
+    'only a fresh device takes the first-run shelf',
+  );
+  assert.ok(loader.includes('soleProject()'), 'and every other store takes one project');
 });
