@@ -1208,11 +1208,6 @@ main section,
   main { padding-left: var(--space-lg); padding-right: var(--space-lg); }
   .app-bar { padding-left: var(--space-lg); padding-right: var(--space-lg); }
   .panel { padding: var(--space-xl); }
-  /* A dialog is a surface like a panel and was the one that had been left out
-     of this rung. It gives back the same two steps, which on a 320px phone is
-     eight pixels of height and eight of measure — and measure is what decides
-     how many lines a paragraph of template note takes. */
-  .about { padding: var(--space-xl); }
 }
 
 .app-bar { flex-wrap: wrap; }
@@ -2410,6 +2405,17 @@ main section,
 }
 .about::backdrop { background: rgba(11, 11, 11, 0.45); }
 
+/* A dialog is a surface like a panel, and the narrow rung that takes a panel's
+   padding down two steps had left it out. It has to sit *here*, after the rule
+   it overrides, rather than up in that rung with the others: `.about`'s own
+   padding is declared below that block, so a copy of this inside it lost the
+   cascade and did nothing at all — which is how it first shipped. The eight
+   pixels it gives back on a 320px phone are eight of measure, and measure is
+   what decides how many lines a paragraph of template note takes. */
+@media (max-width: 380px) {
+  .about { padding: var(--space-xl); }
+}
+
 .about-head {
   display: flex;
   align-items: center;
@@ -2663,8 +2669,8 @@ main section,
    against that.
 
    **88vh, not the 72 the other two take.** 72 is desktop-dialog sizing, and on
-   a 720px-tall phone it left 202px of dimmed page behind while putting the
-   second template below the fold — 518px of box around 836px of sheet. 88
+   a 720px-tall phone it left 101px of dimmed page above and below while putting
+   the second template below the fold — 518px of box around 836px of sheet. 88
    leaves 43px a side, which is still plainly a card over a dimmed page, and it
    is the difference between a reader seeing one template and seeing two. What
    it costs is backdrop to dismiss by tapping; the Close button is the real
@@ -2750,9 +2756,10 @@ main section,
    pressed rather than discovered after.
 
    The shelf is a *list that grows*, and that is what shapes the rest of it. A
-   second template put 501px of shelf inside a 516px dialog on a 320px phone and
-   the second button below the fold, with nothing on screen saying it was there;
-   a third makes that arithmetic final. So the shelf is built to read as a list
+   second template took the shelf to 521px in French inside a 516px dialog on a
+   320px phone — taller, on its own, than the whole sheet it sits in — and put
+   the second button below the fold with nothing on screen saying it was there.
+   A third makes that arithmetic final. So the shelf is built to read as a list
    of n rather than to fit: a head that counts, one claim said once for all of
    them, and a hairline between rows so that the rule arriving at the bottom
    edge is itself the "more below". */
@@ -2832,6 +2839,13 @@ main section,
   .assumptions-fold > summary { padding: 13px 0; }
 
   .icon-button { width: 44px; }
+  /* ...except where it is a flex item, which is where that width is only a
+     *basis*. The project row is a flex container and shrank this one to 34px —
+     the stylesheet said 44 and a thumb got 34, which is the worst way for a
+     touch target to be wrong, because nothing on screen or in the CSS admits
+     it. The name box beside it carries `min-width: 0`, so refusing to shrink
+     here costs the name its last ten pixels of measure and nothing else. */
+  .project-remove { flex: none; }
 
   /* The project switch is a heading you press, so it takes no height of its own
      on a mouse — under a thumb it has to. Padding rather than min-height, so
