@@ -82,6 +82,7 @@ assets/js/projects.js        the project model — one comparison each, and the
                              shelf the others wait on
 assets/js/project-switch.js  the heading that names the project, and the
                              sheet that switches, renames and removes them
+assets/js/templates.js       projects that arrive with their figures in them
 assets/js/projection.js      fields + horizon → the cumulative series
 assets/js/field-list.js      the editable list of fields
 assets/js/milestones.js      targets, and the month each one is met

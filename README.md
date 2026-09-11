@@ -225,6 +225,40 @@ than no command.
 unnamed, and an unnamed lone project is called what the panel above it has
 always been called, so nothing appears to have been named, because nothing has.
 
+### Starting from a template
+
+*Start another project* still gives you a blank one in a single press. Under it,
+a **template** gives you one that arrives with its figures already in it — not to
+save typing, but because a template is *the list of things worth putting a number
+against*, and half of them are things a first-timer finds out about by being
+surprised by a bill.
+
+The one it ships with is the housing question with both sides of it in the same
+comparison: **buy the flat and live in it**, or **buy the same flat, let it out,
+and rent somewhere smaller yourself**. Three of its four plans let it out and
+differ only in the tax regime, so the sheet answers two questions at once and the
+second is nested inside the first. The property is identical in every plan and
+marked synced, so what is being compared is what you *do* with it.
+
+The row that makes it a fair sum is **the rent a landlord pays to live
+somewhere else**. Leave it out and letting looks like income for nothing, which
+is the most common way this comparison is got wrong. The plan that lives in the
+flat carries no such row, because not paying rent is exactly what buying to live
+in buys you.
+
+There is deliberately **no deposit row**. Money you bring from your own savings
+is not income, and adding it as one would overstate what the plan is worth by
+that amount at every month. So the plan opens the way the purchase really leaves
+you: cash down by what you spent, a debt the size of the loan, and a flat the
+size of the price — which is why the summary says the money runs out in month 1
+and by how much. That figure is the cash you need up front, and it is the first
+thing worth knowing.
+
+**Every figure is a round example**, said to be one in the note under the button
+before you press it, and there to be typed over. The app cannot know your city,
+your rate or your tax bracket; what it can do is arrive with a complete set of
+rows so that changing four of them is a five-minute job.
+
 ## What it computes
 
 The model lives in [`assets/js/projection.js`](assets/js/projection.js) and is
