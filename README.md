@@ -274,6 +274,12 @@ make:
   equipment, kilometres over the allowance. Commonly around a thousand euros,
   and on nobody's advertisement.
 
+**The lease with an option is shown with the option not taken** — the car goes
+back. That is what makes it comparable with the long lease beside it, and it is
+why both of them own nothing at the end. Taking the option instead means paying
+the agreed buy-out and keeping the car, which is a row to add rather than a plan
+to read off.
+
 Nobody sells the car and nothing needs to: at four years the two plans that
 bought it own something worth about 13,700 and the two that leased it own
 nothing, and that difference is already in what you are worth.

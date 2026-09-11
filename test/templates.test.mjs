@@ -300,3 +300,54 @@ test('a cost comparison carries no targets, and that is deliberate', () => {
   // decorative target would not be.
   assert.deepEqual(car().milestones, []);
 });
+
+/* ------------------------------------------------------- how the shelf reads */
+
+test('the figures are said to be examples once, for the shelf, and not per note', () => {
+  /*
+   * The claim was written at the end of every note, word for word the same, and
+   * with two templates that was already 78px of a 320px phone spent saying one
+   * sentence twice — at the end of an eight-line paragraph, which is where a
+   * reader has stopped. It is said once now, in the shelf's own head, above
+   * every button and so before any of them can be pressed.
+   *
+   * The failure this guards is a third template arriving with the habit: a note
+   * ending in the claim would say it twice on one screen and start the drift
+   * back. It is not held to the sentence being absent in spirit — only to the
+   * dictionary's own claim not appearing inside a note, which is exactly the
+   * copy-and-paste that would do it.
+   */
+  for (const language of LANGUAGES) {
+    const claim = STRINGS[language]['template.claim'];
+    assert.equal(typeof claim, 'string');
+    assert.ok(claim.length > 20, `${language} says something`);
+    for (const template of TEMPLATES) {
+      const note = STRINGS[language][template.noteKey];
+      assert.ok(
+        !note.includes(claim),
+        `${language}:${template.noteKey} repeats the shelf's claim; it is said once, above the buttons`,
+      );
+    }
+  }
+});
+
+test('the shelf says how many templates there are', () => {
+  /*
+   * The one cue that survives the fold. A 320px phone shows the first template
+   * and the top of the second, and with a third it will show less of the shelf
+   * still; nothing in a list of prose blocks says how long the list is. So the
+   * lead counts, and the count has to actually reach the reader — a phrase that
+   * dropped the number would leave the sheet exactly where it was.
+   */
+  for (const language of LANGUAGES) {
+    const many = STRINGS[language]['template.fromCount'];
+    assert.equal(typeof many, 'function', `${language} counts them`);
+    assert.equal(many.length, 1, `${language} takes the count`);
+    assert.ok(
+      many(TEMPLATES.length).includes(String(TEMPLATES.length)),
+      `${language} names the number it was given`,
+    );
+    // And the singular stays a sentence rather than "one of 1 templates".
+    assert.equal(typeof STRINGS[language]['template.from'], 'string');
+  }
+});
