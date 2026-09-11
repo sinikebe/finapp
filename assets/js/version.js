@@ -9,8 +9,8 @@
  */
 
 export const BUILD = Object.freeze({
-  version: 'v62',
+  version: 'v63',
   branch: 'claude/financial-future-pwa-w2fh0j',
-  commit: 'c49af65',
+  commit: 'cefc354',
   date: '2026-09-11',
 });

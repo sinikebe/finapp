@@ -250,6 +250,187 @@ function buildHousing(t) {
 }
 
 /**
+ * One car, and the four ways of paying for it.
+ *
+ * **This template is a cost comparison, and that is why it is shaped unlike the
+ * housing one.** Housing needed a salary and everyday costs in it, because the
+ * question there is where you live and a plan with no income is an invoice
+ * rather than a life. Here every plan gets the *same car* and differs only in
+ * how it is paid for, so a household would shift all four by one number and
+ * tell you nothing. Leave it out and `net` at the horizon is exactly what this
+ * car cost you over four years, which is the figure the question is about.
+ *
+ * **Nobody sells the car, and nothing needs to.** The model cannot sell an
+ * asset — `sellMonth` is honoured for investments only — but the comparison
+ * does not want a sale. At month 48 the two plans that bought it own something
+ * worth about 13,700 and the two that leased it own nothing, and that
+ * difference is already in `worth`. Adding a sale would turn the same fact into
+ * cash and change nothing except which tile it appears on.
+ *
+ * **The horizon is the contract**, 48 months, because comparing a four-year
+ * lease against a purchase read over ten years compares two different
+ * questions.
+ *
+ * The figures are a coherent set for a 25,000 € car over 48 months at 15,000 km
+ * a year, which is the common shape of the offer in France: buying it costs its
+ * price and leaves you the resale; buying it on a loan costs about 2,900 € more
+ * in interest; the two leases cost less in total and leave you nothing. The
+ * three rows people forget are all here — the registration on the two that buy,
+ * the servicing that a long lease bundles and a lease-with-option does not, and
+ * the return charges at the end of both leases.
+ */
+const CAR = Object.freeze({
+  /** A 25,000 € car, four years, 15,000 km a year. */
+  price: '25000',
+  /**
+   * What the car loses, as a yearly rate.
+   *
+   * The rate the model wants is not the rate the trade quotes, because
+   * `monthlyGrowth` divides by twelve rather than compounding: −15 a year is a
+   * monthly factor of 0.9875, and forty-eight of those leave 54.7% of the
+   * price. On 25,000 € that is 13,669 € for the plan that owns it from month 0
+   * and 13,842 € for the one that owns it from month 1, against the 13,500 € a
+   * four-year-old car of that price fetches — within 1.3% and 2.5%, and a round
+   * number rather than the −15.3 that would hit the first exactly.
+   */
+  decline: '-15',
+  /** Registration. It varies by region and by how powerful the car is; this is
+   *  an ordinary middle. Only the two plans that buy it pay this. */
+  registration: '250',
+
+  /* --------------------------------------------------------- buying it */
+  loanRate: '5.5',
+  term: 48,
+
+  /* -------------------------------------------------------- leasing it */
+  /** The first payment, larger than the rest. A lease with an option asks for
+   *  more of it than a long lease does, and gives a smaller monthly in return. */
+  loaFirst: '3000',
+  loaRent: '320',
+  lldFirst: '2500',
+  lldRent: '350',
+  /**
+   * What it costs to hand the car back: wear beyond the normal, missing
+   * equipment, kilometres over the allowance. It is the cost that surprises
+   * people, it lands on both leases and on neither purchase, and the quoted
+   * range is 800 to 1,500 €. The middle of it, once, in the last month.
+   */
+  returnFees: '1000',
+
+  /* ------------------------------------------- what any car costs to run */
+  insurance: '65',
+  fuel: '130',
+  /** Servicing and tyres. A long lease bundles this and a lease with an option
+   *  does not, which is most of why its monthly is lower. */
+  servicing: '40',
+});
+
+/** What any car costs whoever is driving it, however it was paid for. */
+function carRunning() {
+  const monthly = (labelKey, amount) => createField({
+    labelKey, direction: 'expense', amount, startMonth: 1, synced: true,
+  });
+  return [
+    monthly('field.default.carInsurance', CAR.insurance),
+    monthly('field.default.fuel', CAR.fuel),
+  ];
+}
+
+/** Servicing, which three of the four plans pay and the long lease bundles. */
+function carServicing() {
+  return createField({
+    labelKey: 'field.default.servicing', direction: 'expense',
+    amount: CAR.servicing, startMonth: 1,
+  });
+}
+
+/**
+ * The car as a thing you own: worth its price the month it is yours, and worth
+ * less every month after. Only the two plans that buy it have one.
+ *
+ * **The month differs between them, and it has to.** Paying cash, the money
+ * leaves in month 1 and the car is yours in month 1. On a loan the money
+ * arrives the month before the first payment, so the debt appears in month 0
+ * and the car has to appear with it — the keys and the debt change hands
+ * together. Get this wrong either way and the plan opens a month either owning
+ * a car it has not paid for or owing for one it does not have. Both start at
+ * nought, which is the test that it is right.
+ */
+function carOwned(startMonth) {
+  return createField({
+    labelKey: 'field.default.car', kind: 'asset',
+    amount: CAR.price, annualRate: CAR.decline, startMonth,
+  });
+}
+
+function carRegistration() {
+  return createField({
+    labelKey: 'field.default.registration', kind: 'once', direction: 'expense',
+    amount: CAR.registration, startMonth: 1,
+  });
+}
+
+/** A lease: a large first payment, a monthly one, and the bill at the end for
+ *  handing it back. */
+function carLease(first, rent, servicing) {
+  return [
+    ...carRunning(),
+    createField({
+      labelKey: 'field.default.firstRent', kind: 'once', direction: 'expense',
+      amount: first, startMonth: 1,
+    }),
+    createField({
+      labelKey: 'field.default.leaseRent', direction: 'expense',
+      amount: rent, startMonth: 1, endMonth: CAR.term,
+    }),
+    ...(servicing ? [carServicing()] : []),
+    createField({
+      labelKey: 'field.default.returnFees', kind: 'once', direction: 'expense',
+      amount: CAR.returnFees, startMonth: CAR.term,
+    }),
+  ];
+}
+
+function buildCar(t) {
+  return {
+    nameKey: 'project.default.car',
+    months: CAR.term,
+    strategies: [
+      createStrategy({
+        nameKey: 'strategy.default.carCash',
+        fields: [
+          ...carRunning(),
+          createField({
+            labelKey: 'field.default.carPurchase', kind: 'once', direction: 'expense',
+            amount: CAR.price, startMonth: 1,
+          }),
+          carRegistration(), carOwned(1), carServicing(),
+        ],
+      }),
+      createStrategy({
+        nameKey: 'strategy.default.carCredit',
+        fields: [
+          ...carRunning(),
+          // Drawn in month 0, the month before the first payment, so all
+          // forty-eight of them land inside a forty-eight month horizon and the
+          // debt reaches nought exactly at the end of it.
+          createField({
+            labelKey: 'field.default.carCredit', kind: 'loan', direction: 'expense',
+            amount: CAR.price, annualRate: CAR.loanRate, termMonths: CAR.term, startMonth: 1,
+          }),
+          carRegistration(), carOwned(0), carServicing(),
+        ],
+      }),
+      // A lease with an option leaves the servicing to you.
+      createStrategy({ nameKey: 'strategy.default.carLoa', fields: carLease(CAR.loaFirst, CAR.loaRent, true) }),
+      // A long lease bundles it.
+      createStrategy({ nameKey: 'strategy.default.carLld', fields: carLease(CAR.lldFirst, CAR.lldRent, false) }),
+    ],
+    milestones: [],
+  };
+}
+
+/**
  * The templates on offer, in the order the sheet lists them.
  *
  * A list rather than a map, because the order is part of it and an object's is
@@ -263,6 +444,12 @@ export const TEMPLATES = Object.freeze([
     noteKey: 'template.housing.note',
     build: buildHousing,
   }),
+  Object.freeze({
+    id: 'car',
+    nameKey: 'project.default.car',
+    noteKey: 'template.car.note',
+    build: buildCar,
+  }),
 ]);
 
 /** The template with this id, or nothing — a store or a stale button may name
@@ -271,4 +458,4 @@ export function templateOf(id) {
   return TEMPLATES.find((template) => template.id === id) || null;
 }
 
-export { HOUSING as HOUSING_PLAN };
+export { HOUSING as HOUSING_PLAN, CAR as CAR_PLAN };

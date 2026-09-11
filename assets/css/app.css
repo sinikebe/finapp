@@ -1208,6 +1208,11 @@ main section,
   main { padding-left: var(--space-lg); padding-right: var(--space-lg); }
   .app-bar { padding-left: var(--space-lg); padding-right: var(--space-lg); }
   .panel { padding: var(--space-xl); }
+  /* A dialog is a surface like a panel and was the one that had been left out
+     of this rung. It gives back the same two steps, which on a 320px phone is
+     eight pixels of height and eight of measure — and measure is what decides
+     how many lines a paragraph of template note takes. */
+  .about { padding: var(--space-xl); }
 }
 
 .app-bar { flex-wrap: wrap; }
@@ -2652,6 +2657,29 @@ main section,
 }
 .project-switch.is-pinned:hover { color: var(--text-primary); }
 
+/* Of the three dialogs this one is the only one whose content *grows*: the
+   project list gets a row per project, and the template shelf under it gets a
+   row every time the app learns a new subject. Both numbers here are measured
+   against that.
+
+   **88vh, not the 72 the other two take.** 72 is desktop-dialog sizing, and on
+   a 720px-tall phone it left 202px of dimmed page behind while putting the
+   second template below the fold — 518px of box around 836px of sheet. 88
+   leaves 43px a side, which is still plainly a card over a dimmed page, and it
+   is the difference between a reader seeing one template and seeing two. What
+   it costs is backdrop to dismiss by tapping; the Close button is the real
+   exit and is 44px under a thumb.
+
+   **900px, not the About panel's 720.** That cap is for a changelog with no end
+   to it. This sheet's content is bounded, and measured at the 560px the dialog
+   is wide: two templates and one project come to 576 in English, and a third
+   template takes that to 731 and two projects with three templates to 791. 720
+   would put the sheet on a scroll the day a third template lands even on a
+   desktop. 900 clears that and still leaves a 1440-tall screen 540px of page
+   behind. It never bites below an 1,023px-tall window, where 88vh is the
+   smaller of the two. */
+#projects { max-height: min(88vh, 900px); }
+
 /* The sheet. Rows rather than pills, because the choice here is a list you read
    down and not a row you flick along — and because the row carries what a name
    alone cannot: how many plans are in it, and how far they run. */
@@ -2717,26 +2745,63 @@ main section,
    two are not alternatives of the same weight. "Start another project" is the
    fast path and keeps the button shape it always had; a template is a second
    thought, for a reader who does not yet know which questions the subject has.
-   The note under each is hint type and always visible — it is where the figures
-   are said to be examples, and that has to be read before the button is pressed
-   rather than discovered after. */
+   The note under each is hint type and always visible — it is where what the
+   template contains is said, and that has to be read before the button is
+   pressed rather than discovered after.
+
+   The shelf is a *list that grows*, and that is what shapes the rest of it. A
+   second template put 501px of shelf inside a 516px dialog on a 320px phone and
+   the second button below the fold, with nothing on screen saying it was there;
+   a third makes that arithmetic final. So the shelf is built to read as a list
+   of n rather than to fit: a head that counts, one claim said once for all of
+   them, and a hairline between rows so that the rule arriving at the bottom
+   edge is itself the "more below". */
 .template-shelf {
   margin-top: var(--space-xl);
   padding-top: var(--space-lg);
   border-top: 1px solid var(--border);
 }
 
+/* The shelf's own name, in the shape the About panel's sub-headings already
+   take: the same 13px as the prose around it, told from it by weight and
+   position rather than by a size of its own. */
+.template-head { margin-bottom: var(--space-md); }
 .template-from {
-  margin: 0 0 var(--space-sm);
+  margin: 0;
+  font-size: var(--type-xs);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-secondary);
 }
 
+/* The one claim true of every template, said once above every button. It stays
+   at 13px with the rest of the reading and is deliberately *not* stepped down
+   to the annotation size on a phone: it is the sentence that has to be read
+   before anything is pressed, and shrinking it would be the one saving on this
+   sheet that costs the thing the sheet is careful about. */
+.template-claim { margin: var(--space-2xs) 0 0; }
+
+.template-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A hairline between rows, the lighter `--grid-line` rather than the `--border`
+   that opens the shelf: that one says "a new section", this one says "another
+   of the same". It is what makes two prose blocks read as two items, and it is
+   the cue that survives the fold — a rule at the bottom edge of the sheet says
+   there is a row under it in a way that 10px of nothing never did. */
 .template-row + .template-row {
-  margin-top: var(--space-md);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--grid-line);
 }
 
 .template-start {
   display: block;
   width: 100%;
+  min-width: 0;
   text-align: left;
 }
 

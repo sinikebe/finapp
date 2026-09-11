@@ -2191,7 +2191,14 @@ function projectLabels() {
     openNamed: (name) => t('project.openNamed', name),
     removeNamed: (name) => t('project.removeNamed', name),
     count: (plans, months) => t('project.count', plans, formatHorizon(months, t)),
-    templateFrom: t('template.from'),
+    // The lead counts them, in the same shape the switch's own label counts
+    // plans: a reader on a 320px phone sees the first template and the top of
+    // the second, and the line above both is the only thing that can say
+    // whether that is the whole shelf or the start of it.
+    templateFrom: (count) => (count > 1
+      ? t('template.fromCount', count)
+      : t('template.from')),
+    templateClaim: t('template.claim'),
     templateAria: (name) => t('template.startedAria', name),
   };
 }

@@ -108,14 +108,29 @@ export function createProjectList(options) {
    * for the reader who does not yet know which questions the subject *has*.
    *
    * Each is a button carrying the template's name, with its note underneath in
-   * hint type. The note is not a tooltip: it is where the figures are said to
-   * be examples, and that has to be legible before the button is pressed rather
-   * than after.
+   * hint type. The note is not a tooltip: it is where what the template
+   * *contains* is said, and that has to be legible before the button is pressed
+   * rather than after.
+   *
+   * The shelf has a head of its own — a lead that counts the templates and,
+   * under it, the one claim that is true of all of them. Both are above every
+   * button, so neither can be reached by pressing. The lead counts because the
+   * shelf is a list that grows and a phone shows the first item and a bit of
+   * the second: with nothing saying how many there are, one template looks like
+   * the whole shelf. That is the failure the second template exposed.
+   *
+   * The list is a `<ul>` rather than a run of divs so that a screen reader is
+   * told the length the lead states in words, and so that "2 of 3" is available
+   * without the count having to be repeated on every button.
    */
   const shelf = html('div', 'template-shelf', mount);
-  const fromLine = html('p', 'hint template-from', shelf);
+  const head = html('div', 'template-head', shelf);
+  const fromLine = html('p', 'template-from', head);
+  const claimLine = html('p', 'hint template-claim', head);
+  const shelfList = html('ul', 'template-list', shelf);
+  shelfList.setAttribute('role', 'list');
   const buttons = TEMPLATES.map((template) => {
-    const row = html('div', 'template-row', shelf);
+    const row = html('li', 'template-row', shelfList);
     const button = html('button', 'ghost-button template-start', row);
     button.type = 'button';
     button.addEventListener('click', () => onCommand({ type: 'template', template: template.id }));
@@ -167,7 +182,8 @@ export function createProjectList(options) {
       // row of disabled buttons with their notes under them is a paragraph of
       // copy about something that cannot happen.
       shelf.hidden = projects.length >= MAX_PROJECTS;
-      fromLine.textContent = labels.templateFrom;
+      fromLine.textContent = labels.templateFrom(buttons.length);
+      claimLine.textContent = labels.templateClaim;
       for (const entry of buttons) {
         const name = t(entry.template.nameKey);
         entry.button.textContent = name;
