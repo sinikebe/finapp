@@ -47,10 +47,10 @@ import {
   neighbourOf as projectNeighbourOf, nameOf as projectNameOf,
 } from './projects.js';
 import { createProjectSwitch, createProjectList } from './project-switch.js';
-import { templateOf } from './templates.js';
+import { TEMPLATES, templateOf } from './templates.js';
 import { schedule } from './schedule.js';
 import { decodePlan, linkFor, planInHash } from './share.js';
-import { remember, takeBack, nextBack, restoreShelf, missingFrom } from './history.js';
+import { remember, takeBack, nextBack, restoreShelf, fitsAfterUndo } from './history.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
 import { BUILD } from './version.js';
 import { RELEASES } from './changelog.js';
@@ -262,6 +262,22 @@ function dropStore(key) {
   }
 }
 
+/**
+ * Which language the app is in: the reader's stored choice, else the one their
+ * browser asks for.
+ *
+ * Here rather than beside the language switcher because it is now needed twice
+ * and at two different moments — once at the very top, to build the projects a
+ * first-run device opens with, whose targets are named in words rather than in
+ * dictionary keys; and once further down, where the switcher lives. Two copies
+ * of this would be two chances for a first run to be named in one language and
+ * read in another.
+ */
+function resolveLanguage() {
+  const saved = readStore(LANG_KEY, null);
+  return LANGUAGES.includes(saved) ? saved : detectLanguage();
+}
+
 /* -------------------------------------------------------------------- state */
 
 /** Inflation as typed, kept as text like a field's rate so a half-typed
@@ -439,27 +455,60 @@ function loadProjects(flat, fresh) {
     }
     return { openProjectId, projects };
   }
-  return { ...soleProject(fresh), plan: planOf(flat) };
+  const plan = planOf(flat);
+  return fresh
+    ? firstRunProjects(plan, makeTranslator(resolveLanguage()))
+    : { ...soleProject(), plan };
 }
 
 /**
- * One project holding exactly this plan, and nothing else on the shelf.
+ * One unnamed project holding exactly what was already there.
  *
- * The whole of the migration, and the whole of "Start again" — the two moments
- * the shelf has to be a single entry rather than whatever was there.
+ * The whole of the migration for a store that arrived from an older build. It
+ * gets no name, because nothing here knows what it was about, and `nameOf`
+ * renders a lone unnamed project as the form's own heading — so an upgrading
+ * reader sees the words that were always there and nothing appears to have been
+ * named, because nothing has.
  *
- * @param {boolean} named whether these are the app's own worked example. It
- *   *is* a housing question, so the project it opens with is named the way its
- *   three plans are — through the dictionary, so it follows the reader's
- *   language and is forgotten the moment they type over it. A store that
- *   arrived from an older build gets no name, because nothing here knows what
- *   it was about.
+ * **It stays one project, deliberately.** A fresh device opens with three (see
+ * `firstRunProjects`); a device with somebody's work on it gets exactly what it
+ * had. Putting the templates on an existing reader's shelf would be answering a
+ * question they did not ask, on a screen they had already arranged.
  */
-function soleProject(named) {
-  const only = normalizeProject(
-    { nameKey: named ? 'project.default.home' : '' }, projectCoerce, true,
-  );
+function soleProject() {
+  const only = normalizeProject({ nameKey: '' }, projectCoerce, true);
   return { projects: [only], openProjectId: only.id };
+}
+
+/**
+ * What a device opens with the very first time, and what "Start again" returns
+ * it to: the worked example, and both templates already on the shelf.
+ *
+ * The worked example is open, because it is the one with figures in it that add
+ * up to something and it is what every reader has landed on since the app had
+ * one plan. The templates sit behind it, built rather than offered — a reader
+ * who never finds the sheet still has them, and a reader who does opens them by
+ * pressing a name instead of by understanding what a template is first.
+ *
+ * That is the whole argument for loading them rather than leaving them in the
+ * shelf's "or start from a template" line: the line only works for somebody who
+ * has already found the sheet, and the sheet is behind the one control readers
+ * miss.
+ *
+ * Their targets are named in words rather than in dictionary keys, so this
+ * needs a translator before the one the rest of the app uses exists — which is
+ * what `resolveLanguage` above is for.
+ *
+ * @param {object} plan the nine keys of the worked example, already built
+ * @param {(key: string, ...params: unknown[]) => string} say a translator
+ */
+function firstRunProjects(plan, say) {
+  const open = normalizeProject({ nameKey: 'project.default.home' }, projectCoerce, true);
+  const behind = TEMPLATES.map((template) => {
+    const built = template.build(say);
+    return normalizeProject({ nameKey: built.nameKey, plan: built }, projectCoerce, false);
+  });
+  return { projects: [open, ...behind], openProjectId: open.id, plan };
 }
 
 const state = loadState();
@@ -683,7 +732,13 @@ function checkpoint(what) {
  * choose between the project coming back and the project just started.
  */
 function roomToUndo(snapshot) {
-  return state.projects.length + missingFrom(snapshot, state.projects) <= MAX_PROJECTS;
+  // The projects the move itself made do not count against the ceiling, because
+  // taking the move back takes them away in the same breath. Without this,
+  // undoing "Start again" was offered only while the shelf it had just built
+  // was small enough to sit *beside* the one it replaced — which since a first
+  // run builds three projects rather than one, it never was. The button simply
+  // did not appear, which is the worst way for an undo to be unavailable.
+  return fitsAfterUndo(snapshot, state.projects, MAX_PROJECTS);
 }
 
 /**
@@ -698,8 +753,8 @@ function roomToUndo(snapshot) {
  * @param {string} what `'project'` or `'reset'`
  * @param {object} plan the four keys of the project the snapshot is about
  * @param {string} at the id of the project that is
- * @param {string} [born] a project this move is about to create, which its undo
- *   has to take away again
+ * @param {Array<string>} [born] the projects this move is about to create,
+ *   which its undo has to take away again
  */
 function checkpointShelf(what, plan, at, born) {
   // Parked, so that every record in a photograph carries a plan — including the
@@ -3017,10 +3072,14 @@ function resetToDefaults() {
   // `loadProjects` would find the shelf that is being thrown away — and built
   // *before* the snapshot, so the photograph can name the project this move
   // creates and take it away again if the reader changes their mind.
-  const restarted = soleProject(true);
-  checkpointShelf('reset', planOf(state), state.openProjectId, restarted.openProjectId);
   const fresh = defaultState();
   delete fresh.fresh;
+  const restarted = firstRunProjects(planOf(fresh), t);
+  // Every project the restart makes is named, so undoing it takes all of them
+  // away again rather than leaving the templates behind on a shelf the reader
+  // has just asked to have back the way it was.
+  checkpointShelf('reset', planOf(state), state.openProjectId,
+    restarted.projects.map((project) => project.id));
   Object.assign(state, fresh);
   state.projects = restarted.projects;
   state.openProjectId = restarted.openProjectId;
@@ -3095,8 +3154,7 @@ closeOnBackdrop(ui.aboutDialog);
 
 /* ----------------------------------------------------------------- language */
 
-const savedLanguage = readStore(LANG_KEY, null);
-let language = LANGUAGES.includes(savedLanguage) ? savedLanguage : detectLanguage();
+let language = resolveLanguage();
 let t = makeTranslator(language);
 
 const bar = createStrategyBar({
@@ -3594,7 +3652,7 @@ function adoptAsProject(plan) {
   // *adds*. Its undo has to take the stranger's project away again and stand the
   // reader back in their own, so the snapshot carries the shelf and the id of
   // the project about to be made.
-  checkpointShelf('shared', planOf(state), state.openProjectId, created.id);
+  checkpointShelf('shared', planOf(state), state.openProjectId, [created.id]);
   state.projects = addProject(
     parkOpen(state.projects, state.openProjectId, state), created,
   );
