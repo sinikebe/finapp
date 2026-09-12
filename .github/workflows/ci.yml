@@ -27,19 +27,65 @@ jobs:
         with:
           fetch-depth: 0
       - name: A change to a precached file must bump CACHE_VERSION
+        env:
+          # Through the environment rather than interpolated into the script, so
+          # a branch name can never be read as shell.
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          # What to compare against, and it is deliberately *not* the previous
+          # commit on this branch.
+          #
+          # The invariant is about a release: when this lands on the default
+          # branch, will an app someone has installed get the new assets? So the
+          # baseline is the default branch, not wherever the branch happened to
+          # be one commit ago. Comparing commit to commit called a correctly
+          # versioned branch broken — bump CACHE_VERSION in the first commit,
+          # touch a precached file in the second, and the second commit's push
+          # run failed while the pull request's run passed. It cost two
+          # investigations before it was written down.
+          base="$PR_BASE"
+          if [ -z "$base" ]; then
+            # A push. `fetch-depth: 0` already brings the default branch down,
+            # but an explicit refspec costs nothing and makes the ref certain.
+            git fetch --no-tags --quiet origin \
+              "+refs/heads/$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH" 2>/dev/null || true
+            base=$(git merge-base HEAD "origin/$DEFAULT_BRANCH" 2>/dev/null || true)
+            if [ -z "$base" ]; then
+              # The default branch could not be resolved. Fall back to the commit
+              # before, which is the old behaviour: it can only ever be too
+              # strict, never too lax, which is the safe direction for a guard.
+              why="the commit before ($DEFAULT_BRANCH could not be resolved)"
+              base="$BEFORE"
+            elif [ "$base" = "$(git rev-parse HEAD)" ]; then
+              # A push to the default branch itself: the merge-base is HEAD,
+              # which would compare a release against itself and check nothing.
+              # There the commit before *is* the right baseline, because on that
+              # branch one commit is one release.
+              why="the commit before (this is $DEFAULT_BRANCH)"
+              base="$BEFORE"
+            else
+              why="where this branch left $DEFAULT_BRANCH"
+            fi
+          else
+            why="the pull request's base"
+          fi
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
             echo "No base commit to compare against — nothing to check."
             exit 0
           fi
-          # A force-push leaves `before` pointing at a commit that is no longer
-          # reachable, and `git diff` against it aborts. There is nothing to
-          # compare in that case; the run for the new head does the checking.
+          # A force-push to the default branch leaves `before` pointing at a
+          # commit that is no longer reachable, and `git diff` against it aborts.
+          # There is nothing to compare; the run for the new head does the
+          # checking. A feature branch no longer reaches this, because a
+          # merge-base is reachable by construction.
           if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
             echo "Base commit $base is gone (history was rewritten) — nothing to compare."
             exit 0
           fi
+          echo "Comparing against $base — $why."
+
           changed=$(git diff --name-only "$base" HEAD -- index.html manifest.webmanifest manifest.fr.webmanifest assets)
           if [ -z "$changed" ]; then
             echo "No precached file changed."
