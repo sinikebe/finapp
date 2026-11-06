@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { loadWorkspace } from '../assets/js/state.js';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
@@ -276,8 +277,8 @@ test('what each way of paying comes to is the figure written down', () => {
     .reduce((total, field) => total + Number(field.amount) * plan.months, 0);
   assert.equal(running, 9360);
 
-  assert.equal(spent('carLoa') - running - 1920 - 1000, 18360, 'the lease with an option');
-  assert.equal(spent('carLld') - running - 1000, 19300, 'the long lease');
+  assert.equal(spent('carLoa') - running - 1920 - 1000, 18040, 'the lease with an option');
+  assert.equal(spent('carLld') - running - 1000, 18950, 'the long lease');
   // Interest on the loan is the gap between buying it outright and on credit.
   assert.equal(spent('carCredit') - spent('carCash'), 2908);
 
@@ -288,7 +289,7 @@ test('what each way of paying comes to is the figure written down', () => {
     const run = runOf(s, plan.months);
     return Math.round(run.points[run.points.length - 1].worth);
   });
-  assert.deepEqual(worth, [-22688, -25769, -30640, -29660]);
+  assert.deepEqual(worth, [-22688, -25769, -30320, -29310]);
   assert.ok(worth[0] > worth[1], 'cash beats credit');
   assert.ok(worth[1] > worth[3], 'credit beats a long lease');
   assert.ok(worth[3] > worth[2], 'and a long lease beats one with an option');
@@ -355,45 +356,19 @@ test('the shelf says how many templates there are', () => {
 
 /* ------------------------------------------------- what a first run opens on */
 
-test('a fresh device gets the worked example and every template', async () => {
-  /*
-   * The templates are loaded rather than only offered, because the line that
-   * offers them is inside the sheet and the sheet is behind the one control
-   * readers miss. So the shelf a first run opens with is the worked example
-   * plus one project per template, and adding a template to `TEMPLATES` puts it
-   * on that shelf without another edit.
-   */
-  const app = await readFile(new URL('../assets/js/app.js', import.meta.url), 'utf8');
-  const body = app.split('function firstRunProjects(')[1].split('\n}')[0];
-  assert.ok(body, 'app.js declares firstRunProjects()');
-  assert.ok(
-    /TEMPLATES\.map\(/.test(body),
-    'it builds one project per template rather than naming them',
-  );
-  assert.ok(
-    /nameKey: 'project\.default\.home'/.test(body),
-    'and opens on the worked example',
-  );
+test('a fresh device gets the worked example and every template', () => {
+  const state = loadWorkspace({}, 'fr');
+  assert.equal(state.projects.length, TEMPLATES.length + 1);
+  assert.equal(state.projects[0].nameKey, 'project.default.home');
+  assert.equal(state.openProjectId, state.projects[0].id);
+  assert.deepEqual(state.projects.slice(1).map((one) => one.nameKey), TEMPLATES.map((one) => one.nameKey));
 });
 
-test('a device with work on it is never given projects it did not ask for', async () => {
-  /*
-   * The dangerous regression this guards. A reader upgrading from any earlier
-   * build has one project holding exactly what was already there; putting the
-   * templates on their shelf would be answering a question they did not ask, on
-   * a screen they had already arranged. So `soleProject` takes no argument that
-   * could make it do anything else, and the fresh branch is the only caller of
-   * `firstRunProjects`.
-   */
-  const app = await readFile(new URL('../assets/js/app.js', import.meta.url), 'utf8');
-  assert.ok(/function soleProject\(\)/.test(app), 'soleProject takes nothing to vary');
-  const sole = app.split('function soleProject()')[1].split('\n}')[0];
-  assert.ok(!sole.includes('TEMPLATES'), 'and knows nothing about templates');
-
-  const loader = app.split('function loadProjects(')[1].split('\n}\n')[0];
-  assert.ok(
-    /fresh\s*\n?\s*\?\s*firstRunProjects/.test(loader),
-    'only a fresh device takes the first-run shelf',
-  );
-  assert.ok(loader.includes('soleProject()'), 'and every other store takes one project');
+test('upgrading a device preserves its work without adding templates', () => {
+  const old = { strategies: [{ id: 'mine', fields: [{ id: 'salary', amount: '1234', direction: 'income' }] }], activeId: 'mine', months: 84 };
+  const state = loadWorkspace({ flat: old });
+  assert.equal(state.projects.length, 1);
+  assert.equal(state.months, 84);
+  assert.equal(state.strategies[0].fields[0].amount, '1234');
+  assert.equal(state.activeId, 'mine');
 });

@@ -97,6 +97,9 @@ export function createMilestoneList(options) {
     // keystroke in the box above it, and a live region that did would read the
     // reader their own half-typed figure back at them.
     const said = html('p', 'milestone-said', element);
+    const used = html('p', 'hint', element);
+    used.id = `milestone-${milestone.id}-used`;
+    remove.setAttribute('aria-describedby', used.id);
 
     // ...and, where the plan never gets there, the same question turned round.
     // Built once with the row and hidden rather than made and unmade as the
@@ -124,7 +127,7 @@ export function createMilestoneList(options) {
     answer.setAttribute('role', 'status');
 
     const row = {
-      element, name, nameLabel, metric, metricLabel, metricOptions, amount, amountLabel, said, remove,
+      element, name, nameLabel, metric, metricLabel, metricOptions, amount, amountLabel, said, used, remove,
       ask, choose, chooseLabel, askButton, answer, offered: '',
     };
 
@@ -166,6 +169,10 @@ export function createMilestoneList(options) {
 
     row.element.setAttribute('aria-label', named);
     row.remove.setAttribute('aria-label', labels.removeNamed(named));
+    const uses = labels.references(milestone);
+    row.remove.disabled = uses > 0;
+    row.used.hidden = uses === 0;
+    row.used.textContent = uses ? labels.used(uses) : '';
 
     row.said.textContent = labels.said(milestone);
     syncAsk(row, milestone, named);

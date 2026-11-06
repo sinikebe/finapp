@@ -1,27 +1,9 @@
-/**
- * Handing a plan to somebody else.
- *
- * Everything this app knows lives in one browser's storage, which is the whole
- * point of it and also the one thing that makes it awkward: there is no account
- * to share from and no server holding a copy to link to. So the link *is* the
- * copy. A whole configuration — every strategy, every field, the horizon and
- * the assumptions — is packed into the fragment of a URL, and a fragment is the
- * one part of a URL a browser never sends to a server. The plan travels through
- * whatever you paste it into and arrives on the other person's device without
- * having been anybody else's to read on the way, which is the same promise the
- * rest of the app makes, kept in the one place where it has to let go.
- *
- * Nothing here is compressed, and that is a decision rather than an omission.
- * `CompressionStream` would roughly halve the link, but it lands above this
- * app's browser floor — so a link written in one browser could not be opened in
- * another, which for a thing whose entire purpose is to be opened elsewhere is
- * the worst failure available. One format every supported browser can both
- * write and read is worth more than a shorter address.
- */
-
-import { FIELD_SHAPE, newId, normalizeFields } from './fields.js';
+/** Versioned URL fragments. References travel as slots and receive fresh IDs. */
+import { FIELD_SHAPE, newId, normalizeFields, MAX_FIELDS } from './fields.js';
 import { MAX_STRATEGIES, normalizeStrategies } from './strategies.js';
-import { MAX_MILESTONES } from './milestones.js';
+import { MAX_MILESTONES, normalizeMilestones } from './milestones.js';
+import { TARGET_REFS, missingTargets } from './plan-operations.js';
+import { numberText } from './numbers.js';
 
 /** What the fragment calls it: `#plan=…`. */
 export const PLAN_KEY = 'plan';
@@ -32,7 +14,8 @@ export const PLAN_KEY = 'plan';
  * change that breaks old links; adding an attribute does not, because a link
  * that never mentioned it reads as the default.
  */
-export const PLAN_VERSION = 1;
+export const PLAN_VERSION = 2;
+export const MAX_PLAN_TEXT = 512 * 1024;
 
 /**
  * The order a field's attributes travel in.
@@ -82,26 +65,28 @@ export const WIRE_KEYS = [
  * `normalizeFields` fills in, exactly as it does for a store written before that
  * attribute existed.
  */
-function encodeField(field, slotOf) {
+function encodeField(field, slotOf, targetSlot) {
   const row = [slotOf(field.id)];
   WIRE_KEYS.forEach((key, index) => {
-    const value = field[key];
+    let value = field[key];
+    if (TARGET_REFS.includes(key) && value) value = targetSlot.get(value);
     if (value === undefined || value === FIELD_SHAPE[key]) return;
     row.push(index, value === true ? 1 : value === false ? 0 : value);
   });
   return row;
 }
 
-function decodeField(row, idOf) {
+function decodeField(row, idOf, targetId) {
   if (!Array.isArray(row) || !row.length) return {};
   const field = { id: idOf(row[0]) };
-  for (let at = 1; at + 1 < row.length; at += 2) {
-    const key = WIRE_KEYS[row[at]];
+  for (let at = 1; at + 1 < Math.min(row.length, 129); at += 2) {
+    const key = Number.isInteger(row[at]) ? WIRE_KEYS[row[at]] : null;
     // An index this version has never heard of comes from a newer one: skip it
     // rather than refuse the whole plan, which would make every link stop
     // working the day an attribute is added.
     if (!key) continue;
-    const value = row[at + 1];
+    const value = TARGET_REFS.includes(key) && row[at + 1] !== ''
+      ? targetId(row[at + 1]) : row[at + 1];
     // Booleans travel as 1, since only a value that differs from its default is
     // written at all. Which keys are boolean is read from the shape rather than
     // listed again here.
@@ -120,11 +105,15 @@ function decodeField(row, idOf) {
  * must not. Numbering them does both: identical ids get identical slots, and
  * the far end mints fresh ids one per slot.
  *
- * Returns '' if the plan cannot be packed, which is the same answer as "there
- * is nothing to share" and needs no separate handling by the caller.
+ * Returns '' for an empty, invalid or oversized plan. The caller must show
+ * that failure rather than offering a link without a plan.
  */
 export function encodePlan(state) {
   if (!state || !Array.isArray(state.strategies)) return '';
+  const strategies = normalizeStrategies(state.strategies);
+  const milestones = normalizeMilestones(state.milestones, (state.milestones || []).map((one) => one.metric));
+  if (missingTargets(strategies, milestones).length) return '';
+  const targetSlot = new Map(milestones.map((one, index) => [one.id, index]));
   const slots = new Map();
   const slotOf = (id) => {
     if (!slots.has(id)) slots.set(id, slots.size);
@@ -134,48 +123,32 @@ export function encodePlan(state) {
   const plan = {
     v: PLAN_VERSION,
     m: state.months,
-    i: state.inflation,
-    sp: state.spread,
-    tx: state.tax,
-    s: state.strategies.slice(0, MAX_STRATEGIES).map((strategy) => [
+    i: numberText(state.inflation),
+    sp: numberText(state.spread),
+    tx: numberText(state.tax),
+    s: strategies.map((strategy) => [
       strategy.name || '',
       strategy.nameKey || '',
-      (strategy.fields || []).map((field) => encodeField(field, slotOf)),
+      strategy.fields.map((field) => encodeField(field, slotOf, targetSlot)),
     ]),
   };
-  // What the question was called, when it was called anything.
-  //
-  // A link carries **one project — the one you are looking at** — and never the
-  // shelf. Not a size decision: a project is a whole comparison, and sending
-  // somebody seven of them is sending them your device rather than your
-  // answer. So the format does not change shape at all; it grows one optional
-  // pair, which a build that has never heard of projects ignores exactly as it
-  // ignores anything it does not name. Every link ever minted still decodes
-  // into what it always decoded into, and a link minted today opens in v59 as
-  // the plan it is.
-  //
-  // The pair, not the name alone, for the reason a strategy sends its
-  // `nameKey`: a project the app named follows the *reader's* language rather
-  // than arriving frozen in the sender's.
+  // Only the open project travels; its default name follows the reader's language.
   const project = state.project || {};
   if (project.name || project.nameKey) plan.p = [project.name || '', project.nameKey || ''];
   // The two toggles are written only when they are on, which is the common
   // plan's saving and matches how a field omits its defaults.
   if (state.realMoney) plan.r = 1;
   if (state.showRange) plan.b = 1;
-  // The targets, if there are any. They go because they are part of what is
-  // being asked rather than part of the answer — somebody sending "here is how
-  // I would buy it" is usually sending "and here is when it happens" with it.
-  // Each travels as `[metric, amount]`, and that pair is a wire format like
-  // every other list here: append to it, never insert.
-  if (Array.isArray(state.milestones) && state.milestones.length) {
-    plan.ms = state.milestones.slice(0, MAX_MILESTONES).map(
-      (milestone) => [milestone.metric, milestone.amount],
+  // Version 2 targets: [metric, amount, name, slot]. Fields refer to that slot.
+  if (milestones.length) {
+    plan.ms = milestones.map(
+      (milestone, index) => [milestone.metric, milestone.amount, milestone.name, index],
     );
   }
 
   try {
-    return toBase64Url(JSON.stringify(plan));
+    const packed = toBase64Url(JSON.stringify(plan));
+    return packed.length <= MAX_PLAN_TEXT ? packed : '';
   } catch {
     return '';
   }
@@ -191,7 +164,7 @@ export function encodePlan(state) {
  * plan through — a link cannot be allowed a horizon a store could not have.
  */
 export function decodePlan(text) {
-  if (typeof text !== 'string' || !text) return null;
+  if (typeof text !== 'string' || !text || text.length > MAX_PLAN_TEXT) return null;
   let plan;
   try {
     plan = JSON.parse(fromBase64Url(text));
@@ -201,7 +174,7 @@ export function decodePlan(text) {
   if (!plan || typeof plan !== 'object' || Array.isArray(plan)) return null;
   // A version from the future is one this build cannot promise to read: say so
   // rather than guess at it.
-  if (Number(plan.v) !== PLAN_VERSION) return null;
+  if (![1, PLAN_VERSION].includes(Number(plan.v))) return null;
   if (!Array.isArray(plan.s) || !plan.s.length) return null;
 
   const ids = new Map();
@@ -211,17 +184,37 @@ export function decodePlan(text) {
     return ids.get(key);
   };
 
-  const strategies = normalizeStrategies(plan.s.map((entry) => {
+  const targetIds = new Map();
+  const targets = (Array.isArray(plan.ms) ? plan.ms : []).slice(0, MAX_MILESTONES)
+    .filter(Array.isArray).map(([metric, amount, name, slot]) => {
+      const base = {
+        metric: typeof metric === 'string' ? metric : '',
+        amount: numberText(amount),
+      };
+      // Old links without references remain readable. Version 2 adds identity.
+      if (Number(plan.v) === 1) return base;
+      const id = newId();
+      if (Number.isInteger(slot) && slot >= 0 && !targetIds.has(slot)) targetIds.set(slot, id);
+      return { ...base, id, name: typeof name === 'string' ? name.trim().slice(0, 40) : '' };
+    });
+  let brokenReference = false;
+  const targetId = (slot) => {
+    if (!targetIds.has(slot)) { brokenReference = true; return ''; }
+    return targetIds.get(slot);
+  };
+
+  const strategies = normalizeStrategies(plan.s.slice(0, MAX_STRATEGIES).map((entry) => {
     const [name, nameKey, fields] = Array.isArray(entry) ? entry : [];
     return {
       name: typeof name === 'string' ? name : '',
       // Carried so a plan the app named follows the *reader's* language rather
       // than arriving frozen in the sharer's.
       nameKey: typeof nameKey === 'string' ? nameKey : '',
-      fields: normalizeFields((Array.isArray(fields) ? fields : []).map((row) => decodeField(row, idOf))),
+      fields: normalizeFields((Array.isArray(fields) ? fields : []).slice(0, MAX_FIELDS).map((row) => decodeField(row, idOf, targetId))),
     };
   }));
 
+  if (brokenReference) return null;
   const [projectName, projectNameKey] = Array.isArray(plan.p) ? plan.p : [];
   return {
     strategies,
@@ -238,13 +231,7 @@ export function decodePlan(text) {
     // Shaped but not judged, the way the scalars above are. Which quantities
     // may be targeted is the app's list rather than the format's, so the caller
     // — which holds that list — is what turns these into targets it will accept.
-    milestones: (Array.isArray(plan.ms) ? plan.ms : [])
-      .slice(0, MAX_MILESTONES)
-      .filter(Array.isArray)
-      .map(([metric, amount]) => ({
-        metric: typeof metric === 'string' ? metric : '',
-        amount: typeof amount === 'number' || typeof amount === 'string' ? String(amount) : '',
-      })),
+    milestones: targets,
   };
 }
 
@@ -252,7 +239,7 @@ export function decodePlan(text) {
 
 /** The packed plan in a URL's fragment, or '' if there is none. */
 export function planInHash(hash) {
-  if (typeof hash !== 'string') return '';
+  if (typeof hash !== 'string' || hash.length > MAX_PLAN_TEXT + 1024) return '';
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   return params.get(PLAN_KEY) || '';
 }

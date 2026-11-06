@@ -111,7 +111,7 @@ export function normalizePlan(value, coerce) {
 export function normalizeProject(value, coerce, open) {
   const source = value && typeof value === 'object' ? value : {};
   return {
-    id: typeof source.id === 'string' && source.id ? source.id : newId(),
+    id: typeof source.id === 'string' && source.id && source.id.length <= 128 ? source.id : newId(),
     // Empty means unnamed, exactly as it does for a strategy: the switcher
     // shows something else rather than storing a name nobody typed.
     name: typeof source.name === 'string' ? source.name.trim().slice(0, MAX_NAME_LENGTH) : '',

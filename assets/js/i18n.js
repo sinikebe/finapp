@@ -22,6 +22,19 @@ const STRINGS = {
     'manifest.href': './manifest.webmanifest',
     'doc.title': 'Finapp — estimate your financial future',
     'doc.description': 'An offline-first calculator that projects cumulative income, expenses and net over the months ahead.',
+    'save.pending': 'Saving your changes…',
+    'save.saved': 'Saved.',
+    'save.error': 'Your latest changes could not be saved. Keep this tab open, try again, or download a backup.',
+    'save.unavailable': 'Changes cannot be saved safely in this browser here. Keep this tab open or download a backup.',
+    'save.conflict': 'Another tab saved different changes. Your edits are still here. Download a backup before loading the saved version.',
+    'save.remote': 'Another tab saved changes. Finish editing here or load the saved version.',
+    'save.recovery': (count) => `${count} unsaved drafts are available from earlier tabs. You can recover the latest or download them in a backup.`,
+    'save.retry': 'Try saving again',
+    'save.latest': 'Load saved changes',
+    'save.export': 'Download a backup',
+    'save.recover': 'Recover latest draft',
+    'save.discardAsk': 'Load the saved workspace and discard the changes still open in this tab? Download a backup first if you want to keep them.',
+    'save.recoverAsk': 'Replace the workspace shown here with the latest unsaved draft, including all its projects? You can download the current workspace as a backup first.',
     'skip.link': 'Skip to content',
     'action.install': 'Install app',
     'about.open': 'About',
@@ -233,6 +246,11 @@ const STRINGS = {
     'field.atAria': (name) => `What sets this month for ${name}`,
     'field.atMet': (month) => `month ${month}`,
     'field.atNotYet': 'not yet',
+    'milestone.used': (count) => `Used by ${count} ${count === 1 ? 'field' : 'fields'}. Choose a month or another target on those fields before removing this target.`,
+    'milestone.unnamed': 'Unnamed target',
+    'milestone.missing': 'Missing target — choose a month or another target',
+    'milestone.invalid': 'Some fields refer to a missing target. Their settings show the broken link; choose a month or another target to repair it.',
+    'share.targetsFull': 'These plans need more targets than fit in this project. Open them as a separate project, or keep your current plans.',
     'milestone.name': 'Name for this target, so a field can wait on it',
     'milestone.namePlaceholder': 'Name it to wait on it',
     'milestone.unsettled': 'These targets move each other, so there is no month that is its own cause. Give one of them a figure that does not depend on the other, or set its month by hand.',
@@ -400,6 +418,7 @@ const STRINGS = {
     // "Or more", never "is": the figure is rounded away from the goal, so it
     // clears the target rather than landing exactly on it, and saying so is
     // what makes the rounding honest rather than sloppy.
+    'goal.said.checked': (name, figure, value, month) => `With ${name}’s ${figure} set to ${value}, this plan reaches the target in month ${month}. Its scheduled events may change, so other values need a fresh calculation.`,
     'goal.said.least': (name, figure, amount, month) =>
       `${name}: ${figure} would have to be ${amount} or more — the target is then met in month ${month}.`,
     'goal.said.most': (name, figure, amount, month) =>
@@ -418,7 +437,7 @@ const STRINGS = {
     'goal.refusal.unproven': (name, figure) =>
       `${name}: the value the search settled on for ${figure} does not reach the target once it is put back into the plan, so there is nothing to name.`,
     // What the ask can do and what it will not, said where the ask appears.
-    'goal.caveat': 'Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.',
+    'goal.caveat': "Only an amount or a rate can be solved. Each answer is checked by running the complete plan again. If events depend on targets, the answer is one checked example: larger or smaller figures can change when those events happen. Nothing is applied to your plan automatically.",
 
     'summary.heading': 'Projected totals',
     'summary.heroLabel': (months) => `Net after ${months} ${plural(months, 'month', 'months')}`,
@@ -455,6 +474,8 @@ const STRINGS = {
     'filter.rangeAria': 'Whether to show a range around the returns',
     'filter.showRange': 'Show a range',
     'filter.spread': 'Returns, give or take, as a percentage',
+    'filter.rateConvention': 'Rates on balances are nominal annual percentages divided by twelve. The rate on a repeating amount changes it on each anniversary.',
+    'summary.taxScope': 'Cash and total worth are before investment tax, including after a sale. Only net profit applies the tax rate shown in the assumptions.',
     'filter.tax': 'Tax on gains, as a percentage',
     'filter.rangeNote': (points) => `The shaded band is where things land if returns come in ${points} points lower or higher than you set. Loan interest is left alone: that one was agreed, not guessed.`,
     'filter.preset': (years) => (years === 1 ? '1 yr' : `${years} yr`),
@@ -501,7 +522,7 @@ const STRINGS = {
     'chart.net.monthly.description': 'What each month left over — below the line is a month where more went out than came in.',
     'chart.net.monthly.series': 'Net that month',
     'chart.worth.title': 'Total worth',
-    'chart.worth.description': 'Cash kept, investments and what you own, less what you still owe.',
+    'chart.worth.description': 'Cash kept, investments and what you own, less what you still owe, before investment tax.',
     'chart.worth.series': 'Total to date',
     'chart.worth.monthly.title': 'Change in total worth',
     'chart.worth.monthly.description': 'How much better or worse off each month left you.',
@@ -543,6 +564,7 @@ const STRINGS = {
     'share.heading': 'Share this plan',
     'share.note': 'The whole plan is inside this link: every strategy, every figure, the horizon and the assumptions. It rides in the part of an address a browser never sends to a server, so it goes only where you paste it — and anyone who has it has the plan.',
     'share.link': 'A link carrying this plan',
+    'share.cannotEncode': 'This plan cannot be shared. Check its target references or download a backup instead.',
     'share.copy': 'Copy link',
     'share.copied': 'Copied.',
     'share.copyYourself': 'Copy it from the box above.',
@@ -569,6 +591,19 @@ const STRINGS = {
     'manifest.href': './manifest.fr.webmanifest',
     'doc.title': 'Finapp — estimez votre avenir financier',
     'doc.description': 'Un calculateur hors ligne qui projette les revenus, les dépenses et le solde net cumulés sur les mois à venir.',
+    'save.pending': 'Enregistrement des modifications…',
+    'save.saved': 'Enregistré.',
+    'save.error': 'Vos dernières modifications n’ont pas pu être enregistrées. Gardez cet onglet ouvert, réessayez ou téléchargez une sauvegarde.',
+    'save.unavailable': 'Ce navigateur ne permet pas d’enregistrer vos modifications de façon sûre ici. Gardez cet onglet ouvert ou téléchargez une sauvegarde.',
+    'save.conflict': 'Un autre onglet a enregistré des modifications différentes. Vos changements sont toujours ici. Téléchargez une sauvegarde avant de charger la version enregistrée.',
+    'save.remote': 'Un autre onglet a enregistré des modifications. Terminez votre saisie ici ou chargez la version enregistrée.',
+    'save.recovery': (count) => `${count} brouillons non enregistrés provenant d’anciens onglets sont disponibles. Vous pouvez récupérer le dernier ou les télécharger dans une sauvegarde.`,
+    'save.retry': 'Réessayer l’enregistrement',
+    'save.latest': 'Charger les modifications enregistrées',
+    'save.export': 'Télécharger une sauvegarde',
+    'save.recover': 'Récupérer le dernier brouillon',
+    'save.discardAsk': 'Charger l’ensemble des projets enregistrés et abandonner les modifications encore ouvertes dans cet onglet ? Téléchargez d’abord une sauvegarde si vous souhaitez les conserver.',
+    'save.recoverAsk': 'Remplacer l’ensemble des projets affichés ici par le dernier brouillon non enregistré ? Vous pouvez d’abord télécharger une sauvegarde de vos projets actuels.',
     'skip.link': 'Aller au contenu',
     'action.install': 'Installer l’application',
     'about.open': 'À propos',
@@ -671,7 +706,7 @@ const STRINGS = {
     'project.switchAriaOnly': (name) => `Projet : ${name}. Commencer un autre projet`,
     'project.openNamed': (name) => `Ouvrir ${name}`,
     'project.removeNamed': (name) => `Supprimer le projet ${name}`,
-    'project.count': (plans, horizon) => `${plans} plan${plans > 1 ? 's' : ''} · ${horizon}`,
+    'project.count': (plans, horizon) => `${plans} plan${plans > 1 ? 's' : ''} · ${horizon}`,
     'share.receivedProject': 'Ouvrir comme projet à part',
     'strategy.default.loan': 'Acheter tout de suite, à crédit',
     'strategy.default.saveUp': 'Épargner, puis acheter comptant',
@@ -735,6 +770,11 @@ const STRINGS = {
     'field.atAria': (name) => `Ce qui fixe ce mois pour ${name}`,
     'field.atMet': (month) => `mois ${month}`,
     'field.atNotYet': 'pas encore',
+    'milestone.used': (count) => `Utilisé par ${count} ${count === 1 ? 'champ' : 'champs'}. Choisissez un mois ou un autre objectif sur ces champs avant de supprimer celui-ci.`,
+    'milestone.unnamed': 'Objectif sans nom',
+    'milestone.missing': 'Objectif absent — choisissez un mois ou un autre objectif',
+    'milestone.invalid': 'Certains champs font référence à un objectif absent. Le lien rompu apparaît dans leurs paramètres ; choisissez un mois ou un autre objectif pour le réparer.',
+    'share.targetsFull': 'Ces plans demandent plus d’objectifs que ce projet ne peut en contenir. Ouvrez-les dans un projet distinct, ou gardez vos plans actuels.',
     'milestone.name': 'Nom de cet objectif, pour qu’un poste puisse l’attendre',
     'milestone.namePlaceholder': 'Nommez-le pour l’attendre',
     'milestone.unsettled': 'Ces objectifs se déplacent mutuellement\u00a0: aucun mois n’est sa propre cause. Donnez à l’un un montant qui ne dépend pas de l’autre, ou fixez son mois à la main.',
@@ -803,7 +843,7 @@ const STRINGS = {
     'sankey.tipValue': (amount, share) => `${amount} · ${share} %`,
     'sankey.share': (share) => `${share} %`,
     'sankey.aria': (total, sources, sinks) =>
-      `Diagramme de flux : ${total} au total, de ${sources} ${sources === 1 ? 'source' : 'sources'} vers ${sinks} ${sinks === 1 ? 'destination' : 'destinations'}. Le tableau ci-dessous contient tous les chiffres.`,
+      `Diagramme de flux : ${total} au total, de ${sources} ${sources === 1 ? 'source' : 'sources'} vers ${sinks} ${sinks === 1 ? 'destination' : 'destinations'}. Le tableau ci-dessous contient tous les chiffres.`,
     'compare.heading': 'Les stratégies côte à côte',
     'compare.note': (name, metric, amount, months) =>
       `${name} arrive en tête sur ${metric} : ${amount} après ${months} mois.`,
@@ -857,6 +897,7 @@ const STRINGS = {
     'goal.knob.amount': 'le montant',
     'goal.knob.annualRate': 'le taux',
     'goal.rate': (rate) => `${rate}\u00a0% par an`,
+    'goal.said.checked': (name, figure, value, month) => `Avec ${figure} de ${name} fixé à ${value}, ce plan atteint l’objectif au mois ${month}. Les événements programmés peuvent changer ; une autre valeur demande un nouveau calcul.`,
     'goal.said.least': (name, figure, amount, month) =>
       `${name}\u00a0: ${figure} devrait être de ${amount} ou plus — l’objectif est alors atteint au mois ${month}.`,
     'goal.said.most': (name, figure, amount, month) =>
@@ -869,7 +910,7 @@ const STRINGS = {
       `${name}\u00a0: augmenter ${figure} aide, puis cesse d’aider\u00a0; il n’y a donc pas de chiffre unique à donner. L’application ne choisira pas un passage pour en faire la réponse.`,
     'goal.refusal.unproven': (name, figure) =>
       `${name}\u00a0: la valeur trouvée pour ${figure} n’atteint pas l’objectif une fois replacée dans le plan\u00a0; il n’y a donc rien à annoncer.`,
-    'goal.caveat': 'Deux chiffres seulement peuvent être calculés à rebours\u00a0: un montant et un taux. Augmenter l’un ou l’autre emmène la réponse dans un sens et continue de l’y emmener, ce qui permet à une recherche de l’encadrer puis de resserrer par moitiés. Le mois où un placement est vendu n’a pas cette propriété — le déplacer change à la fois ce que le placement a rapporté et ce que l’argent a permis d’acheter — ni la durée d’un emprunt\u00a0; ni l’un ni l’autre n’est donc proposé. Ce qui ressort est replacé dans le plan et reprojeté avant d’être affiché, et si l’objectif n’est pas atteint l’application le dit plutôt que d’annoncer un chiffre. Rien de tout cela n’est jamais écrit dans votre plan.',
+    'goal.caveat': "Seuls un montant ou un taux peuvent être calculés à rebours. Chaque réponse est vérifiée en rejouant le plan complet. Si des événements dépendent d’objectifs, la réponse est un exemple vérifié : une autre valeur peut changer leurs dates. Rien n’est appliqué automatiquement à votre plan.",
 
     'summary.heading': 'Totaux projetés',
     'summary.heroLabel': (months) => `Solde net après ${months} mois`,
@@ -904,9 +945,11 @@ const STRINGS = {
     'filter.rangeAria': 'Afficher ou non une fourchette autour des rendements',
     'filter.showRange': 'Afficher une fourchette',
     'filter.spread': 'Rendements, à plus ou moins, en pourcentage',
+    'filter.rateConvention': 'Les taux des soldes sont des pourcentages annuels nominaux divisés par douze. Le taux d’un montant récurrent le fait évoluer à chaque anniversaire.',
+    'summary.taxScope': 'La trésorerie et le total sont avant impôt sur les placements, même après une vente. Seul le gain net applique le taux d’impôt indiqué dans les hypothèses.',
     'filter.tax': 'Impôt sur les gains, en pourcentage',
     'filter.rangeNote': (points) => `La zone ombrée montre où l’on arrive si les rendements sont inférieurs ou supérieurs de ${points} points à ce que vous avez indiqué. Le taux d’un emprunt reste inchangé : celui-là est contractuel, pas supposé.`,
-    'filter.preset': (years) => (years === 1 ? '1 an' : `${years} ans`),
+    'filter.preset': (years) => (years === 1 ? '1 an' : `${years} ans`),
 
     'charts.heading': 'Cumul au fil du temps',
     'charts.monthlyHeading': 'Mois par mois',
@@ -947,7 +990,7 @@ const STRINGS = {
     'chart.net.monthly.description': 'Ce que chaque mois a laissé — sous la ligne, c’est un mois où il est sorti plus qu’il n’est entré.',
     'chart.net.monthly.series': 'Solde net du mois',
     'chart.worth.title': 'Patrimoine total',
-    'chart.worth.description': 'L’argent conservé, les placements et vos biens, moins ce qui reste dû.',
+    'chart.worth.description': 'L’argent conservé, les placements et vos biens, moins ce qui reste dû, avant l’impôt sur les placements.',
     'chart.worth.series': 'Total à ce jour',
     'chart.worth.monthly.title': 'Variation du patrimoine',
     'chart.worth.monthly.description': 'De combien chaque mois vous a laissé plus riche, ou plus pauvre.',
@@ -967,7 +1010,7 @@ const STRINGS = {
 
     'month.start': 'Début',
     'month.nth': (month) => `Mois ${month}`,
-    'horizon.years': (years) => (years === 1 ? '1 an' : `${years} ans`),
+    'horizon.years': (years) => (years === 1 ? '1 an' : `${years} ans`),
     'horizon.months': (months) => `${months} mois`,
 
     'footer.note': 'Tout est calculé sur votre appareil et enregistré uniquement dans ce navigateur. Aucun compte, aucun réseau.',
@@ -984,6 +1027,7 @@ const STRINGS = {
     'share.heading': 'Partager ce plan',
     'share.note': 'Le plan entier tient dans ce lien\u00a0: chaque stratégie, chaque montant, l’horizon et les hypothèses. Il voyage dans la partie d’une adresse qu’un navigateur n’envoie jamais à un serveur, donc il ne va que là où vous le collez — et quiconque l’a, a le plan.',
     'share.link': 'Un lien qui porte ce plan',
+    'share.cannotEncode': 'Ce plan ne peut pas être partagé. Vérifiez les liens vers ses objectifs ou téléchargez une sauvegarde.',
     'share.copy': 'Copier le lien',
     'share.copied': 'Copié.',
     'share.copyYourself': 'Copiez-le depuis le champ ci-dessus.',
@@ -1007,8 +1051,8 @@ const STRINGS = {
 };
 
 /** The language a browser asks for, if the app speaks it. */
-export function detectLanguage(nav = typeof navigator === 'undefined' ? null : navigator) {
-  const tags = [...(nav && nav.languages ? nav.languages : []), nav && nav.language];
+export function detectLanguage(nav = typeof navigator === 'undefined' ? null : navigator) {
+  const tags = [...(nav && nav.languages ? nav.languages : []), nav && nav.language];
   for (const tag of tags) {
     if (typeof tag !== 'string') continue;
     const base = tag.toLowerCase().split(/[-_@]/)[0];
@@ -1018,8 +1062,8 @@ export function detectLanguage(nav = typeof navigator === 'undefined' ? null : n
 }
 
 /** The best Intl tag for a chosen language: the reader's own region if it matches. */
-export function localeFor(language, nav = typeof navigator === 'undefined' ? null : navigator) {
-  const tags = [...(nav && nav.languages ? nav.languages : []), nav && nav.language];
+export function localeFor(language, nav = typeof navigator === 'undefined' ? null : navigator) {
+  const tags = [...(nav && nav.languages ? nav.languages : []), nav && nav.language];
   for (const tag of tags) {
     if (typeof tag !== 'string' || !tag) continue;
     if (tag.toLowerCase().split(/[-_@]/)[0] !== language) continue;
@@ -1044,10 +1088,10 @@ const carries = (dictionary, key) => Object.prototype.hasOwnProperty.call(dictio
 export function makeTranslator(language) {
   const dictionary = STRINGS[language] || STRINGS.en;
   return function t(key, ...params) {
-    const entry = carries(dictionary, key) ? dictionary[key]
-      : (carries(STRINGS.en, key) ? STRINGS.en[key] : undefined);
+    const entry = carries(dictionary, key) ? dictionary[key]
+      : (carries(STRINGS.en, key) ? STRINGS.en[key] : undefined);
     if (entry === undefined) return key;
-    return typeof entry === 'function' ? entry(...params) : entry;
+    return typeof entry === 'function' ? entry(...params) : entry;
   };
 }
 

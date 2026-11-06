@@ -226,25 +226,12 @@ test('nonsense becomes one empty project rather than nothing at all', () => {
 
 /* ------------------------------------------------------------- and the store */
 
-test('the shelf is never written into the store an older build rewrites', async () => {
-  /*
-   * Measured before this shape was chosen: a build from before projects writes
-   * a fresh nine-key literal into `finapp.state.v3` on the first keystroke and
-   * drops everything it does not know. Put the shelf in that key and one
-   * keystroke in a stale tab — a PWA left open, a service worker generation
-   * that only *offers* a reload — takes every project with it, silently and
-   * irrecoverably. Under its own key, no older build ever writes it.
-   */
-  const app = await readFile(new URL('../assets/js/app.js', import.meta.url), 'utf8');
-  const stateKey = app.match(/const STATE_KEY = '([^']+)'/)[1];
-  const projectsKey = app.match(/const PROJECTS_KEY = '([^']+)'/)[1];
-  assert.equal(stateKey, 'finapp.state.v3', 'the store an older build knows keeps its key');
-  assert.notEqual(projectsKey, stateKey);
-
-  // And what goes in the old key is the nine it always held, plus a stamp: a
-  // string an older build reads past and drops, which is exactly the case
-  // `loadProjects` branch 3 exists to adopt.
-  const written = app.split('function save() {')[1].split('writeStore(STATE_KEY, {')[1].split('});')[0];
-  assert.ok(written.includes('projectId: state.openProjectId'));
-  assert.ok(!written.includes('projects:'), 'the shelf itself is not in there');
+test('a saved snapshot keeps the legacy flat plan and shelf shapes distinct', async () => {
+  const { snapshotOf } = await import('../assets/js/state.js');
+  const state = { ...stateLike(), openProjectId: 'p', projects: [{ id: 'p', plan: null }] };
+  const saved = snapshotOf(state);
+  assert.equal(saved.flat.projectId, 'p');
+  assert.ok(!('projects' in saved.flat));
+  assert.equal(saved.shelf.openProjectId, 'p');
+  assert.deepEqual(saved.shelf.projects, state.projects);
 });

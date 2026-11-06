@@ -37,6 +37,7 @@
  */
 
 import { newId } from './fields.js';
+import { numberText } from './numbers.js';
 import { DEFAULT_PLAN } from './strategies.js';
 
 /**
@@ -73,7 +74,7 @@ export function normalizeMilestone(value, metrics) {
   const source = value && typeof value === 'object' ? value : {};
   const known = Array.isArray(metrics) ? metrics : [];
   return {
-    id: typeof source.id === 'string' && source.id ? source.id : newId(),
+    id: typeof source.id === 'string' && source.id && source.id.length <= 128 ? source.id : newId(),
     // A name is what makes a target waitable: an unnamed one is still read and
     // still drawn, but nothing can refer to it, because there is nothing to
     // refer to it by. Empty is the default, so every target written before
@@ -82,9 +83,7 @@ export function normalizeMilestone(value, metrics) {
     metric: known.includes(source.metric) ? source.metric : (known[0] || ''),
     // Kept exactly as it was typed, like a field's amount: the reader's own
     // separators survive, and whoever reads the figure says how.
-    amount: typeof source.amount === 'number' || typeof source.amount === 'string'
-      ? String(source.amount)
-      : '',
+    amount: numberText(source.amount),
   };
 }
 

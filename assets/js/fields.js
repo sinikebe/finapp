@@ -12,6 +12,8 @@
  * it meaning, `contributionOf` in the projection, needs to know what it is.
  */
 
+import { numberText } from './numbers.js';
+
 /** The two directions money can flow. A field's direction carries the sign, so
  *  amounts themselves stay positive and can't smuggle in a negative. */
 export const DIRECTIONS = ['income', 'expense'];
@@ -44,7 +46,7 @@ export const DEFAULT_TERM = 60;
 export const FIELD_SCHEMA = {
   id: {
     default: '',
-    read: (value) => (typeof value === 'string' && value ? value : newId()),
+    read: (value) => (typeof value === 'string' && value && value.length <= 128 ? value : newId()),
   },
   labelKey: {
     // A dictionary key, while the reader hasn't renamed the field. Only ever
@@ -67,7 +69,7 @@ export const FIELD_SCHEMA = {
   amount: {
     // Kept as typed; the projection coerces it to money.
     default: '',
-    read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : ''),
+    read: (value) => numberText(value),
   },
   kind: {
     default: 'plain',
@@ -75,9 +77,9 @@ export const FIELD_SCHEMA = {
   },
   annualRate: {
     // A percentage per year, as typed: interest on a loan, return on an
-    // investment. Meaningless on a plain field, which simply ignores it.
+    // investment, annual change on a plain amount or an asset.
     default: '',
-    read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : ''),
+    read: (value) => numberText(value),
   },
   fees: {
     // What a lender charges to arrange a loan, and lends you along with it. It
@@ -86,7 +88,7 @@ export const FIELD_SCHEMA = {
     // from what the bank will end up lending. Empty is none, which is what
     // every loan written before this reads as.
     default: '',
-    read: (value) => (typeof value === 'number' || typeof value === 'string' ? String(value) : ''),
+    read: (value) => numberText(value),
   },
   termMonths: {
     // How long a loan runs. Kept inside the projection's own horizon limit so a
@@ -143,15 +145,15 @@ export const FIELD_SCHEMA = {
    */
   startAt: {
     default: '',
-    read: (value) => (typeof value === 'string' ? value : ''),
+    read: (value) => (typeof value === 'string' && value.length <= 128 ? value : ''),
   },
   endAt: {
     default: '',
-    read: (value) => (typeof value === 'string' ? value : ''),
+    read: (value) => (typeof value === 'string' && value.length <= 128 ? value : ''),
   },
   sellAt: {
     default: '',
-    read: (value) => (typeof value === 'string' ? value : ''),
+    read: (value) => (typeof value === 'string' && value.length <= 128 ? value : ''),
   },
   synced: {
     // Whether every strategy holds this same field, so that comparing two
@@ -209,7 +211,7 @@ export function normalizeField(value) {
   // mean nothing, and it counts towards what you are worth rather than against
   // it. Both are settled here so a hand-edited store can't say otherwise.
   // Only an investment can be cashed in: nothing else is a holding.
-  if (field.kind !== 'investment') field.sellMonth = 0;
+  if (field.kind !== 'investment') { field.sellMonth = 0; field.sellAt = ''; }
   if (field.kind === 'asset') {
     field.direction = 'income';
     field.periodMonths = DEFAULT_PERIOD;
@@ -228,6 +230,7 @@ export function normalizeField(value) {
   }
   // A loan ends when its term does; a second end would only contradict it.
   if (field.kind === 'loan') field.endMonth = 0;
+  if (['loan', 'once', 'asset'].includes(field.kind)) field.endAt = '';
   // An end before the beginning would land nothing at all and say nothing
   // about why. Read as "it starts and stops in the same month".
   if (field.endMonth && field.endMonth < field.startMonth) field.endMonth = field.startMonth;

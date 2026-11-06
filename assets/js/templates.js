@@ -174,9 +174,9 @@ function housingShared() {
 
 /** Living in it: no rent received, and — the point of the whole exercise — no
  *  rent paid either. */
-function livingIn() {
+function livingIn(shared) {
   return [
-    ...housingShared(),
+    ...shared.map((field) => ({ ...field })),
     createField({
       labelKey: 'field.default.coproLiving', direction: 'expense',
       amount: HOUSING.coproLiving, startMonth: 1,
@@ -197,12 +197,12 @@ function livingIn() {
  * amount, and a comparison showing only the amount would make a regime that
  * postpones look identical to one that does not.
  */
-function lettingOut(taxAmount, taxStart) {
+function lettingOut(taxAmount, taxStart, shared) {
   const monthly = (labelKey, amount) => createField({
     labelKey, direction: 'expense', amount, startMonth: 1,
   });
   return [
-    ...housingShared(),
+    ...shared.map((field) => ({ ...field })),
     createField({
       labelKey: 'field.default.rentReceived', direction: 'income',
       amount: HOUSING.rent, startMonth: 1,
@@ -227,20 +227,21 @@ function lettingOut(taxAmount, taxStart) {
 }
 
 function buildHousing(t) {
+  const shared = housingShared();
   return {
     nameKey: 'project.default.liveOrLet',
     months: HOUSING.term,
     strategies: [
-      createStrategy({ nameKey: 'strategy.default.liveIn', fields: livingIn() }),
+      createStrategy({ nameKey: 'strategy.default.liveIn', fields: livingIn(shared) }),
       // Writing the flat down against the rents covers them for about ten
       // years; what is left is taxed after that.
-      createStrategy({ nameKey: 'strategy.default.letLmnp', fields: lettingOut('1400', 121) }),
+      createStrategy({ nameKey: 'strategy.default.letLmnp', fields: lettingOut('1400', 121, shared) }),
       // A flat allowance instead, so tax starts with the first full year and
       // never stops.
-      createStrategy({ nameKey: 'strategy.default.letMicro', fields: lettingOut('3300', 13) }),
+      createStrategy({ nameKey: 'strategy.default.letMicro', fields: lettingOut('3300', 13, shared) }),
       // A write-down bought with a letting commitment, so the postponement ends
       // when the commitment does.
-      createStrategy({ nameKey: 'strategy.default.letScheme', fields: lettingOut('1200', 109) }),
+      createStrategy({ nameKey: 'strategy.default.letScheme', fields: lettingOut('1200', 109, shared) }),
     ],
     milestones: [
       { name: t('template.target.debtClear'), metric: 'debt', amount: '0' },
@@ -372,16 +373,16 @@ function carRegistration() {
 
 /** A lease: a large first payment, a monthly one, and the bill at the end for
  *  handing it back. */
-function carLease(first, rent, servicing) {
+function carLease(first, rent, servicing, shared) {
   return [
-    ...carRunning(),
+    ...shared.map((field) => ({ ...field })),
     createField({
       labelKey: 'field.default.firstRent', kind: 'once', direction: 'expense',
       amount: first, startMonth: 1,
     }),
     createField({
       labelKey: 'field.default.leaseRent', direction: 'expense',
-      amount: rent, startMonth: 1, endMonth: CAR.term,
+      amount: rent, startMonth: 2, endMonth: CAR.term,
     }),
     ...(servicing ? [carServicing()] : []),
     createField({
@@ -392,6 +393,7 @@ function carLease(first, rent, servicing) {
 }
 
 function buildCar(t) {
+  const shared = carRunning();
   return {
     nameKey: 'project.default.car',
     months: CAR.term,
@@ -399,7 +401,7 @@ function buildCar(t) {
       createStrategy({
         nameKey: 'strategy.default.carCash',
         fields: [
-          ...carRunning(),
+          ...shared.map((field) => ({ ...field })),
           createField({
             labelKey: 'field.default.carPurchase', kind: 'once', direction: 'expense',
             amount: CAR.price, startMonth: 1,
@@ -410,7 +412,7 @@ function buildCar(t) {
       createStrategy({
         nameKey: 'strategy.default.carCredit',
         fields: [
-          ...carRunning(),
+          ...shared.map((field) => ({ ...field })),
           // Drawn in month 0, the month before the first payment, so all
           // forty-eight of them land inside a forty-eight month horizon and the
           // debt reaches nought exactly at the end of it.
@@ -422,9 +424,9 @@ function buildCar(t) {
         ],
       }),
       // A lease with an option leaves the servicing to you.
-      createStrategy({ nameKey: 'strategy.default.carLoa', fields: carLease(CAR.loaFirst, CAR.loaRent, true) }),
+      createStrategy({ nameKey: 'strategy.default.carLoa', fields: carLease(CAR.loaFirst, CAR.loaRent, true, shared) }),
       // A long lease bundles it.
-      createStrategy({ nameKey: 'strategy.default.carLld', fields: carLease(CAR.lldFirst, CAR.lldRent, false) }),
+      createStrategy({ nameKey: 'strategy.default.carLld', fields: carLease(CAR.lldFirst, CAR.lldRent, false, shared) }),
     ],
     milestones: [],
   };
@@ -459,3 +461,28 @@ export function templateOf(id) {
 }
 
 export { HOUSING as HOUSING_PLAN, CAR as CAR_PLAN };
+
+/** Repair identical shared rows from older template builds without overwriting user values. */
+export function repairTemplateLinks(strategies) {
+  const known = new Set([
+    'liveIn', 'letLmnp', 'letMicro', 'letScheme',
+    'carCash', 'carCredit', 'carLoa', 'carLld',
+  ].map((name) => `strategy.default.${name}`));
+  const canonical = new Map();
+  return strategies.map((strategy) => {
+    if (!known.has(strategy.nameKey)) return strategy;
+    const used = new Set();
+    return {
+      ...strategy,
+      fields: strategy.fields.map((field) => {
+        if (!field.synced || !field.labelKey) return field;
+        const signature = JSON.stringify(Object.entries(field).filter(([key]) => key !== 'id'));
+        const matches = canonical.get(signature) || [];
+        const id = matches.find((id) => !used.has(id)) || field.id;
+        used.add(id);
+        if (!matches.includes(id)) canonical.set(signature, [...matches, id]);
+        return id === field.id ? field : { ...field, id };
+      }),
+    };
+  });
+}

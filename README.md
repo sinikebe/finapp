@@ -1,690 +1,166 @@
 # Finapp
 
-**Estimate your financial future in the browser.** List what comes in and what
-goes out each month, choose a horizon, and read the curves — for one plan or
-for several, side by side.
+Project income, expenses, cash and total worth over the next 1–600 months.
+Compare up to four strategies for each of six projects. Everything is calculated
+in the browser; there is no account, backend or runtime dependency.
 
 [![CI](https://github.com/sinikebe/finapp/actions/workflows/ci.yml/badge.svg)](https://github.com/sinikebe/finapp/actions/workflows/ci.yml)
-[![Deployed to Pages](https://github.com/sinikebe/finapp/actions/workflows/pages/pages-build-deployment/badge.svg)](https://sinikebe.github.io/finapp/)
-[![Dependencies: none](https://img.shields.io/badge/dependencies-none-2ea44f)](package.json)
-[![Build step: none](https://img.shields.io/badge/build%20step-none-2ea44f)](CONTRIBUTING.md)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Built with Claude Code](https://img.shields.io/badge/built%20with-Claude%20Code-D97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
+[![Open Finapp](https://img.shields.io/badge/open-Finapp-blue)](https://sinikebe.github.io/finapp/)
 
-### [Open it &rarr;](https://sinikebe.github.io/finapp/)
+**[Open Finapp](https://sinikebe.github.io/finapp/)** · English and French ·
+light and dark themes · installable PWA
 
-Nothing to install and nothing to sign up for: it is a page, and it keeps
-working offline once you have opened it.
+![Finapp comparing three ways of buying a home](docs/screenshot.png)
 
-[![Three strategies side by side: one line each for buying on a loan, saving up to buy cash, and saving up and selling the fund, above a table of where each one stands after 240 months](docs/screenshot.png)](https://sinikebe.github.io/finapp/)
+## Build a plan
 
-It plots three cumulative curves — income, expenses and net — over the months
-ahead, plus what you are worth in total once there is a balance sheet to speak
-of. Everything runs on the device: no build step, no dependencies, no account,
-and nothing about you leaving the machine it is typed on. The whole thing is
-static files served from a folder.
+A project is one question, such as buying a home or paying for a car. Each
+strategy is an alternative answer with its own editable fields. Strategies in a
+project share a horizon and targets. Inflation, the return range and tax
+assumptions apply to all projects.
 
-*Interface disponible en français : l’application détecte la langue du
-navigateur et le bouton **FR / EN** dans l’en-tête permet d’en changer à tout
-moment.*
+Every financial input is a field:
 
-## Filling it in
+| Kind | Meaning |
+| --- | --- |
+| Amount | Recurring income or spending, monthly, quarterly, half-yearly or yearly; optional annual change. |
+| One-off | A receipt or payment in one month. |
+| Loan | Amount required, financed fees, annual interest and a monthly repayment term. Incoming loans represent money owed to you. |
+| Investment | Contributions leave cash and build a balance with monthly growth. An optional sale converts the holding to cash. |
+| Something you own | An asset with a present value, acquisition month and appreciation or depreciation. It does not itself move cash. |
 
-On a screen wide enough for both, **the form sits beside the readings rather
-than above them** — a column on the left, the charts and tables to its right.
-It folds away to a gutter when you want the whole width for the output, and the
-plan switcher stays where it is when it does, because changing plan is the one
-thing you must still be able to do with the fields away. Below 1180px the two
-stack, as they always did.
+Fields can have start/end dates and can be synchronized across strategies.
+Synchronized fields share one identity: editing or deleting one affects its
+counterparts, while duplication creates an independent field.
 
-Wider still, the app keeps going rather than stopping at a fixed measure. From
-1600px the shell grows; at 1830px the flow cards go four across instead of two;
-at 3000px **the comparison and the ranking dock to the right of the readings**,
-which is what finally ends the sideways scroll in a ten-column table; at 3300px
-the form itself widens to 620px and comes out of the narrow layout it had been
-wearing on every screen since it was docked; and at 3560px the targets and the
-flow diagram come up side by side. At 4400px it stops. Past that the rail and
-the far edge of the table are already further apart than a reader takes in at
-one glance, and what is left over is margin — which is the honest thing to do
-with width that has run out of uses.
+Amounts accept decimal points, French decimal commas and grouping spaces.
+English comma grouping such as `1,234.56` is also accepted. **Rates never use
+comma grouping:** `3,125` and `3.125` both mean a rate of 3.125%. Malformed
+figures are not partially parsed.
 
-The point of the ladder is that each rung seats a column that was not there
-before, so a 5120px screen shows the same plan in half the scrolling of a
-1440px one. Nothing below 1440px moves by a pixel.
+The first run contains a worked home-buying comparison and housing/car templates.
+Template figures are examples to replace, not offers or tax advice. Their
+shared rows stay synchronized. A 48-month lease has one initial rent and 47
+ordinary rents.
 
-Under the form, in a panel of its own, is **How money behaves** — the horizon's
-assumptions, described [below](#what-it-computes). It is a separate panel rather than
-part of the form because it is not part of any one plan: every strategy is read
-through the same set, which is the only thing that makes two of them worth
-comparing. It arrives folded, because every one of those settings already has
-an answer, and the line above the charts says so the moment one of them does
-not.
+## Read the results
 
-[![The form docked as a column on the left — each field a name, an amount and a line of prose beneath it, with the folded How money behaves panel below it — and the net figure, the totals and the first pair of cumulative charts filling the width to its right](docs/rail.png)](https://sinikebe.github.io/finapp/)
+The summary reports cumulative inflows, outflows and cash kept. A balance sheet
+adds investments and assets and deducts debt. A cash shortfall is reported even
+when the final or average balance is positive.
 
-**A field row says what it is.** Shut, it is a name, an amount, and one line of
-prose for everything the two boxes cannot carry: what kind it is, which way it
-goes, how often it lands, over what term, at what rate, and the months it runs
-between. Open it and the boxes come back, and that line goes back to being the
-arithmetic — what a loan works out to, or what a climbing amount climbs to. A
-field you have just added arrives open, because it is one you are still filling
-in.
+- Charts can show running totals or changes during each month.
+- Each chart has an exact-value table and supports keyboard readings.
+- The comparison uses the same horizon and a common scale for its strategies.
+- A flow diagram shows income, pooled cash, spending and what remains.
+- A sensitivity ranking varies one amount at a time, holding the already
+  resolved dates fixed. It measures the entered figures, not the causal link
+  between a mortgage and the home it bought.
 
-Together those took about a fifth off the length of the page, on a desktop and
-on a phone alike, and a row from 96px to 69.
+The worked example illustrates why the horizon matters: borrowing wins over
+20 years; both renting strategies finish ahead over 40 years under the example's
+assumptions. Changing those assumptions can change the answer.
 
-## Fields
+## Targets and conditional dates
 
-**Everything you enter is a field, and every field is the same kind of thing.**
-Income and rent are simply the two the app starts with — not special cases, not
-privileged code paths. Any field can be renamed, switched between income and
-expense, duplicated or deleted, the starting two included. Nothing in the app
-reaches for a field by name.
+A target asks when a quantity reaches a figure. Name it to let fields start,
+end or sell when it is reached. Dates resolve against the trajectory without
+that target's own consequences; cycles are reported instead of guessed.
 
-A field is defined once, in [`assets/js/fields.js`](assets/js/fields.js): a
-name, a **direction** — income or expense, which is what carries the sign, so
-no amount is ever negative — an amount, a **period** counted in months rather
-than named, so the projection can do arithmetic with it, a **kind**, a yearly
-rate, and a **window**: the first and last month it can land, both empty by
-default, which is what every field written before windows existed reads as.
+Renaming a target preserves its amount and identity. A target in use cannot be
+removed until its fields have been given a month or another target. An unnamed
+but still referenced target remains selectable. An older or damaged store with
+a missing reference shows the broken link explicitly, so it can be repaired.
 
-Five kinds, all the same shape:
+**What would it take?** searches an amount or rate and checks the answer on the
+complete original plan. With fixed dates it can give a lower/upper bound.
+With conditional dates it offers a checked example, since another figure can
+move an event and change the relationship. Suggestions are never applied
+without editing the figure yourself.
 
-- **Amount** — the default. It lands every period, and climbs by its rate a
-  year if you give it one, stepping on the anniversary of its first landing
-  rather than a little each month, because that is when a raise arrives.
-- **One-off** — one month and done: a car, a deposit, a bonus.
-- **Loan** — you enter **the amount you need in hand**, any fees the lender
-  adds on top, the yearly rate and the number of payments; the app works out
-  the level repayment. The interest is added to what you asked for rather than
-  taken out of it, and the fees are lent along with it, because that is the
-  direction the arithmetic actually runs in. A loan points either way: outgoing
-  when you repay one, incoming when you are repaid.
-- **Investment** — contributions leave your cash like any other outgoing, and
-  each balance compounds monthly at its own return. Selling turns the balance
-  into cash and ends the holding; nothing is created, so what you are worth
-  does not move on the day of the sale — that is the test.
-- **Something you own** — a flat, a car, anything with a value. It moves no
-  cash in any month: it is worth what it is worth and gains at its own rate. It
-  exists so that a loan has something to be set against.
+Return-range scenarios also start from the original fields: an optimistic
+scenario can trigger a purchase that the central scenario never reaches.
 
-**The rate slot means something different for each kind** — interest on a loan,
-the return on an investment, appreciation on a thing you own, a raise on a
-plain amount — which is the one trap in the model and the one the tests watch
-hardest.
+## Financial conventions
 
-A field lands at the end of each of its periods, so a lumpy year reads as a
-staircase rather than a smooth line that never matches anyone's bank balance.
-Because of that there is no single "per month" figure once a yearly bill is in
-the list, and the summary reports the average over the horizon instead.
+- Amounts are in your own currency; no conversion is performed.
+- The timeline starts at month 0. Cash flows start at zero; existing assets and
+  debts are carried at their opening values. There is no separate opening cash
+  balance field. Adding money as a one-off income also increases reported income.
+- Rates on balances are **nominal annual percentages divided by twelve**.
+  An amount's annual change happens on its anniversary instead.
+- A contribution is made after that month's investment growth. Money and
+  repayments are rounded to cents at each step.
+- **Cash and total worth are before investment tax, even after a sale.** Only
+  the net-profit figure applies the entered tax rate to aggregate gains. Losses
+  do not create a tax credit. This is a gross balance-sheet model, not a complete
+  after-tax cash-flow simulation.
+- Housing-template taxes are fixed example fields. They do not automatically
+  recalculate from a household's real tax position.
+- Today's-money values divide each month's balance by the same inflation
+  deflator. The model is a deterministic scenario, not a probability forecast.
 
-**An average cannot show a trough, so it is not the last word.** If the running
-cash balance ever goes below zero, the summary says the month it does and how
-far under it goes, in place of the average — because a month you are overdrawn
-in is one you actually live through, and an average is not. A plan can end
-56,000 ahead, average 1,555 a month kept, and still be 20,000 short at month
-twenty; the average alone answers "can I afford this?" with a figure nobody
-ever sees. What you keep on average is still there, on its own tile, saying
-what it is.
+## Saving, recovery and sharing
 
-Input is coerced rather than trusted, and read in whichever notation it was
-written in: spaces of every width group, and a comma is a decimal point except
-where it is plainly grouping, so a French reader typing `12,50` into a box
-showing `674 379,24` gets twelve-fifty rather than `1250`. Amounts carry no
-currency symbol — the app never asks which currency you use, so it never claims
-to know.
+The complete workspace is saved in one atomic `localStorage` record. Writes are
+serialized between tabs, and an outdated tab cannot silently replace a newer
+revision. Background changes are deferred while a control is being edited and
+reconciled afterward. Conflicts are shown with actions to load the saved version
+or download the open work as a backup.
 
-## Strategies
+A per-tab recovery draft is staged before the delayed save, so closing a tab
+before its save completes does not discard the last edit. A later opening offers
+the latest unsaved draft. **Download a backup** in About exports every project
+and any recovery drafts as JSON. Keep a separate copy if the data matters:
+clearing browser storage removes the workspace and its drafts.
 
-A strategy is a named set of fields — *what I do now*, *if I buy the flat*, *if
-the raise goes into the index fund*. Strategies share one horizon, so their
-curves can be read against each other, and share nothing else. A lone strategy
-is unnamed and the comparison view stays hidden, so a reader who never compares
-anything never meets the idea, and **Add a strategy** duplicates the one you
-are looking at, because the question is nearly always *what if I changed this
-one thing*.
+If saving fails, a visible message says so. Without safe storage/coordination,
+the app remains editable and exportable but does not claim changes were saved.
+Older stores are migrated without deleting their only copy first. Compatibility
+mirrors let older builds read the active project; those mirrors are no longer
+the authoritative save.
 
-**Four is the ceiling, and the reason is the palette rather than the model** —
-four is how many series colours stay distinguishable in every pair, for a
-reader with colour-vision deficiency, in both themes.
+**Share sends one project, not the shelf.** A URL fragment carries its fields,
+strategies, targets and assumptions. Target names and references survive the
+transfer. Opening it offers a separate project or addition to the current
+comparison; additions preserve existing targets and explain if there is no room.
+The link is removed from the address after the choice.
 
-A comparison only tells you something if two plans differ in **one** place, so
-a field can be **synced**: then it is one field that every strategy holds, and
-changing it anywhere changes it everywhere. A counterpart is found by id first,
-by name at the moment you sync it — which is what makes this work on plans
-built before anyone thought to link them — and by likeness for a row nobody
-named. Removing a synced field removes it everywhere, because it is one field.
+Version 1 links without conditional references remain readable. Old conditional
+links omitted target identities, so they cannot be reconstructed reliably and
+are refused rather than silently altered. Current links use version 2.
 
-**Each tab says where its plan came from**: one of the three the app opens with,
-one you made, one somebody shared with you, or one somebody shared that you have
-changed since — which is a different thing to know, and is worked out by keeping
-a record of what arrived and comparing the plan against it. Ids are left out of
-that comparison, because the same plan on two devices has different ids for the
-same fields.
+A link is encoded, **not encrypted**: anyone with it can read the plan. The
+fragment is not sent in the document's HTTP request. Plans remain accessible to
+other scripts with the same origin and to browser extensions with sufficient
+permissions; browser storage is not an encrypted vault.
 
-The mark is a muted leading edge rather than a bright dot, and its colours come
-from the two bands the palette leaves empty. That is not decoration: colour in
-this app already means series on the flow cards and strategy in the comparison,
-and a vivid dot on a tab would read as a legend swatch saying which line in the
-chart that plan is. Every tab also says its origin in words, on hover and to a
-screen reader, so the colour is never carrying it alone.
+## Offline support and browser support
 
-Once there is a second strategy, a chart draws them all on one scale and a
-table gives each one's totals and its gap to the first. **That gap is measured
-on the total, not the net**: a plan that pours everything into a fund keeps
-almost no cash, and judging it on net would announce it as behind directly
-above a chart showing it well ahead. In that view **colour means strategy**;
-the flow cards keep colour for series, and neither asks it to carry two things
-at once.
+A service worker precaches the page, styles, scripts and icons as one versioned
+generation. New builds offer a reload. The app also checks for updates when
+opened and provides a manual check in About.
 
-## Projects
+The supported baseline is Chrome/Edge 89+, Firefox 98+ and Safari 15.4+ for
+ES modules, native dialogs and the browser APIs used here. Safe coordinated
+saving uses Web Locks in a secure context (HTTPS or localhost). When that is
+unavailable the app shows its saving limitation. Installability depends on the
+browser; Safari uses Add to Home Screen.
 
-A strategy is an answer; a **project is the question**. *How should I buy a
-home?* is not *rent, buy or lease a car?*, and putting one plan from each on the
-same axes compares nothing — which is what a project fixes. The form panel's
-heading **is** the project: press it and a sheet lists every project, names
-them, adds and removes them.
+## Development
 
-A project carries **its own plans, its own horizon and its own targets**, and
-that boundary is drawn by the model rather than by taste:
+Node 20 or later is enough:
 
-- **The horizon decides which fields exist.** A purchase waiting on *when what I
-  own reaches 12,000* is placed off a projection run over the horizon; read the
-  same plan over six months and the target is never met, so the purchase is not
-  in the plan at all. A number that changes which rows are on the chart is part
-  of the question. A five-year car decision and a twenty-five-year mortgage
-  cannot be read over one length.
-- **A field waits on a target by id.** Per project, a field and the target it
-  waits on are always in the same list, always removed together, and never
-  carried into another question — which is the only scoping under which the
-  solver stays sound, and not a line of it changed.
-
-**How money behaves stays shared** — inflation, tax, the range, today's money.
-Those are a belief about the world rather than about the question: a reader who
-thinks inflation is 3% thinks so on both sides of the car decision and the house
-one, and two copies would only let one belief quietly disagree with itself, in a
-panel that is folded shut by default.
-
-**Six is the ceiling**, for the reason six targets is: as many open questions as
-anybody weighs at once. Four plans remains the ceiling *per project*, because
-four is a fact about the palette and only one project is ever drawn.
-
-Adding a project is deliberately **not** a copy — a new project opens empty,
-because comparing means *the same, but…* while a new project means a different
-question, and carrying the last one's rent and mortgage into it would answer the
-wrong one. The horizon does come over, because a horizon is a habit rather than
-an answer.
-
-There is no *move this plan to another project*, and that is deliberate: a moved
-plan's fields would hold targets the destination does not have, and a field
-whose target does not resolve is dropped from the projection with nothing on
-screen saying so. A command that quietly deletes rows from your chart is worse
-than no command.
-
-**Everything already on your device becomes one project, exactly as it was** —
-unnamed, and an unnamed lone project is called what the panel above it has
-always been called, so nothing appears to have been named, because nothing has.
-
-### What a new device opens with
-
-Three projects, not one: the **worked example** — three ways of affording a
-house, which is what the app has opened on since it had more than one plan — and
-behind it both **templates**, already built and named.
-
-They are loaded rather than only offered, and the reason is a discoverability
-one. The line that offers a template lives inside the projects sheet, and the
-sheet is behind a control a reader can miss entirely. A template nobody finds is
-a template that does not exist, so the app stops asking you to find it: press a
-name, and there it is.
-
-**A device with work on it is never given projects it did not ask for.** Every
-store that arrived from an earlier build keeps exactly the one project holding
-exactly what was already there. Putting the templates on somebody's shelf would
-be answering a question they never asked, on a screen they had already arranged.
-A test pins both halves of that.
-
-*Start again* returns a device to the same three, because that button is only
-worth having if it lands you exactly where a new reader lands — and undoing it
-takes those three away again along with putting your own shelf back.
-
-### Starting from a template
-
-*Start another project* still gives you a blank one in a single press. Under it,
-a **template** gives you one that arrives with its figures already in it — not to
-save typing, but because a template is *the list of things worth putting a number
-against*, and half of them are things a first-timer finds out about by being
-surprised by a bill.
-
-The one it ships with is the housing question with both sides of it in the same
-comparison: **buy the flat and live in it**, or **buy the same flat, let it out,
-and rent somewhere smaller yourself**. Three of its four plans let it out and
-differ only in the tax regime, so the sheet answers two questions at once and the
-second is nested inside the first. The property is identical in every plan and
-marked synced, so what is being compared is what you *do* with it.
-
-The row that makes it a fair sum is **the rent a landlord pays to live
-somewhere else**. Leave it out and letting looks like income for nothing, which
-is the most common way this comparison is got wrong. The plan that lives in the
-flat carries no such row, because not paying rent is exactly what buying to live
-in buys you.
-
-There is deliberately **no deposit row**. Money you bring from your own savings
-is not income, and adding it as one would overstate what the plan is worth by
-that amount at every month. So the plan opens the way the purchase really leaves
-you: cash down by what you spent, a debt the size of the loan, and a flat the
-size of the price — which is why the summary says the money runs out in month 1
-and by how much. That figure is the cash you need up front, and it is the first
-thing worth knowing.
-
-**Every figure is a round example**, said to be one in the note under the button
-before you press it, and there to be typed over. The app cannot know your city,
-your rate or your tax bracket; what it can do is arrive with a complete set of
-rows so that changing four of them is a five-minute job.
-
-The second is the car: **the same car over four years, paid for four ways** —
-outright, on a loan, on a lease with an option to buy (LOA), and on a long lease
-(LLD). Every plan drives the same car with the same insurance and fuel, so what
-is compared is the financing and nothing else.
-
-It carries the three costs that get left out of the comparison people actually
-make:
-
-- **The registration**, which only the two plans that buy it pay.
-- **The servicing**, which a long lease bundles into its monthly payment and a
-  lease with an option leaves to you — most of why the LOA monthly looks lower.
-- **The bill for handing a leased car back**: wear beyond normal, missing
-  equipment, kilometres over the allowance. Commonly around a thousand euros,
-  and on nobody's advertisement.
-
-**The lease with an option is shown with the option not taken** — the car goes
-back. That is what makes it comparable with the long lease beside it, and it is
-why both of them own nothing at the end. Taking the option instead means paying
-the agreed buy-out and keeping the car, which is a row to add rather than a plan
-to read off.
-
-Nobody sells the car and nothing needs to: at four years the two plans that
-bought it own something worth about 13,700 and the two that leased it own
-nothing, and that difference is already in what you are worth.
-
-Unlike the housing template this one carries **no salary and no everyday costs**,
-and that is deliberate. Housing compares where you live, which only means
-something inside a household. This compares four ways of paying for one car, so
-a household would shift all four plans by the same number; leave it out and the
-total at the horizon is exactly what the car cost you.
-
-## What it computes
-
-The model lives in [`assets/js/projection.js`](assets/js/projection.js) and is
-deliberately the simplest thing that is honest:
-
-```
-contribution(f, m) = before f.startMonth, or after f.endMonth → 0
-                     once      → m === f.startMonth ? f.amount : 0
-                     loan      → m within term of its first payment ? payment(f) : 0
-                     otherwise → (m − f.startMonth) % f.periodMonths === 0 ? f.amount : 0
-income(m)          = income(m−1)   + Σ contribution(income fields, m)
-expenses(m)        = expenses(m−1) + Σ contribution(expense fields, m)
-net(m)             = income(m) − expenses(m)
-invested(m)        = Σ over investments of
-                       balance(f, m−1) × (1 + f.annualRate/12) + contribution(f, m)
-contributed(m)     = Σ paid into investments so far
-profit(m)          = gain > 0 ? gain × (1 − tax) : gain,  gain = invested − contributed
-owned(m)           = Σ assets, each gaining at its own rate
-                     + principal still outstanding on loans owed *to* you
-debt(m)            = principal still outstanding on loans you are repaying
-worth(m)           = net(m) + invested(m) + owned(m) − debt(m)
+```sh
+npm start
+npm test
 ```
 
-for `m = 0 … X`, where month 0 is today — nothing earned, nothing paid.
-
-**`worth` is the bottom line: the whole balance sheet.** Adding the balances
-back is a sum rather than double-counting, because money put into an investment
-has already left `net` as an outgoing — the two halves never hold the same coin
-at the same time. The flows start at zero because nothing has flowed yet;
-**the balances do not**, because you already own what you own and owe what you
-owe, so `worth` at month 0 is your net worth today rather than a polite zero.
-
-That is what makes a repayment read correctly. Clearing principal moves cash
-and debt by the same amount, so **only the interest in a payment makes anyone
-poorer** — which is why a mortgage of 120,000 at 6% over ten years costs
-exactly its interest against `worth`, not the 160,000 that leaves the account.
-
-**`contributionOf(field, month)` is the one function that decides what a field
-moves in a given month.** The series are accumulated month by month rather than
-multiplied, which is what lets a field's contribution vary over time, and
-amounts are rounded to whole cents at every step, so what you read is what adds
-up. The horizon is clamped to 1–600 months, and both a single field and the sum
-of a direction are capped at a hundred billion a month — which is what keeps
-every total inside the range where a double still holds cents exactly.
-
-Three switches sit over the whole projection, in the **How money behaves**
-panel under the form. They belong to the projection rather than to a plan, so
-switching strategy leaves them where they are:
-
-- **In today's money** divides every figure at month *m* by one deflator,
-  `(1 + i)^m` — what that pile would buy now. One factor per month is what
-  makes it safe: it leaves every identity standing, so net is still income less
-  expenses and worth is still the balance sheet.
-- **Show a range** re-runs the projection with every *return* moved down and up
-  by a few points and shades the region between. Loan interest is left where it
-  is — what a loan costs was agreed, not guessed — and the pessimistic run may
-  go negative, because a bad decade should read as a loss rather than bottoming
-  out at flat.
-- **Tax on gains**, applied to the gain and nothing else. A loss is never taxed
-  and never handed back as a credit, and tax never touches `worth`: the total
-  is what you hold, and the bill falls due on a sale the app has no way to know
-  you will make.
-
-## What it draws
-
-Line charts hand-drawn as SVG in [`assets/js/chart.js`](assets/js/chart.js).
-One component draws every chart in the app: it takes a list of series and lays
-out however many it is given.
-
-- **Two readings of the same cards.** *Running total* draws the curves that
-  climb. *Each month* draws what that month moved on its own — the one question
-  a running total cannot answer, because a curve that only ever climbs hides
-  every month it climbed by less than nothing. It is a first difference of the
-  series the model already produces, so nothing was added to the model to get
-  it, and the table under each card reads the same way the chart does. It is a
-  toggle on the cards rather than a sixth card: five series colours is the
-  ceiling, and a new card would need a colour that does not exist.
-- **One shared vertical scale** across the flow cards, so the curves can be
-  read against each other — two y-scales on one plot would invent a correlation
-  that isn't in the data. The investment-value card is the exception and says
-  so: a balance is not a cumulative flow, and would flatten to nothing on the
-  flows' axis.
-- **Series colours** come from a validated categorical palette, every pair
-  clearing the colour-blind and normal-vision separation floors in both light
-  and dark mode — dark being a selected palette rather than an inverted one.
-  Five slots is the ceiling: a sixth that clears the floors beside these sits
-  at the chroma where a colour starts reading grey, so debt is a tile and a
-  comparison column instead.
-- **Nothing is gated behind hover.** Each line is labelled at its endpoint, a
-  crosshair tooltip follows the pointer and the arrow keys, hovering one flow
-  card moves all three, and every card has a table view with the exact monthly
-  figures. A band is painted under everything at low opacity, and its bounds
-  are columns in that table, because no figure in this app lives only inside a
-  drawing.
-
-Below the cards, a **Sankey**: every income field into a pool, and the pool out
-to every expense field plus whatever is kept. **The pool is load-bearing** —
-money is fungible and nothing in the model says which salary paid which bill,
-so ribbons drawn income-to-expense would invent an allocation nobody entered.
-Only a conserving cut of the model can be drawn and there is exactly one,
-`income = expenses + net`; growth, appreciation and drawn loan principal enter
-`worth` with no source, so they stay on the cards above. Widths are apportioned
-out of the totals rather than summed beside them, so the parts add up to the
-tile by construction rather than by luck. A loan arrives as the parts its
-repayments are actually made of — principal, fees and interest, named rather
-than coloured, because the diagram seats three tones and they already mean in,
-out and left over. When you spend more than you earn the leftover node changes
-sides rather than going negative, and a flow too thin to see is given a floor
-rather than allowed to vanish.
-
-![The flow diagram: one salary ribbon into a pool labelled "All of it", and out of it ribbons for everyday costs, a mortgage split into principal and interest, and what is kept](docs/flow-diagram.png)
-
-## What it opens on
-
-An empty form answers nothing, so the app opens on one question asked three
-ways: **how should I buy a 100,000 house?** Buy now on a loan; save up and buy
-cash; or save up and sell the index fund too. All three spend exactly the same
-on housing every month, so the only thing being compared is *when you own the
-house* — and once a plan's housing is paid for, that money goes back into the
-fund, so the comparison does not quietly become one about what people do with
-spare cash.
-
-The lesson is not a single one. Over twenty years borrowing wins by about
-30,000 — not because loans are free, the interest is 33,104, but because it
-owns an appreciating house eleven years earlier. **Slide the horizon out and
-the answer reverses**: by forty years the renters are ahead by more than
-100,000, because they have been compounding at 6% since year thirteen while the
-house appreciates at 1.5%. The months the renters buy are computed and written
-down rather than left to a rule — a test recomputes both and fails if a figure
-moves without them following. A plan built today could instead name a target and
-have its purchase wait on it, which is what the section below is about; these
-three predate that and are kept as they were, because a worked example whose
-figures move under the reader is not one.
-
-**Start again**, in the About panel, puts the defaults back. It still asks
-first, and the second click is still labelled *Replace everything* rather than
-*OK*: Undo can take it back while the tab is open and not once it is closed,
-which is exactly the case a confirm is for. Your language and theme are left
-alone — they are preferences about reading the app, not part of the plan.
-
-## When does that happen?
-
-*As soon as savings reach 100,000* is not a rule the projection can obey, and it
-still is not one. **A target does not need it to be**, because a target is a
-reading over the result rather than a rule inside it. Mark *worth reaches
-250,000*, or *debt clear*, or *the fund covers the house*, and the app scans the
-months for the first one where it is true and says so in words. The month is
-marked on the flow cards as a neutral dashed rule carrying its number — the same
-treatment the investment card's *paid in* line already gets, and for the same
-reason: a reference is not a category, so it takes no slot in a palette with
-none left to give. The rule is drawn in both readings, because it marks the
-month a target is met and is not a feature of the curve it is drawn over.
-
-A target that is never met **says so** rather than falling off the end of the
-chart — and then it can ask the other question. **What would it take?** takes
-one of your own figures and works backwards to the value that would meet the
-target, bracketing and halving over the projection itself. Two things make that
-answer trustworthy. It is **checked**: the winning figure is run back through
-the plan before it is shown, so the sentence is the app's own reading rather
-than the solver's arithmetic. And it **refuses** where the relationship is not
-monotonic — an amount and a rate are the only two figures it will solve for, and
-where a total climbs and falls again it says so instead of returning whichever
-crossing it found first. No plan the model can run produces that shape — the test that
-exercises the refusal has to fake a run to reach it.
-
-The answer is shown, never applied: applying it would write over what you typed.
-
-## Naming a target, and waiting on one
-
-Give a target a **name** and a field can wait on it: *from* the month it is met,
-*to* that month, or **sold** in it. "Buy it once the savings are there" becomes
-something the plan says, instead of a month somebody worked out by hand.
-
-**The model is still not conditional.** `contributionOf` reads three months as
-numbers and has never heard of a target. What is new is a pass that runs first:
-[`schedule.js`](assets/js/schedule.js) resolves the names to months and hands
-the plan on with numbers in it. The name is the seam, and nothing under it knows
-there was ever a question.
-
-Resolving is circular on its face — the month comes out of a projection, and the
-projection needs the month — so **the shape of that loop is the whole design,
-and the obvious version is wrong.** Reading a target off the plan you just
-placed makes *buy the car when savings reach 12,000* watch savings the purchase
-then spends: the crossing moves to the purchase, the purchase moves to the
-crossing, and the two chase each other for ever. What a reader means by *the
-savings* is the ones they were putting by. So each target is read off the plan
-**as it would run if that target never came**, with everything waiting on it
-held back — per target, not all at once, which is what lets the second in a
-chain see the first purchase and land on month 18 rather than month 12.
-
-That also settles the confused question honestly. *Buy the house when what I own
-reaches 100,000*, where the house **is** what would be owned, reads a plan with
-no house in it, owns nothing, and answers **never** — a true answer to a
-question that answers itself, rather than one of the two months a chase would
-have alternated between.
-
-Two targets can still move each other, and holding back cannot help when neither
-is the one being held. The loop watches for a state it has been in, stops, and
-**says it could not settle** — the posture the solver already takes when asked
-something not monotonic. Guessing would mean picking one of two wrong answers.
-
-A start that never comes takes its field out of the plan, which is what *has not
-begun* means with no sentinel month; an end that never comes is no end, and a
-sale that never comes is no sale. The row stays in the form either way, because
-a row you can no longer see is a row you can no longer fix.
-
-## Which figures decide it
-
-A plan can hold a hundred fields, and nothing on the page said which two of them
-decide where it ends up. So a ranked list moves each amount on its own, runs the
-whole projection again, and orders the fields by how far the answer moved. It is
-a list rather than a chart, which is what keeps it out of the palette.
-
-Two things are said on the card rather than left to be discovered. It measures
-**this plan at this horizon**, not a general truth — the plans the app opens
-with reverse their order somewhere between year twenty and year forty. And the
-swings **do** add up, because the model is separable by construction, which is
-precisely why the list cannot tell you that a mortgage bought a house: it ranks
-the figures, not the reasons. Keeping that true is why the swings are measured
-against the plan with its target months already settled: let a swing move the
-month a target lands on, and everything waiting on that target moves with it,
-and two swings stop summing to the pair. Profit is the one exception, tax falling on the
-aggregate gain rather than on each part of it.
-
-## Taking something back
-
-Six things throw work away: removing a field, removing a strategy, removing a
-target, removing a **project** — every plan in it at once, which is the largest
-of them — *Start again*, and opening a shared plan. **Undo** takes back the last
-ten of them.
-
-It is cheap because the model operations were already pure and already returned
-new lists, so a snapshot is the plan exactly as the store would have written it,
-deep-copied through the same serialisation. It does not step back through your
-typing: the snapshot is taken by the command rather than the keystroke, so Undo
-means *before I deleted that* and not *before I typed the 4*.
-
-**A snapshot knows which project it is of**, and is only ever offered back in
-that project. So changing subject hides the other question's history rather than
-destroying it: look at the car, come back, and the field you deleted in housing
-is still there to take back. Nothing a snapshot restores can reach a project you
-are not standing in — undoing a removal puts that project back and leaves every
-other one holding the work you have done since.
-
-**It lasts as long as the tab.** Nothing is written down, so closing the tab is
-still what makes a change final — which is why the confirms stay. And when
-another window's changes arrive, this tab throws its stack away before adopting
-them: a snapshot of plans that window has since replaced would otherwise be one
-press away from overwriting somebody's work, from a window nobody is looking at.
-
-## Handing a plan to somebody
-
-There is no account to share from and no copy on a server to link to, so **the
-link is the copy**. *Share* packs the whole configuration — every strategy,
-every field, any targets, the horizon and the assumptions — into the
-**fragment** of a URL,
-which is the one part of an address a browser never sends to a server. The plan
-travels wherever you paste it and nowhere else, which is the same promise the
-rest of the app makes, kept in the one place where it has to let go. Anyone who
-has the link has the plan, and the panel says so before you send it.
-
-Nothing is compressed, and that is a decision rather than an omission.
-`CompressionStream` would roughly halve the link and sits above this app's
-browser floor — so a link written in one browser could not be opened in
-another, which for a thing whose whole purpose is to be opened elsewhere is the
-worst failure available. Instead the plan is packed: attributes travel by
-position, only where they differ from the default, and an id — which means
-nothing on another device — travels as a slot number. Two synced fields share
-one slot, so *the sameness survives the trip even though the id must not*, and
-the far end mints its own ids. One plan of four fields is a link of under 300 characters;
-the three the app opens with, which is the largest thing it can produce
-unaided, is under 2,500. A test holds both.
-
-Opening one **offers to open it as its own project** first, because a link is
-usually somebody else's *question* rather than another answer to yours, and
-dropping their car plans in beside your housing ones is the very thing projects
-exist to stop. Adding it beside your own plans is still offered — *the same,
-but…* is a real reason to send a link — and it is what happens anyway once your
-shelf is full. Four plans is still the ceiling per project, so the panel says how
-many will fit, and a list already full is the one case where opening costs
-something: there the button says *Replace my plans* outright and is coloured like
-the one other button in the app that throws something away.
-
-A link carries **one project — the one you are looking at** — and never the
-shelf. A project is a whole comparison, and sending somebody six of them is
-sending your device rather than your answer. The name rides along when there is
-one, as an optional pair the format simply gained: every link ever minted still
-opens, and a link minted today opens in an older build as the plan it is.
-
-The horizon and the assumptions *do* come from the shared plan, because
-strategies share one horizon by construction: there is no arrangement where both
-readings survive, and a plan built over forty years read at five says nothing.
-That is a slider away; a discarded plan is not.
-
-It **asks first** either way, the way *Start again* asks: focus on keeping what
-you have, and your language and theme left alone. The link is taken out of the
-address whatever you answer — a refusal must not be re-asked by every refresh,
-and an acceptance must not have a reload put the shared plan back over whatever
-you did next — and the question is asked again on a fragment that changes
-without a load, which is what pasting a link into a tab already showing the app
-does. And a link is read as exactly as trustworthy as a hand-edited store:
-everything in it goes through the model's own coercion, so nothing a link can
-say puts a value in the app that the app could not have made itself.
-
-## Your data, and the app itself
-
-Five keys in `localStorage`, on your device only: the project you are looking
-at — its plans, its horizon, its targets — with your assumptions under one, your
-other projects under a second, your theme and language under two more, and the
-time the app last looked for a new version under the fifth. **The plan on screen
-lives in one place and is never copied**, which is what keeps the two halves
-from disagreeing about it; the projects key is separate so that a build from
-before projects existed can read and write the first without ever touching the
-second. Older stores are migrated on
-first load and retired only after the new one is written, so a failed write
-leaves what you had typed where it was. **Nothing about you is sent anywhere**:
-after the app has loaded its own files, the only request it ever makes is the
-one that asks whether a newer version exists. The undo stack is deliberately
-**not** a fifth key: a list of your previous plans, left on disk, is something a
-shared device would still be holding tomorrow.
-
-`sw.js` treats its cache as one immutable generation: the page, the CSS and the
-JS are precached together and served together from that same generation, so you
-never get a fresh page wired to stale scripts. A new version therefore arrives
-whole — a new worker installs its own cache alongside the running one, and the
-app offers a **Reload** button rather than swapping the page out mid-edit. It
-looks for one when you open the app and no more than once an hour, and **Check
-for updates** in the About panel asks whenever you want. That panel carries the
-build and the changelog, and reads its version from the generation the worker
-is actually serving, which is the question it exists to answer.
-
-The interface ships in English and French. The app picks the browser's language
-if it speaks it, the header toggle overrides that, and number formatting
-follows the same choice. French typography — the no-break space before a colon,
-and inside a pair of guillemets — belongs to the dictionary rather than to the
-views, and a test holds three files to it.
-
-## Browser support
-
-Any browser with ES modules, `Intl.NumberFormat`, CSS custom properties,
-`ResizeObserver` and `<dialog>` — Chrome/Edge 88+, Firefox 98+, Safari 15.4+.
-`<dialog>` is what moves the floor: without `showModal` the About panel cannot
-open. Later niceties degrade rather than break, so an older engine gets a
-plainer app and not a broken one, and the app falls back to a plain page where
-service workers are unavailable. Container queries are the newest of them: they
-tidy the form for the narrow column it becomes when docked as a rail, and an
-engine without them gets the roomier layout instead of a broken one — every
-width query the app relies on, the ultrawide ladder included, is still a plain
-`@media` rule. Installability depends on the browser:
-Chromium prompts, Safari installs through *Add to Home Screen*.
-
-## Built with Claude Code
-
-**Finapp was written with [Claude Code](https://claude.com/claude-code)** — the
-app, its tests, its French translation and this documentation. Every feature
-arrived as a pull request opened from a Claude Code session and squash-merged
-after CI; the co-author trailers are in the history, and the About panel's
-changelog is the same list read from the other side.
-
-That is also why the repository is shaped the way it is. The rules an agent has
-to be held to are the rules that keep a codebase honest anyway: one seam per
-kind of change, model operations that are pure, a test for every claim the
-documentation makes out loud, and CI that fails the build when the service
-worker's cache version falls behind the files it serves.
-
-## Contributing
-
-**Issues are open to everyone** — a bug, a figure that reads wrong, a question
-about why something is the way it is, an idea for a kind of field. Pull
-requests are limited to collaborators, so open an issue rather than a
-fork-and-PR; the reasoning, and what to do with a patch you have already
-written, is in [CONTRIBUTING.md](CONTRIBUTING.md), along with how to run it,
-what lives where, and the two manual steps a release needs.
+There is no build or dependency installation. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for the module map, release steps, storage contract and validation workflow.
+The design system is documented in [docs/design-system.md](docs/design-system.md).
+The [review correction log](docs/review-fixes.md) maps the reviewed defects to
+their fixes, checks and migration limits.
 
 ## License
 
