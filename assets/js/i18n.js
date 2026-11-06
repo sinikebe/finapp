@@ -32,7 +32,7 @@ const STRINGS = {
     "ui.results": "Results",
     "ui.compare": "Comparison",
     "ui.newProject": "New project",
-    "ui.welcome": "What would you like to scenario?",
+    "ui.welcome": "What would you like to plan?",
     "ui.welcomeNote": "Start with your own figures, or explore a clearly marked example. Everything stays on this device.",
     "ui.budget": "My monthly budget",
     "ui.compareProject": "Compare two scenarios",

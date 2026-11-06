@@ -67,7 +67,8 @@ test('activating main or dev only removes that scope’s older cache generations
     const own = `finapp@${encodeURIComponent(scope)}:`;
     const other = `finapp@${encodeURIComponent(scope === '/finapp/' ? '/finapp/dev/' : '/finapp/')}:`;
     const deleted = [];
-    const names = [own + 'v1', own + 'v67', other + 'v66', 'unrelated', 'finapp-v66'];
+    const version = source.match(/^const CACHE_VERSION = '([^']+)'/m)[1];
+    const names = [own + 'v1', own + version, other + 'v66', 'unrelated', 'finapp-v66'];
     const handlers = new Map(); let activating;
     const context = vm.createContext({
       self: { location: new URL(`https://example.org${scope}sw.js`), addEventListener: (key, work) => handlers.set(key, work), clients: { claim() {} } },

@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v67', date: '2026-11-06',
+    version: 'v68', date: '2026-11-06',
+    en: 'The English welcome screen correctly asks what you would like to plan. The updated wording is included in a new offline cache generation.',
+    fr: 'L’accueil en anglais demande correctement ce que vous souhaitez préparer. Le libellé corrigé est inclus dans une nouvelle version du cache hors ligne.',
+  },
+  {
+    version: 'v67', date: '2026-11-06', commit: 'dc99dea',
     en: 'Simple and Advanced are two views of the same projects. Guided creation starts with blank personal figures; examples are explicitly marked. The summary and scenario comparison come before the long form on phones, scenario selection and renaming are separate, and essential loan controls have visible labels. Invalid numeric entries preserve the last valid value and show an error. Reverted edits no longer leave saving pending. Complete JSON backups can be previewed and restored with a recovery copy. Development previews isolate storage, locks and offline caches from production.',
     fr: 'Simple et Avancé sont deux vues des mêmes projets. La création guidée part de chiffres personnels vides ; les exemples sont identifiés. Sur téléphone, la synthèse et la comparaison précèdent le formulaire. Le choix du scénario est séparé du renommage et les prêts gardent leurs réglages essentiels avec des libellés visibles. Une saisie numérique invalide conserve la dernière valeur valide et affiche une erreur. Annuler une saisie ne bloque plus l’enregistrement. Les sauvegardes JSON peuvent être vérifiées puis restaurées avec une copie de récupération. La préversion isole ses données, ses verrous et son cache hors ligne du site principal.',
   },
