@@ -140,5 +140,10 @@ export function createPlanStore(storage, { withLock, tabId = newId() } = {}) {
     try { storage().removeItem(key); } catch { /* recovery copy can remain */ }
   }
 
-  return { read, stage, save, drafts, discardDraft };
+  function keepRecovery(snapshot) {
+    const key = `${DRAFT_PREFIX}recovery-${newId()}`;
+    return writeValue(storage, key, { snapshot: copy(snapshot), updatedAt: Date.now() }) ? key : null;
+  }
+
+  return { read, stage, save, drafts, discardDraft, keepRecovery };
 }

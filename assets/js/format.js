@@ -9,6 +9,15 @@
 
 import { annualPercent } from './numbers.js';
 
+let currency = '';
+let currentLocale;
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF'];
+
+export function setDisplayCurrency(value) {
+  currency = CURRENCIES.includes(value) ? value : '';
+  setFormatLocale(currentLocale);
+}
+
 let current = { amount: null, whole: null, compact: null };
 
 function plainFallback(value) {
@@ -57,9 +66,10 @@ export function setFormatLocale(locale) {
   } catch {
     tag = undefined;
   }
+  currentLocale = tag;
   current = {
     point: decimalPointOf(tag),
-    amount: build(tag, { maximumFractionDigits: 2, minimumFractionDigits: 0 }, plainFallback),
+    amount: build(tag, { ...(currency ? { style: 'currency', currency } : {}), maximumFractionDigits: 2, minimumFractionDigits: 0 }, plainFallback),
     rate: build(tag, { maximumFractionDigits: 6, useGrouping: false }, plainFallback),
     whole: build(tag, { maximumFractionDigits: 0 }, plainFallback),
     compact: build(tag, { notation: 'compact', maximumFractionDigits: 1 }, compactFallback),

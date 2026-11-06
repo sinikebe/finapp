@@ -53,10 +53,17 @@ assets/js/format.js           locale-aware formatting
 assets/js/i18n.js             English/French copy
 assets/js/changelog.js        release history in both languages
 assets/js/version.js          generated build stamp
+assets/js/input-validation.js numeric drafts, currency affixes and inline validity
+assets/js/save-controller.js  debounced saves, reverts and queued-write coordination
+assets/js/deployment.js       production/preview storage and lock namespaces
+assets/js/backup.js           bounded backup validation and restore summaries
+assets/js/interface.js        presentation preferences and guided blank projects
+assets/js/interface-view.js   mode controls, summary/comparison and backup preview
 assets/js/app.js              controller and view composition
 tools/generate-icons.mjs     dependency-free icon generation
 tools/serve.mjs              local development server
 tools/stamp-version.mjs      cache/build metadata
+tools/build-pages.mjs        allowlisted main + dev Pages artifact
 test/                       Node tests
 docs/design-system.md       tokens, layout and accessibility conventions
 ```
@@ -152,3 +159,55 @@ changes the displayed net-profit figure, not cash or total worth, even on sale;
 those remain before tax and are labeled accordingly. Housing-template taxes are
 fixed example fields. Changes to these conventions need explicit product copy,
 independent arithmetic tests and updated worked examples.
+
+## Simple and Advanced
+
+Simple is the initial presentation. `finapp.viewMode.v1` is a device preference;
+changing it does not edit a financial field, identity, target, assumption or
+shared link. Advanced controls that affect a Simple result have a readable
+summary and an action that opens the relevant field. Keep comparison, cash
+warnings and save/recovery actions available in both views.
+
+`input-validation.js` owns incomplete or invalid DOM drafts. It sends commands
+only for valid entries. Reconciliation and blur must not clear an invalid draft
+or turn it into zero; the last valid model value remains in the results.
+
+Backup restoration validates every project before showing a replacement action.
+It creates an independent recovery draft before replacement, checks the current
+saved revision and uses the same atomic store as ordinary edits. Never replace
+anything when validation or recovery storage fails.
+
+## Production and development publication
+
+The `Pages` workflow, installed on `main`, reacts to successful push CI on
+`main` and `dev`. It chooses the latest successful push-CI commit of each branch,
+checks out those exact revisions and assembles one static artifact. Production
+is at the existing root URL; development is at `/dev/`. A later failing commit
+is never substituted for the revision CI actually tested. Fork PR workflows
+cannot trigger publication.
+
+GitHub Pages must use **Settings → Pages → Build and deployment → Source:
+GitHub Actions**. If it still uses a branch, the workflow uploads the combined
+artifact and explains the setting in its summary, without changing the existing
+publication. After changing the source, run **Actions → Pages → Run workflow**.
+The `github-pages` environment can keep allowing deployments from `main`:
+`workflow_run` and manual runs of this central workflow run from that branch.
+
+The preview uses `finapp-preview:/finapp/dev/:…` local-storage keys and a separate
+Web Lock. Production retains existing keys. Service-worker cache names include
+their scope and use `finapp@…` rather than the legacy `finapp-` prefix, so an older
+production worker cannot delete preview caches. Relative manifests and assets
+keep installations and offline navigation inside their own scope. These are
+same-origin namespaces, not a security boundary; use a separate origin if dev
+code must be untrusted.
+
+To assemble an artifact locally after preparing both checkouts:
+
+```sh
+node tools/build-pages.mjs /path/to/main /path/to/dev /path/to/new-output
+```
+
+The output directory must not exist and must be outside both source checkouts.
+Only the static shell and assets are copied; Git metadata, tests and workspace
+files are excluded. Symlinks and a preview without the isolation modules are
+rejected.

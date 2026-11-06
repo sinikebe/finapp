@@ -60,3 +60,22 @@ test('cached generations work offline and leave sibling-app navigations alone', 
   const missing = worker({ openError: true, networkError: true });
   assert.equal((await request(missing, '/finapp/', 'navigate')).type, 'error');
 });
+
+
+test('activating main or dev only removes that scope’s older cache generations', async () => {
+  for (const scope of ['/finapp/', '/finapp/dev/']) {
+    const own = `finapp@${encodeURIComponent(scope)}:`;
+    const other = `finapp@${encodeURIComponent(scope === '/finapp/' ? '/finapp/dev/' : '/finapp/')}:`;
+    const deleted = [];
+    const names = [own + 'v1', own + 'v67', other + 'v66', 'unrelated', 'finapp-v66'];
+    const handlers = new Map(); let activating;
+    const context = vm.createContext({
+      self: { location: new URL(`https://example.org${scope}sw.js`), addEventListener: (key, work) => handlers.set(key, work), clients: { claim() {} } },
+      caches: { keys: async () => names, delete: async (key) => deleted.push(key) }, URL,
+    });
+    vm.runInContext(source, context);
+    handlers.get('activate')({ waitUntil: (work) => { activating = work; } });
+    await activating;
+    assert.deepEqual(deleted, [own + 'v1']);
+  }
+});

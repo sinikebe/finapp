@@ -17,9 +17,8 @@
   <link rel="stylesheet" href="./assets/css/app.css">
   <script type="module" src="./assets/js/app.js"></script>
 </head>
-<body>
+<body data-mode="simple">
   <a class="skip-link" href="#main" data-i18n="skip.link">Skip to content</a>
-
   <header class="app-bar">
     <p class="brand">
       <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -30,76 +29,40 @@
       <span>Finapp</span>
     </p>
     <div class="app-bar-actions">
-      <!-- First, and hidden until there is something to take back. Beside the
-           name rather than out at the end with the theme and the language,
-           because it is not chrome: it is about the move the reader just made,
-           and it goes again the moment that move has been undone. Its
-           accessible name says which of the five it would reverse; the button
-           itself has room for one word. -->
-      <button id="undo" class="ghost-button" type="button" data-i18n="undo.label" hidden>Undo</button>
-      <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
-      <button id="share-open" class="ghost-button" type="button" data-i18n="action.share">Share</button>
-      <button id="about-open" class="ghost-button" type="button" data-i18n="about.open">About</button>
-      <button id="lang" class="ghost-button" type="button" aria-label="Language: English. Switch to French">
+<div class="view-modes" role="group" data-i18n-aria="ui.mode"><button id="mode-simple" type="button" class="preset" aria-pressed="true" data-i18n="ui.simple">Simple</button><button id="mode-advanced" type="button" class="preset" aria-pressed="false" data-i18n="ui.advanced">Advanced</button></div><details class="tools-menu"><summary data-i18n="ui.tools">Tools</summary><div class="tools-content"><button id="share-open" class="ghost-button" type="button" data-i18n="action.share">Share</button><button id="about-open" class="ghost-button" type="button" data-i18n="about.open">About</button><button id="lang" class="ghost-button" type="button" aria-label="Language: English. Switch to French">
         <span id="lang-label" aria-hidden="true">EN</span>
-      </button>
-      <button id="theme" class="ghost-button" type="button" aria-label="Colour theme: follow system">
+      </button><button id="theme" class="ghost-button" type="button" aria-label="Colour theme: follow system">
         <span id="theme-label" aria-hidden="true">Auto</span>
       </button>
+<button id="backup-download" type="button" class="ghost-button" data-i18n="save.export">Download a backup</button>
+<button id="backup-open" type="button" class="ghost-button" data-i18n="ui.restore">Restore a backup</button>
+<label for="currency" data-i18n="ui.currency">Currency label</label>
+<select id="currency"><option value="" data-i18n="ui.currencyNone">No symbol</option><option value="EUR">EUR — €</option><option value="USD">USD — $</option><option value="GBP">GBP — £</option><option value="CHF">CHF</option></select>
+<p class="hint" data-i18n="ui.currencyNote">Display only. No currency conversion.</p>
+</div></details>
+      <button id="undo" class="ghost-button" type="button" data-i18n="undo.label" hidden>Undo</button>
+      <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
     </div>
-    <!-- What an undo put back, on its own line under the buttons. A sentence
-         squeezed in beside six of them would push the last one off a narrow
-         screen, and it is only ever there for a few seconds.
-
-         Focusable only from script: the last press of Undo takes the button
-         away with it, and this is what is left where the reader was. -->
     <p class="hint undo-said" id="undo-said" role="status" tabindex="-1" hidden></p>
-  </header>
-
+  <p id="save-indicator" class="hint save-indicator" role="status"></p>
+</header>
+<p id="preview-banner" class="preview-banner" data-i18n="ui.preview" hidden>Development preview — data is separate from the main site.</p>
+<p id="input-warning" class="validation-banner" role="status" data-i18n="ui.invalidSummary" hidden>Check the highlighted entries. Results use their last valid values.</p>
+<nav class="workspace-nav" aria-label="Workspace"><a href="#inputs" id="nav-data" data-i18n="ui.data">Data</a><a href="#compare" id="nav-compare" data-i18n="ui.compare">Comparison</a><a href="#summary" data-i18n="ui.results">Results</a></nav>
   <div class="save-status" id="save-status" hidden>
     <p id="save-message" role="status"></p>
     <div class="save-actions">
       <button type="button" class="ghost-button" id="save-retry" data-i18n="save.retry" hidden>Try saving again</button>
       <button type="button" class="ghost-button" id="save-latest" data-i18n="save.latest" hidden>Load saved changes</button>
-      <button type="button" class="ghost-button" id="save-recover" data-i18n="save.recover" hidden>Recover latest draft</button>
+      <button type="button" class="ghost-button" id="save-recover" data-i18n="save.recover" hidden>Recover latest copy</button>
       <button type="button" class="ghost-button" id="save-export" data-i18n="save.export">Download a backup</button>
     </div>
   </div>
-
-  <!-- Filled in and revealed only once the strategy bar in the form has
-       scrolled out of view, and only while there is more than one strategy. -->
   <div id="strategy-jump"></div>
-
   <main id="main">
-    <!-- The left column. Two panels rather than one, because what they hold
-         differs in scope: the fields belong to the plan named in the switcher
-         above them, and the assumptions below apply to every plan at once. A
-         wrapper because a grid gives each of its children a cell, so a second
-         panel placed directly would land where the readings go. -->
-    <div class="rail">
-    <!-- The head is everything that must survive the fold: which plan you are
-         editing, and the button that brings the rest back. Docked as a rail it
-         is also sticky within the panel, which is not decoration — the pinned
-         switcher at the top of the window decides it is needed by watching this
-         bar with an IntersectionObserver, and an observer clips against
-         ancestor overflow. A strategy bar scrolled out of a scrolling rail
-         would read as "off screen" with the window still at the top, and the
-         pinned copy would appear over the app bar for no reason. -->
-    <section class="panel inputs-panel" aria-labelledby="inputs-heading">
-      <div class="panel-head">
+<div class="panel workspace-head">
         <div class="panel-title">
-          <!-- The panel's heading *is* the project, because the panel is the
-               project: these fields belong to the question named here. With one
-               unnamed project it reads the words this heading has always read,
-               so a store written before projects existed gains a control rather
-               than a name it never chose. Not a pill and never coloured — four
-               strategy colours are spoken for by the curves, and a fifth mark up
-               here would be read as a fifth legend swatch. What says it is
-               pressable is shape: the box and the divided caret cell the form's
-               own selects wear. -->
           <h2 id="inputs-heading" class="project-heading"></h2>
-          <!-- No data-i18n: its label alternates between two phrases depending
-               on which way it would go, so setRail writes it. -->
           <button type="button" class="icon-button rail-toggle" id="rail-toggle"
                   aria-expanded="true" aria-controls="inputs-body">
             <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -107,95 +70,28 @@
             </svg>
           </button>
         </div>
-        <div id="strategies"></div>
+        <button id="new-project" class="ghost-button" type="button" data-i18n="ui.newProject">New project</button><div id="strategies"></div>
       </div>
-      <div class="panel-body" id="inputs-body">
-        <div id="fields"></div>
-        <p class="hint" id="sync-hint" data-i18n="inputs.syncHint" hidden></p>
-        <p class="hint" id="debt-hint" data-i18n="inputs.debtHint" hidden></p>
-        <p class="hint" id="window-note" data-i18n="inputs.windowNote" hidden></p>
-        <!-- Three paragraphs that explain the form rather than answer anything
-             the reader just did — they are read once and then they are furniture.
-             Folded away, the whole rail fits a 1000px window without a scrollbar
-             of its own; in the flow they are 270 pixels that push it past one.
-             The three hints above stay out here, because each of them appears
-             only in answer to something the reader has just done. -->
-        <details class="panel-notes">
-          <summary data-i18n="inputs.notes">How this works</summary>
-          <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.</p>
-          <p class="hint" id="period-note" data-i18n="inputs.periodNote" hidden>Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.</p>
-          <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency — the app never converts or stores them anywhere but this device.</p>
-        </details>
-      </div>
-    </section>
+    <div class="filter-row panel horizon" id="horizon">
+        <div class="filter">
+<h2 data-i18n="filter.label">Projection length</h2><label class="sr-only" for="months" data-i18n="filter.label">Projection length</label>
+<div class="simple-only horizon-inputs"><label for="horizon-years" data-i18n="ui.years">Years</label><input id="horizon-years" type="text" inputmode="numeric" autocomplete="off"><label for="horizon-months" data-i18n="ui.months">Months</label><input id="horizon-months" type="text" inputmode="numeric" autocomplete="off"><p id="horizon-error" class="input-error" hidden></p></div>
 
-    <!-- Not inside the panel above: there they would sit under a strategy
-         switcher that would say they belong to the plan it names. They do not.
-         One horizon and one set of assumptions, every plan read through them,
-         which is the only thing that makes two plans comparable at all. -->
-    <section class="panel assumptions-panel" aria-labelledby="assumptions-heading">
-      <!-- Shut by default, and that costs the reader nothing they can act on:
-           every one of these has a default that is already true, and the moment
-           one of them is not, the note above the cards says so in words. Open,
-           it would spend a third of a docked rail on figures set once, taking
-           the room from the fields, which are the thing being edited. -->
-      <details class="assumptions-fold">
-        <summary>
-          <h2 id="assumptions-heading" data-i18n="assumptions.heading">How money behaves</h2>
-        </summary>
-        <p class="hint" data-i18n="assumptions.note">These apply to every plan at once, which is what keeps two plans worth comparing.</p>
-        <p class="hint" data-i18n="filter.rateConvention">Rates on balances are nominal annual percentages divided by twelve. The rate on a repeating amount changes it on each anniversary.</p>
-
-        <div class="assumption-groups">
-          <div class="assumption-group">
-            <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
-              <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today’s money</button>
-            </div>
-            <div class="filter money-filter" id="inflation-filter" hidden>
-              <label for="inflation" data-i18n="filter.inflation">Inflation a year, as a percentage</label>
-              <div class="range-line">
-                <input id="inflation" type="text" inputmode="decimal" autocomplete="off">
-                <span class="rate-unit" aria-hidden="true">%</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="assumption-group">
-            <div class="presets" role="group" data-i18n-aria="filter.rangeAria">
-              <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
-            </div>
-            <div class="filter money-filter" id="spread-filter" hidden>
-              <label for="spread" data-i18n="filter.spread">Returns, give or take, as a percentage</label>
-              <div class="range-line">
-                <input id="spread" type="text" inputmode="decimal" autocomplete="off">
-                <span class="rate-unit" aria-hidden="true">%</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- On its own, because it answers to neither button above it: a rate
-             on gains is asked for whenever a plan invests inside the horizon,
-             and is gone when none does. Grouped under "Show a range" it would
-             read as something that toggle reveals, which it is not. -->
-        <div class="filter money-filter" id="tax-filter" hidden>
-          <label for="tax" data-i18n="filter.tax">Tax on gains, as a percentage</label>
           <div class="range-line">
-            <input id="tax" type="text" inputmode="decimal" autocomplete="off">
-            <span class="rate-unit" aria-hidden="true">%</span>
+            <input class="advanced-only" id="months" type="range" min="1" max="600" step="1" value="24">
+            <span id="months-readout" aria-hidden="true">24 months</span>
           </div>
         </div>
-      </details>
-    </section>
-    </div>
-
-    <!-- One plan, read in depth: the totals, the horizon it is read at, the
-         cards, the targets drawn on them and where the money goes. One box
-         because it is what the form sits beside once the shell is two columns,
-         and because a sticky rail can only travel the height of its own grid
-         area — the rail is given an area that spans this and the dock both. -->
-    <div class="output">
-      <section class="panel summary" aria-labelledby="summary-heading">
+        <div class="presets advanced-only" role="group" data-i18n-aria="filter.presetsAria" aria-label="Preset projection lengths">
+          <button type="button" class="preset" data-months="12">1 yr</button>
+          <button type="button" class="preset" data-months="24">2 yr</button>
+          <button type="button" class="preset" data-months="60">5 yr</button>
+          <button type="button" class="preset" data-months="120">10 yr</button>
+          <button type="button" class="preset" data-months="300">25 yr</button>
+          <button type="button" class="preset" data-months="600">50 yr</button>
+        </div>
+      </div>
+<section id="summary" class="panel summary" aria-labelledby="summary-heading">
         <h2 id="summary-heading" class="sr-only" data-i18n="summary.heading">Projected totals</h2>
         <div class="hero">
           <p class="hero-label" id="hero-label">Net after 24 months</p>
@@ -207,7 +103,8 @@
             <span id="hero-chip-text"></span>
           </p>
         </div>
-        <dl class="kpi-row">
+        <dl class="simple-kpis simple-only"><div><dt data-i18n="ui.worth">Net worth</dt><dd id="simple-worth">—</dd></div><div><dt data-i18n="ui.monthly">Average cash kept per month</dt><dd id="simple-monthly">—</dd></div></dl>
+<details class="summary-details"><summary data-i18n="ui.details">Detailed totals</summary><dl class="kpi-row">
           <div class="stat-tile">
             <dt data-i18n="summary.totalIncome">Total income</dt>
             <dd id="total-income">—</dd>
@@ -236,133 +133,25 @@
             <dt data-i18n="summary.invested">Investments are worth</dt>
             <dd id="invested-value">—</dd>
           </div>
-          <!-- Names the rate it used, so the figure is never a number from nowhere. -->
           <div class="stat-tile" id="profit-tile" hidden>
             <dt id="profit-label">Net profit</dt>
             <dd id="profit-value">—</dd>
           </div>
-          <!-- Names its own horizon, so it is filled in by render() rather than
-               carrying a data-i18n key of its own. -->
           <div class="stat-tile" id="worth-tile" hidden>
             <dt id="worth-label">Total after 24 months</dt>
             <dd id="worth-value">—</dd>
           </div>
-        </dl>
+        </dl></details><p class="hint" data-i18n="ui.cashNote">Cash starts at zero. Net worth adds investments and assets, then subtracts outstanding debt.</p><div class="assumptions-summary"><p class="hint" id="active-assumptions"></p><button id="assumptions-edit" type="button" class="ghost-button" data-i18n="ui.editAssumptions">Edit assumptions</button></div>
         <p class="hint" id="tax-scope" data-i18n="summary.taxScope" hidden>Cash and total worth are before investment tax, including after a sale. Only net profit applies the tax rate shown in the assumptions.</p>
     </section>
-
-      <div class="filter-row">
-        <div class="filter">
-          <label for="months" data-i18n="filter.label">Projection length</label>
-          <div class="range-line">
-            <input id="months" type="range" min="1" max="600" step="1" value="24">
-            <!-- Visual only: the slider carries the same text in aria-valuetext,
-                 so the reading is announced as the value, not as a live region. -->
-            <span id="months-readout" aria-hidden="true">24 months</span>
-          </div>
-        </div>
-        <div class="presets" role="group" data-i18n-aria="filter.presetsAria" aria-label="Preset projection lengths">
-          <button type="button" class="preset" data-months="12">1 yr</button>
-          <button type="button" class="preset" data-months="24">2 yr</button>
-          <button type="button" class="preset" data-months="60">5 yr</button>
-          <button type="button" class="preset" data-months="120">10 yr</button>
-          <button type="button" class="preset" data-months="300">25 yr</button>
-          <button type="button" class="preset" data-months="600">50 yr</button>
-        </div>
-      </div>
-
-      <p class="hint money-note" id="money-note" hidden></p>
-
-      <section class="charts-section" aria-labelledby="charts-heading">
-        <h2 id="charts-heading" data-i18n="charts.heading">Cumulative over time</h2>
-        <p class="section-note" id="charts-note" data-i18n="charts.notePrompt" aria-live="polite">
-          Give a field an amount to project the months ahead.
-        </p>
-        <!-- Two readings of the same five cards, not a sixth card: the palette
-             has five series colours and they are all spoken for. Deliberately
-             without a `data-months` attribute — that is what marks a horizon
-             preset, and `applyLanguage` relabels every one of those with a
-             length in years. -->
-        <div class="presets" role="group" id="chart-views" data-i18n-aria="charts.viewAria">
-          <button type="button" class="preset" id="view-total" aria-pressed="true" data-i18n="charts.view.total">Running total</button>
-          <button type="button" class="preset" id="view-monthly" aria-pressed="false" data-i18n="charts.view.monthly">Each month</button>
-        </div>
-        <div class="chart-grid" id="charts"></div>
-        <details class="section-notes">
-          <!-- How the cards are scaled explains the drawing rather than reading
-               anything off it, so it waits for the reader who wonders why one
-               card is scaled differently from the other four. -->
-          <summary data-i18n="notes.how">How this works</summary>
-          <p class="scale-note" id="charts-scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
-        </details>
-        <!-- The one way in while there is no target. It sits under the cards
-             because a target is drawn on them, and it is the only thing the
-             feature shows of itself until somebody asks for it: the section
-             below ships hidden rather than standing there empty explaining
-             what it would do. -->
-        <button type="button" class="add-field" id="add-milestone" data-i18n="milestone.add">Mark a target</button>
-      </section>
-
-      <!-- Hidden until there is a target, the way the flow diagram and the
-           comparison are. The rules it draws land on the cards above, so it sits
-           directly under them. -->
-      <section class="charts-section" id="milestones" aria-labelledby="milestones-heading" hidden>
-        <h2 id="milestones-heading" data-i18n="milestone.heading">When does that happen?</h2>
-        <details class="section-notes">
-          <!-- What a target is, rather than what any of them answered. -->
-          <summary data-i18n="notes.how">How this works</summary>
-          <p class="section-note" data-i18n="milestone.note">A target is a figure to watch for, not a rule the plan obeys: the projection runs as it always has and the app reads off the first month the plan you are looking at is there. Switch plans and every answer is worked out again.</p>
-        </details>
-        <!-- Only when the months could not be made to agree. Not a live region:
-             it appears while the reader is editing the very figures that caused
-             it, and a paragraph read out on every keystroke is worse than one
-             they find when they look. -->
-        <p class="section-note is-warning" id="milestone-unsettled" data-i18n="milestone.unsettled" hidden></p>
-        <p class="hint" id="milestone-invalid" data-i18n="milestone.invalid" role="status" hidden></p>
-        <div id="milestone-mount"></div>
-        <details class="section-notes">
-          <!-- Why a rule is drawn where it is, and what can and cannot be worked
-               backwards. The app reveals the second when a target is asked what
-               it would take; inside a disclosure it keeps that behaviour and
-               simply waits to be opened. -->
-          <summary data-i18n="notes.how">How this works</summary>
-          <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
-          <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only an amount or a rate can be solved. Each answer is checked by running the complete plan again. If events depend on targets, the answer is one checked example: larger or smaller figures can change when those events happen. Nothing is applied to your plan automatically.</p>
-        </details>
-      </section>
-
-      <section class="charts-section" id="sankey" aria-labelledby="sankey-heading" hidden>
-        <h2 id="sankey-heading" data-i18n="sankey.heading">Where the money goes</h2>
-        <details class="section-notes">
-          <!-- What the diagram counts, and what it leaves to the cards above. -->
-          <summary data-i18n="notes.how">How this works</summary>
-          <p class="section-note" data-i18n="sankey.note">Everything that comes in over the whole projection, pooled, and where it ends up. Only money that actually moves is here — what an investment grows to, or a flat gains, is on the cards above.</p>
-        </details>
-        <div id="sankey-mount"></div>
-      </section>
-    </div>
-
-    <!-- The other half of the reading: the plans against each other rather than
-         one plan in depth. A box of its own because on a wide screen it docks to
-         the right of the readings, and because these two belong together
-         wherever they land — the chips in the comparison decide what the ranking
-         below is a ranking of, so they must never be a scroll apart.
-
-         It is not folded by a button, the way the form is. It shows itself when
-         there is more than one plan and hides when there is not, which is the
-         same rule its two sections already followed on their own: a folded
-         reading would show nothing, where the folded form at least leaves the
-         chevron that brings it back. -->
-    <div class="dock" id="dock">
-
-      <section class="charts-section" id="compare" aria-labelledby="compare-heading" hidden>
-        <h2 id="compare-heading" data-i18n="compare.heading">Strategies side by side</h2>
-        <p class="section-note" id="compare-note" aria-live="polite"></p>
-        <div class="filter-row">
+<section class="panel charts-section" id="compare" aria-labelledby="compare-heading" hidden>
+        <h2 id="compare-heading" data-i18n="compare.heading">Scenarios side by side</h2>
+        <div id="simple-comparison" class="simple-comparison simple-only"></div><p class="section-note advanced-only" id="compare-note" aria-live="polite"></p>
+        <div class="filter-row advanced-only">
           <div class="presets" role="group" id="compare-metrics" data-i18n-aria="compare.metricAria"></div>
         </div>
-        <div class="chart-grid" id="compare-chart"></div>
-        <div class="table-wrap compare-table">
+        <div class="chart-grid advanced-only" id="compare-chart"></div>
+        <div class="table-wrap compare-table advanced-only">
           <table class="data-table">
             <caption id="compare-table-caption"></caption>
             <thead><tr id="compare-head"></tr></thead>
@@ -370,146 +159,205 @@
           </table>
         </div>
       </section>
-
-      <!-- Under the comparison because it borrows its column: the list is judged
-           on whatever the chips above are showing, so a reader who switched them
-           to Profit gets a ranking on profit. That is why the two travel
-           together into the dock rather than one of them going. Hidden until
-           there are two amounts to put in an order — one field ranked against
-           nothing is not a ranking. -->
-      <section class="charts-section" id="rank" aria-labelledby="rank-heading" hidden>
+<div class="rail">
+    <section id="inputs" class="panel inputs-panel" aria-labelledby="inputs-heading">
+      <h2 class="section-title" data-i18n="ui.data">Data</h2><div class="panel-body" id="inputs-body">
+        <div id="fields"></div>
+        <p class="hint" id="sync-hint" data-i18n="inputs.syncHint" hidden>Comparing two scenarios only tells you something if they differ in one place. Use the link button to keep a field the same everywhere — your income does not change because you decided to invest.</p>
+        <p class="hint" id="debt-hint" data-i18n="inputs.debtHint" hidden>A loan counts against what you are worth until it is repaid. If it bought something you still have — a flat, a car — add that as “Something you own”, or the total is only half the story.</p>
+        <p class="hint" id="window-note" data-i18n="inputs.windowNote" hidden>Months are counted from today, which is month 0 — so “from month 6” is half a year out. Leave a box empty and the field runs for the whole projection. Anything less frequent than monthly counts its period from where it starts.</p>
+        <details class="panel-notes">
+          <summary data-i18n="inputs.notes">How this works</summary>
+          <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.</p>
+          <p class="hint" id="period-note" data-i18n="inputs.periodNote" hidden>Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.</p>
+          <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency — the app never converts or stores them anywhere but this device.</p>
+        </details>
+      </div>
+    </section>
+    <section class="panel assumptions-panel" aria-labelledby="assumptions-heading">
+      <section id="advanced-settings" class="simple-only" hidden><h3 data-i18n="ui.advancedRules">Active advanced settings</h3><details class="advanced-settings-fold"><summary id="advanced-settings-count"></summary><p class="hint" data-i18n="ui.advancedNote">These rules still apply in Simple mode. Open an item to edit its dates, conditions or rate.</p><div id="advanced-settings-list"></div></details></section><details class="assumptions-fold">
+        <summary>
+          <h2 id="assumptions-heading" data-i18n="assumptions.heading">How money behaves</h2>
+        </summary>
+        <p class="hint" data-i18n="assumptions.note">These apply to every scenario at once, which is what keeps two scenarios worth comparing.</p>
+        <p class="hint" data-i18n="filter.rateConvention">Rates on balances are nominal annual percentages divided by twelve. The rate on a repeating amount changes it on each anniversary.</p>
+        <div class="assumption-groups">
+          <div class="assumption-group">
+            <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
+              <button type="button" class="preset" id="real-toggle" aria-pressed="false" data-i18n="filter.todaysMoney">In today’s money</button>
+            </div>
+            <div class="filter money-filter" id="inflation-filter" hidden>
+              <label for="inflation" data-i18n="filter.inflation">Inflation a year, as a percentage</label>
+              <div class="range-line">
+                <input id="inflation" type="text" inputmode="decimal" autocomplete="off">
+                <span class="rate-unit" aria-hidden="true">%</span>
+              </div>
+            </div>
+          </div>
+          <div class="assumption-group">
+            <div class="presets" role="group" data-i18n-aria="filter.rangeAria">
+              <button type="button" class="preset" id="range-toggle" aria-pressed="false" data-i18n="filter.showRange">Show a range</button>
+            </div>
+            <div class="filter money-filter" id="spread-filter" hidden>
+              <label for="spread" data-i18n="filter.spread">Returns, give or take, as a percentage</label>
+              <div class="range-line">
+                <input id="spread" type="text" inputmode="decimal" autocomplete="off">
+                <span class="rate-unit" aria-hidden="true">%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="filter money-filter" id="tax-filter" hidden>
+          <label for="tax" data-i18n="filter.tax">Tax on gains, as a percentage</label>
+          <div class="range-line">
+            <input id="tax" type="text" inputmode="decimal" autocomplete="off">
+            <span class="rate-unit" aria-hidden="true">%</span>
+          </div>
+        </div>
+      </details>
+    </section>
+    </div>
+  <div class="output">
+      <p class="hint money-note" id="money-note" hidden></p>
+      <section class="charts-section" aria-labelledby="charts-heading">
+        <h2 id="charts-heading" data-i18n="charts.heading">Cumulative over time</h2>
+        <p class="section-note" id="charts-note" data-i18n="charts.notePrompt" aria-live="polite">Enter income and expenses to project the months ahead.</p>
+        <div class="presets advanced-only" role="group" id="chart-views" data-i18n-aria="charts.viewAria">
+          <button type="button" class="preset" id="view-total" aria-pressed="true" data-i18n="charts.view.total">Running total</button>
+          <button type="button" class="preset" id="view-monthly" aria-pressed="false" data-i18n="charts.view.monthly">Each month</button>
+        </div>
+        <div id="simple-chart-metrics" class="presets simple-only" role="group" data-i18n-aria="charts.viewAria"><button id="chart-cash" class="preset" type="button" aria-pressed="true" data-i18n="ui.cash">Available cash</button><button id="chart-worth" class="preset" type="button" aria-pressed="false" data-i18n="ui.worth">Net worth</button></div><div class="chart-grid" id="charts"></div>
+        <details class="section-notes">
+          <summary data-i18n="notes.how">How this works</summary>
+          <p class="scale-note" id="charts-scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
+        </details>
+        <button type="button" class="add-field" id="add-milestone" data-i18n="milestone.add">Mark a target</button>
+      </section>
+      <section class="charts-section" id="milestones" aria-labelledby="milestones-heading" hidden>
+        <h2 id="milestones-heading" data-i18n="milestone.heading">When does that happen?</h2>
+        <details class="section-notes">
+          <summary data-i18n="notes.how">How this works</summary>
+          <p class="section-note" data-i18n="milestone.note">A target is a figure to watch for, not a rule the scenario obeys: the projection runs as it always has and the app reads off the first month the scenario you are looking at is there. Switch scenarios and every answer is worked out again.</p>
+        </details>
+        <p class="section-note is-warning" id="milestone-unsettled" data-i18n="milestone.unsettled" hidden>These targets move each other, so there is no month that is its own cause. Give one of them a figure that does not depend on the other, or set its month by hand.</p>
+        <p class="hint" id="milestone-invalid" data-i18n="milestone.invalid" role="status" hidden>Some fields refer to a missing target. Their settings show the broken link; choose a month or another target to repair it.</p>
+        <div id="milestone-mount"></div>
+        <details class="section-notes">
+          <summary data-i18n="notes.how">How this works</summary>
+          <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
+          <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only an amount or a rate can be solved. Each answer is checked by running the complete scenario again. If events depend on targets, the answer is one checked example: larger or smaller figures can change when those events happen. Nothing is applied to your scenario automatically.</p>
+        </details>
+      </section>
+      <section class="charts-section advanced-only" id="sankey" aria-labelledby="sankey-heading" hidden>
+        <h2 id="sankey-heading" data-i18n="sankey.heading">Where the money goes</h2>
+        <details class="section-notes">
+          <summary data-i18n="notes.how">How this works</summary>
+          <p class="section-note" data-i18n="sankey.note">Everything that comes in over the whole projection, pooled, and where it ends up. Only money that actually moves is here — what an investment grows to, or a flat gains, is on the cards above.</p>
+        </details>
+        <div id="sankey-mount"></div>
+      </section>
+    <section class="charts-section advanced-only" id="rank" aria-labelledby="rank-heading" hidden>
         <h2 id="rank-heading" data-i18n="rank.heading">What moves the needle</h2>
         <p class="section-note" id="rank-note"></p>
         <ol class="rank-list" id="rank-list"></ol>
         <p class="hint" id="rank-said" hidden></p>
         <details class="section-notes">
-          <!-- The two limits of a ranking: it is true of the length you are reading
-               at, and it ranks amounts rather than decisions. -->
           <summary data-i18n="notes.how">How this works</summary>
-          <p class="scale-note" data-i18n="rank.caveat.horizon">This is what your plan is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three plans the app opens with swap theirs somewhere between twenty years and forty.</p>
+          <p class="scale-note" data-i18n="rank.caveat.horizon">This is what your scenario is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three scenarios the app opens with swap theirs somewhere between twenty years and forty.</p>
           <p class="scale-note" data-i18n="rank.caveat.parts">The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.</p>
         </details>
-      </section>
-    </div>
-  </main>
-
+      </section></div>
+</main>
   <footer class="app-footer">
     <p data-i18n="footer.note">Everything is calculated on your device and saved only in this browser. No account, no network.</p>
   </footer>
-
-  <!-- A dialog rather than a second page: it inherits the theme, the language
-       and the shell the app already has, instead of keeping a second copy of
-       each in step. -->
   <dialog id="about" class="about" aria-labelledby="about-heading">
     <div class="about-head">
       <h2 id="about-heading" data-i18n="about.heading">About Finapp</h2>
       <button id="about-close" class="icon-button" type="button" data-i18n-aria="about.close">
-        <!-- `.action-icon` is what gives every other icon in the app its
-             stroke; a bare path inherits fill and draws nothing. -->
         <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M7 7l10 10M17 7L7 17" />
         </svg>
       </button>
     </div>
-
     <dl class="about-build">
       <div><dt data-i18n="about.version">Version</dt><dd id="about-version">—</dd></div>
       <div><dt data-i18n="about.branch">Branch</dt><dd id="about-branch">—</dd></div>
       <div><dt data-i18n="about.commit">Built from</dt><dd id="about-commit">—</dd></div>
       <div><dt data-i18n="about.date">Date</dt><dd id="about-date">—</dd></div>
     </dl>
-    <p class="hint" id="about-note" data-i18n="about.note"></p>
-
-    <!-- Hidden until a worker is actually registered: on a page served without
-         one there is nothing for this button to ask. -->
+    <p class="hint" id="about-note" data-i18n="about.note">The app is served as static files with no build step, so this names the commit the build sits on top of rather than its own. Each release below carries the commit it was merged as.</p>
     <div class="about-update" id="about-update-row" hidden>
       <button id="about-update" class="ghost-button" type="button" data-i18n="update.check">Check for updates</button>
       <p class="hint" id="about-update-note" role="status"></p>
     </div>
-
     <div class="about-reset" id="about-reset-row">
         <button type="button" class="ghost-button" id="about-backup" data-i18n="save.export">Download a backup</button>
       <button id="about-reset" class="ghost-button" type="button" data-i18n="about.reset">Start again</button>
-      <p class="hint" id="about-reset-note" data-i18n="about.resetNote"></p>
+      <p class="hint" id="about-reset-note" data-i18n="about.resetNote">Replaces your scenarios with the three the app opens with. Your language and theme are left alone.</p>
     </div>
-    <!-- Asked in place rather than in a second dialog: a confirm on top of a
-         dialog is a stack nobody asked for, and the question is short. -->
     <div class="about-confirm" id="about-confirm" hidden>
-      <p id="about-confirm-ask" data-i18n="about.resetAsk"></p>
+      <p id="about-confirm-ask" data-i18n="about.resetAsk">This replaces every scenario and every figure you have entered, on this device. Undo can put them back while this tab is open, and not after.</p>
       <div class="about-confirm-actions">
         <button id="about-reset-yes" class="ghost-button is-grave" type="button" aria-describedby="about-confirm-ask" data-i18n="about.resetYes">Replace everything</button>
         <button id="about-reset-no" class="ghost-button" type="button" aria-describedby="about-confirm-ask" data-i18n="about.resetNo">Keep what I have</button>
       </div>
     </div>
-
     <h3 data-i18n="about.changes">What changed</h3>
     <ol class="about-log" id="about-log"></ol>
   </dialog>
-
-  <!-- Handing the plan over. The link is shown rather than only copied: it
-       carries every figure the reader has entered, so what is being sent is
-       worth being able to look at before it is sent. -->
   <dialog id="share" class="about" aria-labelledby="share-heading">
     <div class="about-head">
-      <h2 id="share-heading" data-i18n="share.heading">Share this plan</h2>
+      <h2 id="share-heading" data-i18n="share.heading">Share this scenario</h2>
       <button id="share-close" class="icon-button" type="button" data-i18n-aria="share.close">
         <svg class="action-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M7 7l10 10M17 7L7 17" />
         </svg>
       </button>
     </div>
-    <p class="hint" data-i18n="share.note"></p>
-    <label class="sr-only" for="share-link" data-i18n="share.link">A link carrying this plan</label>
+    <p class="hint" data-i18n="share.note">The whole scenario is inside this link: every scenario, every figure, the horizon and the assumptions. It rides in the part of an address a browser never sends to a server, so it goes only where you paste it — and anyone who has it has the scenario.</p>
+    <label class="sr-only" for="share-link" data-i18n="share.link">A link carrying this scenario</label>
     <input id="share-link" class="share-link" type="text" readonly>
     <div class="share-actions">
       <button id="share-copy" class="ghost-button" type="button" data-i18n="share.copy">Copy link</button>
       <p class="hint" id="share-said" role="status"></p>
     </div>
   </dialog>
-
-  <!-- Shown when the address carries somebody else's plan. It asks, because
-       taking one on is the reader's decision rather than the sender's — and it
-       says how much room there is, since four plans is the most the app can
-       chart and a full list is the one case where opening a link costs
-       something. -->
-  <!-- The sheet, over the page rather than on it. Switching project replaces
-       every plan, every target and the horizon at once, so it is a deliberate
-       move on a plane of its own — never a second row of tabs above the first,
-       which is the one arrangement in which the two could be mistaken for each
-       other. Renaming, adding and removing live here and only here, exactly as
-       they do for strategies: one name, one box. -->
   <dialog id="projects" class="about" aria-labelledby="projects-heading">
     <div class="about-head">
       <h2 id="projects-heading" data-i18n="project.heading">Projects</h2>
       <button type="button" id="projects-close" class="ghost-button" data-i18n="about.close">Close</button>
     </div>
-    <p class="hint" data-i18n="project.note">A project is one question with several answers in it: its own plans, its own horizon, its own targets. How money behaves is shared by all of them.</p>
+    <p class="hint" data-i18n="project.note">A project is one question with several answers in it: its own scenarios, its own horizon, its own targets. How money behaves is shared by all of them.</p>
     <div id="project-mount"></div>
   </dialog>
-
   <dialog id="shared" class="about" aria-labelledby="shared-heading">
     <div class="about-head">
-      <h2 id="shared-heading" data-i18n="share.received">A plan was shared with you</h2>
+      <h2 id="shared-heading" data-i18n="share.received">A scenario was shared with you</h2>
     </div>
     <p class="hint" id="shared-what"></p>
     <p id="shared-room"></p>
-    <p class="hint" id="shared-ask" data-i18n="share.receivedAsk"></p>
+    <p class="hint" id="shared-ask" data-i18n="share.receivedAsk">Your own scenarios, your language and your theme stay as they are. The horizon and the assumptions come from the shared scenario, since every scenario is read on one horizon.</p>
     <div class="about-confirm-actions">
-      <!-- First, and the default, because the usual link is somebody else's
-           question rather than another answer to yours: dropping their car
-           plans in beside your housing ones is the very thing projects exist
-           to stop. Adding them here is still offered — "the same, but…" is a
-           real reason to send a link — and it is what happens anyway once the
-           shelf is full. -->
       <button id="shared-new" class="ghost-button" type="button" aria-describedby="shared-ask" data-i18n="share.receivedProject">Open as its own project</button>
-      <button id="shared-open" class="ghost-button is-grave" type="button" aria-describedby="shared-ask" data-i18n="share.receivedYes">Add to my plans</button>
+      <button id="shared-open" class="ghost-button is-grave" type="button" aria-describedby="shared-ask" data-i18n="share.receivedYes">Add to my scenarios</button>
       <button id="shared-keep" class="ghost-button" type="button" aria-describedby="shared-ask" data-i18n="share.receivedNo">Keep my own</button>
     </div>
   </dialog>
-
   <div class="toast" id="update-toast" role="status" hidden>
     <span data-i18n="update.ready">A new version is ready.</span>
     <button type="button" id="update-reload" class="ghost-button" data-i18n="update.reload">Reload</button>
   </div>
+<dialog id="welcome" class="about welcome" aria-labelledby="welcome-heading">
+  <div class="about-head"><h2 id="welcome-heading" data-i18n="ui.welcome">What would you like to scenario?</h2><button id="welcome-close" class="ghost-button" type="button" data-i18n="ui.close">Close</button></div>
+  <p class="hint" data-i18n="ui.welcomeNote">Start with your own figures, or explore a clearly marked example. Everything stays on this device.</p>
+  <div class="welcome-choices"><button type="button" data-start="budget" data-i18n="ui.budget">My monthly budget</button><button type="button" data-start="compare" data-i18n="ui.compareProject">Compare two scenarios</button><button type="button" data-start="savings" data-i18n="ui.savings">A savings goal</button><button type="button" data-start="examples" data-i18n="ui.examples">Explore the examples</button></div>
+</dialog>
+<dialog id="backup-restore" class="about" aria-labelledby="backup-heading">
+  <div class="about-head"><h2 id="backup-heading" data-i18n="ui.restoreHeading">Review the backup</h2><button id="backup-close" type="button" class="ghost-button" data-i18n="ui.close">Close</button></div>
+  <label for="backup-file" data-i18n="ui.restoreFile">Choose a JSON backup</label><input id="backup-file" type="file" accept="application/json,.json">
+  <div id="backup-preview" hidden><label for="backup-source" data-i18n="ui.restoreSource">Version to restore</label><select id="backup-source"></select><p id="backup-summary"></p><ul id="backup-projects"></ul><p class="hint" data-i18n="ui.restoreWarning">Restoring replaces every project on this device. A recovery copy of the current workspace is kept first.</p><button id="backup-confirm" class="ghost-button is-grave" type="button" data-i18n="ui.restoreConfirm">Replace my projects</button></div>
+  <p id="backup-message" role="status"></p>
+</dialog>
 </body>
 </html>

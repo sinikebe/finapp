@@ -9,8 +9,9 @@
  * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v66';
-const CACHE_PREFIX = 'finapp-';
+const CACHE_VERSION = 'v67';
+// Scope-specific and outside the legacy finapp- prefix, so v66 cannot delete /dev/ caches.
+const CACHE_PREFIX = `finapp@${encodeURIComponent(new URL('./', self.location.href).pathname)}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const SHELL = './index.html';
 
@@ -20,6 +21,12 @@ const PRECACHE = [
   './manifest.fr.webmanifest',
   './assets/css/app.css',
   './assets/js/app.js',
+  './assets/js/interface-view.js',
+  './assets/js/interface.js',
+  './assets/js/save-controller.js',
+  './assets/js/input-validation.js',
+  './assets/js/deployment.js',
+  './assets/js/backup.js',
   './assets/js/field-labels.js',
   './assets/js/store.js',
   './assets/js/state.js',
