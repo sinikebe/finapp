@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v73', date: '2026-11-06',
+    version: 'v74', date: '2026-11-06',
+    en: 'Switching from figures or assumptions to Parcours keeps the guided layout intact. Section-specific editor grids now apply only to Horizon and Atelier, so the guided steps remain visible and usable after restoring a previous view.',
+    fr: 'Le passage des chiffres ou des hypothèses à Parcours conserve la mise en page guidée. Les grilles propres aux rubriques d’édition s’appliquent uniquement à Horizon et Atelier, afin que les étapes restent visibles et utilisables après la reprise d’une vue précédente.',
+  },
+  {
+    version: 'v73', date: '2026-11-06', commit: '40ab9cd',
     en: 'Finapp restores the last section and guided step of the open project after a reload or a return from another application. Presentation and light/dark appearance have distinct labels. Appearance stays in the header, while display settings, backups and exports are grouped in Tools. Navigation uses consistent outline icons; header menus close on Escape and outside clicks. Project data and development storage remain separate.',
     fr: 'Finapp retrouve la dernière rubrique et l’étape guidée du projet ouvert après un rechargement ou un retour depuis une autre application. Présentation et apparence claire/sombre ont des libellés distincts. L’apparence reste dans le bandeau, tandis que les réglages d’affichage, sauvegardes et exports sont regroupés dans Outils. La navigation utilise des icônes au trait homogènes ; les menus du bandeau se ferment avec Échap et au clic extérieur. Les données métier et les espaces de développement restent séparés.',
   },

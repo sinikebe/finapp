@@ -5,6 +5,15 @@ import { readFile } from 'node:fs/promises';
 const css = await readFile(new URL('../assets/css/app.css', import.meta.url), 'utf8');
 const markup = await readFile(new URL('../index.html', import.meta.url), 'utf8');
 
+test('section-specific editor grids cannot override the guided Parcours grid', async () => {
+  const workspace = await readFile(new URL('../assets/css/workspace.css', import.meta.url), 'utf8');
+  assert.doesNotMatch(workspace, /body\[data-layout\]\[data-section=/);
+  for (const section of ['data', 'assumptions']) {
+    assert.ok(workspace.includes(`body[data-layout]:not([data-layout="parcours"])[data-section="${section}"] main`));
+  }
+  assert.match(workspace, /body\[data-layout="parcours"\]\[data-step="1"\] main \{ grid-template-areas: "head" "steps" "question" "data" "recap" "actions"/);
+});
+
 test('touch overrides are last and every disclosure has a 44px target', () => {
   const atRules = [...css.matchAll(/^@[\w-]+[^{]*/gm)].map((one) => one[0].trim());
   assert.equal(atRules.at(-1), '@media (pointer: coarse)');

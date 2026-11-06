@@ -150,10 +150,10 @@ body[data-layout="atelier"] .comparison-edit { font-size: var(--type-xs); }
 body[data-layout] .comparison-card:has([aria-invalid="true"]) .quick-fields { display: grid; grid-column: 1 / -1; }
 body[data-layout] .rail { display: none; }
 body[data-layout="atelier"][data-section="overview"] main, body[data-layout="atelier"][data-section="compare"] main { grid-template-areas: "head" "horizon" "compare" "summary" "output"; }
-body[data-layout][data-section="data"] main, body[data-layout][data-section="assumptions"] main { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-areas: "head head" "horizon horizon" "data summary" "data compare"; }
-body[data-layout][data-section="data"] .rail, body[data-layout][data-section="assumptions"] .rail { display: grid; gap: var(--space-3xl); }
-body[data-layout][data-section="data"] .output, body[data-layout][data-section="assumptions"] .output { display: none; }
-body[data-layout][data-section="assumptions"] .inputs-panel { display: none; }
+body[data-layout]:not([data-layout="parcours"])[data-section="data"] main, body[data-layout]:not([data-layout="parcours"])[data-section="assumptions"] main { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); grid-template-areas: "head head" "horizon horizon" "data summary" "data compare"; }
+body[data-layout]:not([data-layout="parcours"])[data-section="data"] .rail, body[data-layout]:not([data-layout="parcours"])[data-section="assumptions"] .rail { display: grid; gap: var(--space-3xl); }
+body[data-layout]:not([data-layout="parcours"])[data-section="data"] .output, body[data-layout]:not([data-layout="parcours"])[data-section="assumptions"] .output { display: none; }
+body[data-layout]:not([data-layout="parcours"])[data-section="assumptions"] .inputs-panel { display: none; }
 body[data-layout] .inputs-panel { padding: var(--space-2xl); }
 body[data-layout] .field-row { box-shadow: none; border-color: var(--border); background: var(--surface-1); padding: var(--space-lg); border-radius: 10px; }
 body[data-layout] .field-group-heading { padding: var(--space-sm) 0; color: var(--text-secondary); font-size: var(--type-xs); }
@@ -244,8 +244,8 @@ body[data-layout="parcours"] .app-footer { margin: 0 auto; max-width: 1080px; }
   body[data-layout] .strategy-bar > .strategy-actions { grid-row: 3; grid-column: 1 / -1; }
   body[data-layout] .strategy-bar > .scenario-rename { grid-column: 1 / -1; }
   body[data-layout][data-mode="simple"] .horizon .range-line { display: none; }
-  body[data-layout] main, body[data-layout][data-section="data"] main, body[data-layout][data-section="assumptions"] main { grid-template-columns: minmax(0, 1fr); padding: var(--space-3xl) var(--space-xl); gap: var(--space-2xl); }
-  body[data-layout][data-section="data"] main, body[data-layout][data-section="assumptions"] main { grid-template-areas: "head" "horizon" "data" "summary" "compare"; }
+  body[data-layout] main, body[data-layout]:not([data-layout="parcours"])[data-section="data"] main, body[data-layout]:not([data-layout="parcours"])[data-section="assumptions"] main { grid-template-columns: minmax(0, 1fr); padding: var(--space-3xl) var(--space-xl); gap: var(--space-2xl); }
+  body[data-layout]:not([data-layout="parcours"])[data-section="data"] main, body[data-layout]:not([data-layout="parcours"])[data-section="assumptions"] main { grid-template-areas: "head" "horizon" "data" "summary" "compare"; }
   body[data-layout] .summary { padding: var(--space-2xl); }
   body[data-layout] .hero-value { font-size: var(--type-2xl); letter-spacing: -1.4px; }
   body[data-layout] .comparison-card { grid-template-columns: minmax(0, 1fr) auto; padding: var(--space-xl); }
