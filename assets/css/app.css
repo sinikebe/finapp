@@ -2426,6 +2426,16 @@ body[data-mode] .strategy-actions { display: flex; flex-wrap: wrap; gap: var(--s
 .simple-kpis dt { font-size: var(--type-xs); color: var(--text-secondary); }
 .simple-kpis dd { margin: var(--space-xs) 0 0; font-size: var(--type-xl); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .summary-details { margin-top: var(--space-xl); }
+#example-context { min-width: 0; margin-bottom: var(--space-xl); }
+.example-notes { min-width: 0; }
+.example-notes > summary { cursor: pointer; color: var(--text-secondary); font-size: var(--type-sm); }
+.example-table-scroll { min-width: 0; max-width: 100%; overflow-x: auto; margin-block: var(--space-md); }
+.example-table { width: 100%; min-width: 460px; border-collapse: collapse; font-size: var(--type-xs); }
+.example-table caption { text-align: left; color: var(--text-secondary); margin-bottom: var(--space-sm); }
+.example-table th, .example-table td { text-align: left; vertical-align: top; padding: var(--space-sm); border-bottom: 1px solid var(--border); }
+.example-table th .hint { display: block; font-weight: normal; margin: var(--space-xs) 0 0; }
+.example-sources { font-size: var(--type-sm); padding-left: var(--space-xl); }
+.example-sources li + li { margin-top: var(--space-sm); }
 .summary-details > summary { cursor: pointer; color: var(--text-secondary); font-size: var(--type-sm); }
 .assumptions-summary { border-top: 1px solid var(--border); padding-top: var(--space-lg); margin-top: var(--space-lg); }
 body[data-mode] .hero-value { overflow-wrap: anywhere; }
@@ -2518,6 +2528,7 @@ body[data-mode] .horizon h2 { font-size: var(--type-sm); margin-bottom: var(--sp
   .advanced-settings-fold > summary,
   .tools-menu > summary,
   .summary-details > summary,
+  .example-notes > summary,
   .add-other > summary,
   .panel-notes > summary,
   .section-notes > summary,

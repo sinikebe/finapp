@@ -9,6 +9,7 @@ import { readNumericInput } from './input-validation.js';
 import { parseBackup, backupSummary, MAX_BACKUP_BYTES } from './backup.js';
 import { formatAmount, formatRate } from './format.js';
 import { runsDryAt, hasAmounts } from './projection.js';
+import { createExampleContext } from './example-context.js';
 
 export function createInterfaceView(options) {
   const { state, store, saver, onValidity } = options;
@@ -24,6 +25,7 @@ export function createInterfaceView(options) {
   let fileName = '';
   const cards = new Map();
   const rules = new Map();
+  const exampleContext = createExampleContext($('example-context'));
 
   function closeTools() { document.querySelector('.tools-menu').open = false; }
   $('mode-simple').addEventListener('click', () => options.onMode('simple'));
@@ -119,6 +121,7 @@ export function createInterfaceView(options) {
   });
 
   function update(projection, projections) {
+    exampleContext.update(state.strategies, t);
     const advanced = options.mode() === 'advanced';
     $('mode-simple').setAttribute('aria-pressed', String(!advanced));
     $('mode-advanced').setAttribute('aria-pressed', String(advanced));

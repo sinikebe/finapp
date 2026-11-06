@@ -56,6 +56,14 @@ Template figures are examples to replace, not offers or tax advice. Their
 shared rows stay synchronized. A 48-month lease has one initial rent and 47
 ordinary rents.
 
+**Peugeot 308 · four powertrains** compares new Allure hatchbacks in petrol,
+diesel, electric and non-plug-in 48 V hybrid form. Open **Projects → Start from
+a template** to add it to an existing workspace. It uses a dated French May
+2024 catalogue, 2024 energy prices, a five-year cash purchase and 15,000 km/year.
+The results disclose sources and distinguish WLTP/list-price facts from
+estimated maintenance, insurance, charger and depreciation budgets.
+[Assumptions, source tables and exclusions](docs/car-energy-example.md).
+
 ## Read the results
 
 The summary reports cumulative inflows, outflows and cash kept. A balance sheet

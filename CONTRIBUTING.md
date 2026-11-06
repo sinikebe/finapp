@@ -31,6 +31,8 @@ assets/js/fields.js           field schema and pure operations
 assets/js/strategies.js       strategies, shared identity and defaults
 assets/js/projects.js         project boundaries and switching operations
 assets/js/templates.js        example projects and old-template identity repair
+assets/js/car-energy.js       dated car specifications, budgets and example builder
+assets/js/example-context.js  original example assumptions and source disclosure
 assets/js/state.js            pure workspace defaults, migration and snapshot shape
 assets/js/store.js            atomic persistence, revision checks and recovery drafts
 assets/js/plan-operations.js  target dependency checks and shared-plan merging

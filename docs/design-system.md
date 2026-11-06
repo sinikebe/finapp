@@ -468,7 +468,7 @@ From [`test/layout.test.mjs`](../test/layout.test.mjs):
 Elsewhere: `test/docs.test.mjs` holds `CONTRIBUTING.md`'s Layout block to the
 files the project actually ships, and `test/about.test.mjs` holds the changelog
 to having an entry for the running build and to the French spacing rule.
-`test/templates.test.mjs` holds the two rules that keep
+`test/templates.test.mjs` holds the rules that keep
 [the template shelf](#a-shelf-that-grows) readable as it grows: no template's
 note repeats the claim the shelf's head already makes, and the lead that counts
 the templates actually names the number it is given, in both languages.
@@ -476,6 +476,16 @@ the templates actually names the number it is given, in both languages.
 ---
 
 ## Adding something
+
+The car powertrain example adds a source disclosure above its summary. A short
+dated caption stays visible in both modes; a native `details` holds the original
+price/consumption table, estimated budgets, exclusions and source links. It
+explicitly describes the initial baseline, so editing a field cannot make the
+source table masquerade as the current calculation. Nodes stay mounted while
+editing. Only the read-only table scrolls horizontally on narrow screens; its
+460px minimum preserves four readable columns, and the scroll region is
+keyboard focusable and named. The disclosure uses the existing type/spacing
+scales and the same 44px coarse-pointer summary target as other disclosures.
 
 1. **Does it need a colour?** Almost certainly not — see
    [Colour](#colour-and-what-it-is-allowed-to-mean). Reach for weight, position,

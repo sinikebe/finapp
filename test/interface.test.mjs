@@ -9,6 +9,7 @@ import { createPlanStore } from '../assets/js/store.js';
 import { loadWorkspace, snapshotOf, METRICS } from '../assets/js/state.js';
 import { makeTranslator } from '../assets/js/i18n.js';
 import { createScenarioRunner } from '../assets/js/scenarios.js';
+import { TEMPLATES } from '../assets/js/templates.js';
 
 class MemoryStorage {
   values = new Map();
@@ -57,7 +58,7 @@ test('a full backup round-trips all projects and conditional references', () => 
   const parsed = parseBackup(JSON.stringify({ version: 1, workspace, drafts: [{ snapshot: workspace, updatedAt: 10 }] }));
   assert.deepEqual(parsed.workspace, workspace);
   assert.deepEqual(parsed.drafts[0].snapshot, workspace);
-  assert.equal(parsed.workspace.shelf.projects.length, 3);
+  assert.equal(parsed.workspace.shelf.projects.length, TEMPLATES.length + 1);
 });
 
 test('backup validation refuses unsupported, oversized, corrupt or lossy restores', () => {

@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v69', date: '2026-11-06',
+    version: 'v70', date: '2026-11-06',
+    en: 'A new Peugeot 308 Allure example compares petrol, diesel, electric and non-plug-in 48 V hybrid purchases over five years. It uses French May 2024 list prices, combined WLTP consumption and 2024 energy tariffs. Original assumptions and source links are available in the results; insurance, maintenance, charger and depreciation provisions are explicitly estimates. Existing projects are preserved.',
+    fr: 'Un nouvel exemple Peugeot 308 Allure compare l’achat en essence, diesel, électrique et hybride 48 V non rechargeable sur cinq ans. Il utilise les prix catalogue français de mai 2024, les consommations WLTP mixtes et des tarifs d’énergie de 2024. Les hypothèses initiales et les sources sont accessibles dans les résultats ; l’assurance, l’entretien, la borne et la décote sont clairement estimés. Les projets existants sont conservés.',
+  },
+  {
+    version: 'v69', date: '2026-11-06', commit: '9114dba',
     en: 'Offline updates fetch fresh deployment assets instead of reusing the browser’s HTTP cache from the previous release. Worker update checks also bypass that HTTP cache.',
     fr: 'Les mises à jour hors ligne téléchargent les nouveaux fichiers sans réutiliser le cache HTTP de la version précédente. La recherche d’une mise à jour du service worker contourne aussi ce cache HTTP.',
   },
