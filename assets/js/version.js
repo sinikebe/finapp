@@ -11,6 +11,6 @@
 export const BUILD = Object.freeze({
   version: 'v70',
   branch: 'dev',
-  commit: '9114dba',
+  commit: '4a4c04d',
   date: '2026-11-06',
 });
