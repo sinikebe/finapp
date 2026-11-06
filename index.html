@@ -16,19 +16,31 @@
   <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="./assets/css/app.css">
   <link rel="stylesheet" href="./assets/css/workspace.css">
+  <link rel="stylesheet" href="./assets/css/app-switcher.css">
   <script type="module" src="./assets/js/app.js"></script>
+  <script type="module" src="./assets/js/app-switcher.js"></script>
 </head>
 <body data-mode="simple">
   <a class="skip-link" href="#main" data-i18n="skip.link">Skip to content</a>
   <header class="app-bar">
-    <p class="brand">
+    <details class="brand suite-switcher" data-suite-switcher="finapp">
+      <summary class="suite-trigger" aria-label="Switch application">
       <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M3 19h18" />
         <path d="M4 15.5 9.5 10l4 3.5L20 6" />
         <circle cx="20" cy="6" r="1.9" />
       </svg>
       <span>Finapp</span>
-    </p>
+      <svg class="suite-grid" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><path d="M1 1h3v3H1zm6 0h3v3H7zm6 0h3v3h-3zM1 7h3v3H1zm6 0h3v3H7zm6 0h3v3h-3zM1 13h3v3H1zm6 0h3v3H7zm6 0h3v3h-3z"/></svg>
+      </summary>
+      <div class="suite-panel">
+        <p data-suite-title>Your applications</p><p data-suite-environment>Main versions</p>
+        <nav class="suite-apps" aria-label="finapps applications">
+          <a href="https://sinikebe.github.io/finapp/" data-suite-app="finapp" aria-current="page"><span class="suite-app-mark" aria-hidden="true">f.</span><strong>Finapp</strong><small data-suite-description>Plan and compare</small></a>
+          <a href="https://sinikebe.github.io/Garapp/" data-suite-app="garapp"><span class="suite-app-mark" aria-hidden="true">g.</span><strong>Garapp</strong><small data-suite-description>Look after your vehicle</small></a>
+        </nav>
+      </div>
+    </details>
     <div class="app-bar-actions">
       <label class="layout-picker" for="layout-select"><span data-i18n="workspace.theme">Workspace theme</span><select id="layout-select" data-i18n-aria="workspace.theme" aria-label="Workspace theme"><option value="horizon">Horizon</option><option value="atelier">Atelier</option><option value="parcours">Parcours</option></select></label>
       <button id="commands-open" type="button" class="ghost-button command-trigger"><span data-i18n="workspace.actions">Quick actions</span><kbd>⌘ / Ctrl K</kbd></button>

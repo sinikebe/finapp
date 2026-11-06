@@ -508,3 +508,12 @@ scales and the same 44px coarse-pointer summary target as other disclosures.
    drive a browser over 320, 390, 768, 1024, 1280, 1440, 1920, 2560, 3440 and
    5120 in both languages, plus a short viewport (1280×720) and a `hasTouch`
    pass. A number without its baseline is not evidence.
+
+
+## Application launcher
+
+The logo is a native `details` disclosure containing ordinary app links. The
+launcher shares the workspace tokens, keeps a 44px trigger, closes on Escape
+and outside clicks, and updates its labels when the document language changes.
+`assets/js/app-switcher.js` resolves sibling `/dev/` routes together and main
+routes together. It does not read or transfer project storage.

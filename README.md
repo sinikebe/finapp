@@ -10,6 +10,10 @@ in the browser; there is no account, backend or runtime dependency.
 **[Open Finapp](https://sinikebe.github.io/finapp/)** · [Development preview](https://sinikebe.github.io/finapp/dev/) · English and French ·
 light and dark themes · installable PWA
 
+The logo opens the finapps application menu, with links to Finapp and Garapp.
+Development versions link to each other; main versions link to main versions.
+Switching applications does not transfer project data.
+
 ![Finapp comparing three ways of buying a home](docs/screenshot.png)
 
 ## Simple or Advanced

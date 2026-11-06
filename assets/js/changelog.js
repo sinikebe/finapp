@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v71', date: '2026-11-06',
+    version: 'v72', date: '2026-11-06',
+    en: 'The logo now opens a small application launcher for Finapp and Garapp. Development previews link to each other, while main versions link to main versions. The menu supports keyboard navigation, Escape and both languages without transferring project data. The offline worker caches only Finapp resources, including when served at the root for local development.',
+    fr: 'Le logo ouvre un petit menu permettant de passer de Finapp à Garapp. Les préversions se relient entre elles, comme les versions principales. Le menu fonctionne au clavier, se ferme avec Échap et suit la langue choisie, sans transférer les données des projets. Le cache hors ligne se limite aux ressources de Finapp, y compris lorsque l’application est servie à la racine en développement local.',
+  },
+  {
+    version: 'v71', date: '2026-11-06', commit: '251a9b1',
     en: 'Three selectable workspaces share the same projects: Horizon presents results first, Atelier edits scenarios side by side, and Parcours guides planning in three steps with a live summary. The workspace choice is remembered independently of Simple/Advanced and light/dark preferences. Quick actions, CSV results, print/PDF, native sharing and file saving with download fallbacks, and backup drag-and-drop are available. The car example can recalculate energy for a common annual mileage. All workspaces preserve advanced rules and use the same financial engine.',
     fr: 'Trois espaces au choix partagent les mêmes projets : Horizon présente les résultats en premier, Atelier permet d’ajuster les scénarios côte à côte, et Parcours guide la simulation en trois étapes avec une synthèse en direct. Le choix est mémorisé indépendamment du mode Simple/Avancé et de l’apparence claire/sombre. Actions rapides, résultats CSV, impression/PDF, partage et enregistrement natifs avec solutions classiques, et dépôt de sauvegarde sont disponibles. L’exemple automobile peut recalculer l’énergie pour un kilométrage annuel commun. Les trois espaces conservent les règles avancées et utilisent le même moteur financier.',
   },

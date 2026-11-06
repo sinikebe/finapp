@@ -68,6 +68,7 @@ assets/js/workspace-cards.js  shared comparison cards and validated inline editi
 assets/js/browser-tools.js    quick actions, native files/sharing, CSV and backup drop
 assets/css/workspace.css      workspace palettes, responsive arrangements and printing
 assets/js/app.js              controller and view composition
+assets/js/app-switcher.js    Shared Finapp/Garapp launcher and environment-aware links
 tools/generate-icons.mjs     dependency-free icon generation
 tools/serve.mjs              local development server
 tools/stamp-version.mjs      cache/build metadata
