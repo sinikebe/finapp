@@ -33,6 +33,7 @@
 
 import { createField } from './fields.js';
 import { createStrategy } from './strategies.js';
+import { buildCarEnergy } from './car-energy.js';
 
 /**
  * One flat, bought with a loan, and the two things you can do with it.
@@ -452,6 +453,12 @@ export const TEMPLATES = Object.freeze([
     noteKey: 'template.car.note',
     build: buildCar,
   }),
+  Object.freeze({
+    id: 'car-energy',
+    nameKey: 'project.default.carEnergy',
+    noteKey: 'template.carEnergy.note',
+    build: buildCarEnergy,
+  }),
 ]);
 
 /** The template with this id, or nothing — a store or a stale button may name
@@ -467,6 +474,7 @@ export function repairTemplateLinks(strategies) {
   const known = new Set([
     'liveIn', 'letLmnp', 'letMicro', 'letScheme',
     'carCash', 'carCredit', 'carLoa', 'carLld',
+    'carPetrol', 'carDiesel', 'carElectric', 'carHybrid',
   ].map((name) => `strategy.default.${name}`));
   const canonical = new Map();
   return strategies.map((strategy) => {

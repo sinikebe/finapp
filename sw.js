@@ -9,8 +9,9 @@
  * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v66';
-const CACHE_PREFIX = 'finapp-';
+const CACHE_VERSION = 'v71';
+// Scope-specific and outside the legacy finapp- prefix, so v66 cannot delete /dev/ caches.
+const CACHE_PREFIX = `finapp@${encodeURIComponent(new URL('./', self.location.href).pathname)}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const SHELL = './index.html';
 
@@ -19,7 +20,18 @@ const PRECACHE = [
   './manifest.webmanifest',
   './manifest.fr.webmanifest',
   './assets/css/app.css',
+  './assets/css/workspace.css',
+  './assets/js/workspace.js',
+  './assets/js/workspace-view.js',
+  './assets/js/workspace-cards.js',
+  './assets/js/browser-tools.js',
   './assets/js/app.js',
+  './assets/js/interface-view.js',
+  './assets/js/interface.js',
+  './assets/js/save-controller.js',
+  './assets/js/input-validation.js',
+  './assets/js/deployment.js',
+  './assets/js/backup.js',
   './assets/js/field-labels.js',
   './assets/js/store.js',
   './assets/js/state.js',
@@ -40,6 +52,8 @@ const PRECACHE = [
   './assets/js/projection.js',
   './assets/js/projects.js',
   './assets/js/templates.js',
+  './assets/js/car-energy.js',
+  './assets/js/example-context.js',
   './assets/js/sankey.js',
   './assets/js/schedule.js',
   './assets/js/share.js',
@@ -56,7 +70,11 @@ const PRECACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)),
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE.map((path) => (
+      // Each release must fetch its own bytes, even while the previous release
+      // is still fresh in the browser's separate HTTP cache.
+      new Request(new URL(path, self.location.href), { cache: 'reload' })
+    )))),
   );
 });
 

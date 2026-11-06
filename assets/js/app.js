@@ -8,10 +8,18 @@
  * other. Everything here works from the list, never from a named field.
  */
 
+import { createSaveController } from './save-controller.js';
+import { deploymentFor, scopedStorage } from './deployment.js';
+import { createInterfaceView } from './interface-view.js';
+import { createWorkspaceView } from './workspace-view.js';
+import { createBrowserTools, saveFile } from './browser-tools.js';
+import { editScenarioAmount, changeAnnualKm } from './workspace.js';
+import { bindNumericInput } from './input-validation.js';
+import { VIEW_MODE_KEY, INTRO_KEY, viewModeOf, guidedPlan } from './interface.js';
 import { annualPercent } from './numbers.js';
 import { project, runsDryAt, shiftReturns, seriesOf, monthlyOf, extentOf, hasAmounts, hasDebt, hasOwned, monthlyRate, toAmount, toMonths, fieldTotalOf, loanPartsOf, shareOut, toNumber, toRateNumber, moversOf, swingOf, orderBySwing } from './projection.js';
 import { addField, updateField, duplicateField, removeField, neighbourOf, labelOf } from './fields.js';
-import { formatAmount, formatCompact, formatMonth, formatHorizon, formatRate, formatTyped, setFormatLocale } from './format.js';
+import { formatAmount, formatCompact, formatMonth, formatHorizon, formatRate, formatTyped, setFormatLocale, setDisplayCurrency } from './format.js';
 import { html } from './dom.js';
 import { createLineChart, endLabelPad } from './chart.js';
 import { createSankey } from './sankey.js';
@@ -180,7 +188,9 @@ const STATUS_ICONS = {
 
 /* ------------------------------------------------------------------ storage */
 
-const storage = () => window.localStorage;
+const deployment = deploymentFor(new URL('../../', import.meta.url));
+const scoped = scopedStorage(() => window.localStorage, deployment.prefix);
+const storage = scoped.storage;
 const readStore = (key, fallback) => readValue(storage, key, fallback);
 const writeStore = (key, value) => writeValue(storage, key, value);
 
@@ -194,15 +204,27 @@ function resolveLanguage() {
 const planStore = createPlanStore(storage, {
   // A document gets its own draft key. Duplicated tabs copy sessionStorage,
   // so a session-stored id would let two live tabs overwrite each other's draft.
-  withLock: navigator.locks ? (work) => navigator.locks.request('finapp.workspace', work) : null,
+  withLock: navigator.locks ? (work) => navigator.locks.request(scoped.physical('finapp.workspace'), work) : null,
 });
-let loaded = planStore.read();
+const loaded = planStore.read();
+const freshWorkspace = !loaded.data.flat && !loaded.data.shelf && !loaded.data.legacyFields && !loaded.data.legacyInputs;
 const state = loadWorkspace(loaded.data, resolveLanguage());
-let baseline = JSON.stringify(snapshotOf(state));
-let dirty = false;
-let saveState = 'saved';
-let pendingRemote = false;
-let recoveries = planStore.drafts();
+let viewMode = viewModeOf(readStore(VIEW_MODE_KEY, 'simple'));
+let simpleMetric = 'net';
+let advancedMonthly = false;
+let introPending = freshWorkspace && !readStore(INTRO_KEY, false);
+const invalidInputs = new Set();
+const assumptionInputs = [];
+setDisplayCurrency(readStore('finapp.currency.v1', ''));
+document.body.dataset.mode = viewMode;
+$('preview-banner').hidden = !deployment.preview;
+const saver = createSaveController({
+  store: planStore, snapshot: () => snapshotOf(state), initial: loaded,
+  initialBaseline: freshWorkspace ? '' : JSON.stringify(snapshotOf(state)),
+  adopt: adoptWorkspace,
+  editing: () => document.activeElement instanceof Element && Boolean(document.activeElement.closest('.field-list, .strategy-bar, .filter-row, .milestone-list, .project-list, .horizon, .quick-fields')),
+  notify: paintSaveStatus,
+});
 
 /** The open project's record. */
 function openProject() {
@@ -229,146 +251,73 @@ function setActiveFields(next) {
   state.strategies = updateStrategy(state.strategies, state.activeId, { fields: next });
 }
 
-let saveTimer = 0;
-let saving = null;
+function inputValidity(key, invalid) {
+  if (invalid) invalidInputs.add(key); else invalidInputs.delete(key);
+  $('input-warning').hidden = invalidInputs.size === 0;
+}
 
 function paintSaveStatus() {
-  const problem = saveState !== 'saved';
+  const { state: saveState, recoveries, saving } = saver.status();
+  const problem = !['saved', 'pending'].includes(saveState);
   ui.saveStatus.hidden = !problem && !recoveries.length;
   const message = t(problem ? `save.${saveState}` : 'save.recovery', recoveries.length);
   if (ui.saveMessage.textContent !== message) ui.saveMessage.textContent = message;
+  const indicator = t(saveState === 'pending' ? 'ui.unsaved' : saveState === 'saved' ? 'ui.saved' : `save.${saveState}`);
+  if ($('save-indicator').textContent !== indicator) $('save-indicator').textContent = indicator;
   ui.saveRetry.hidden = !['error', 'unavailable'].includes(saveState);
   ui.saveLatest.hidden = !['conflict', 'remote'].includes(saveState);
-  ui.saveLatest.disabled = Boolean(saving);
-  ui.saveRecover.disabled = Boolean(saving);
+  ui.saveLatest.disabled = saving;
+  ui.saveRecover.disabled = saving;
   ui.saveRecover.hidden = !recoveries.length;
 }
 
-/** Keep the complete workspace recoverable even if a tab closes before its lock is granted. */
-function stageChanges() {
-  const snapshot = snapshotOf(state);
-  dirty = JSON.stringify(snapshot) !== baseline;
-  if (dirty && !planStore.stage(snapshot)) saveState = 'error';
-  return snapshot;
-}
-
-async function save() {
-  window.clearTimeout(saveTimer);
-  saveTimer = 0;
-  const snapshot = stageChanges();
-  if (saving) return saving;
-  if (!dirty) { receiveSaved(); return; }
-  const written = JSON.stringify(snapshot);
-  saveState = 'pending';
-  paintSaveStatus();
-  saving = planStore.save(snapshot, loaded.token);
-  const result = await saving;
-  saving = null;
-  if (result.status === 'saved') {
-    loaded = result.latest;
-    baseline = written;
-    dirty = JSON.stringify(snapshotOf(state)) !== baseline;
-    saveState = dirty ? 'pending' : 'saved';
-    recoveries = planStore.drafts();
-    if (dirty) saveTimer = window.setTimeout(save, 0);
-  } else {
-    saveState = result.status;
-    pendingRemote = result.status === 'conflict';
-  }
-  paintSaveStatus();
-}
-
-function persist() {
-  window.clearTimeout(saveTimer);
-  stageChanges();
-  if (dirty) {
-    if (saveState !== 'error') saveState = 'pending';
-    saveTimer = window.setTimeout(save, 250);
-  } else receiveSaved();
-  paintSaveStatus();
-}
+const stageChanges = () => saver.stage();
+const save = () => saver.save();
+const persist = () => saver.persist();
+const receiveSaved = () => saver.receive();
 
 function adoptWorkspace(snapshot) {
+  list.clearDrafts(); milestoneList.clearDrafts(); interfaceView.clearDrafts();
+  workspaceView.clearDrafts();
+  for (const input of assumptionInputs) input.clear();
+  invalidInputs.clear(); $('input-warning').hidden = true;
   Object.assign(state, loadWorkspace(snapshot, language));
-  forgetUndo();
-  forgetRanking();
-  forgetAsked();
+  forgetUndo(); forgetRanking(); forgetAsked();
   metricChosen = false;
-  fillControls();
-  render();
-}
-
-/** Defer foreign changes while editing; never drop the update or overwrite it later. */
-function receiveSaved() {
-  const latest = planStore.read();
-  if (latest.token === loaded.token) return;
-  pendingRemote = true;
-  const editing = document.activeElement instanceof Element
-    && document.activeElement.closest('.field-list, .strategy-bar, .filter-row, .milestone-list, .project-list');
-  if (dirty || saving || editing) {
-    saveState = dirty ? 'conflict' : 'remote';
-    paintSaveStatus();
-    return;
-  }
-  loaded = latest;
-  adoptWorkspace(latest.data);
-  baseline = JSON.stringify(snapshotOf(state));
-  pendingRemote = false;
-  saveState = 'saved';
-  recoveries = planStore.drafts();
-  paintSaveStatus();
+  fillControls(); render();
 }
 
 window.addEventListener('storage', (event) => {
-  if (event.key === null || STORE_KEYS.includes(event.key)) receiveSaved();
+  const key = scoped.logical(event.key);
+  if (key === null || STORE_KEYS.includes(key)) receiveSaved();
 });
-document.addEventListener('focusout', () => {
-  if (pendingRemote) window.setTimeout(receiveSaved, 0);
-});
-for (const event of ['pagehide', 'beforeunload']) {
-  window.addEventListener(event, () => { if (dirty) { stageChanges(); save(); } });
-}
+document.addEventListener('focusout', () => { if (saver.status().pendingRemote) window.setTimeout(receiveSaved, 0); });
+for (const event of ['pagehide', 'beforeunload']) window.addEventListener(event, () => { if (saver.status().dirty || saver.status().saving) { stageChanges(); save(); } });
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && dirty) { stageChanges(); save(); }
+  if (document.visibilityState === 'hidden' && saver.status().dirty) { stageChanges(); save(); }
   if (document.visibilityState === 'visible') receiveSaved();
 });
 window.addEventListener('focus', receiveSaved);
 ui.saveRetry.addEventListener('click', save);
 ui.saveLatest.addEventListener('click', () => {
-  if (dirty && !window.confirm(t('save.discardAsk'))) return;
-  window.clearTimeout(saveTimer);
-  planStore.discardDraft();
-  loaded = planStore.read();
-  dirty = false;
-  adoptWorkspace(loaded.data);
-  baseline = JSON.stringify(snapshotOf(state));
-  pendingRemote = false;
-  saveState = 'saved';
-  paintSaveStatus();
+  if (saver.status().dirty && !window.confirm(t('save.discardAsk'))) return;
+  saver.loadLatest();
 });
 ui.saveExport.addEventListener('click', exportBackup);
 ui.aboutBackup.addEventListener('click', exportBackup);
-ui.saveRecover.addEventListener('click', () => {
+$('backup-download').addEventListener('click', exportBackup);
+ui.saveRecover.addEventListener('click', async () => {
   const recovery = planStore.drafts()[0];
   if (!recovery || !window.confirm(t('save.recoverAsk'))) return;
-  loaded = planStore.read();
-  adoptWorkspace(recovery.snapshot);
-  persist();
-  save().then(() => {
-    if (!dirty) planStore.discardDraft(recovery.key);
-    recoveries = planStore.drafts();
-    paintSaveStatus();
-  });
+  if (!planStore.keepRecovery(snapshotOf(state))) { window.alert(t('ui.restoreSafety')); return; }
+  const result = await saver.replace(recovery.snapshot);
+  if (result.status === 'saved' && !saver.status().dirty) planStore.discardDraft(recovery.key);
+  paintSaveStatus();
 });
 
-function exportBackup() {
-  const contents = JSON.stringify({ version: 1, workspace: snapshotOf(state), drafts: planStore.drafts() }, null, 2);
-  const url = URL.createObjectURL(new Blob([contents], { type: 'application/json' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `finapp-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+async function exportBackup({ native = false } = {}) {
+  const contents = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), workspace: snapshotOf(state), drafts: planStore.drafts() }, null, 2);
+  await saveFile(contents, `finapp-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json', window, { native });
 }
 
 /* --------------------------------------------------------------------- undo */
@@ -592,7 +541,7 @@ function ownScaleOf(spec) {
 }
 
 function activeCharts(projection) {
-  return CHARTS.filter((spec) => !spec.when || spec.when(projection));
+  return CHARTS.filter((spec) => viewMode === 'simple' ? spec.key === simpleMetric : !spec.when || spec.when(projection));
 }
 
 /**
@@ -646,7 +595,7 @@ function syncCharts(specs) {
   });
   // Whatever order they were made in, they end up in the order `specs` asks
   // for: appending a node already in the list moves it rather than copying it.
-  for (const chart of charts) ui.charts.appendChild(chart.instance.element);
+  for (const chart of charts) { chart.instance.element.dataset.metric = chart.key; ui.charts.appendChild(chart.instance.element); }
 }
 
 /** Which reading the standing cards are worded for. A card built while the
@@ -1073,6 +1022,7 @@ function renderComparison(projections) {
   const comparing = state.strategies.length > 1;
   ui.compare.hidden = !comparing;
   if (!comparing) return;
+  if (viewMode === 'simple') { if (!metricChosen) metric = preferred; return; }
 
   if (!compareChart) buildCompareChart();
 
@@ -1485,11 +1435,12 @@ function renderMilestones(projection) {
   // to move: when two targets chase each other there is no one row at fault.
   ui.milestoneUnsettled.hidden = projection.schedule.settled;
   ui.milestoneInvalid.hidden = !broken;
-  milestoneList.update(state.milestones, milestoneLabels(projection));
+  milestoneList.update(state.milestones, milestoneLabels(projection), t);
 }
 
 /** Every edit the target list can ask for. */
 function runMilestoneCommand(command) {
+  if (command.type === 'advanced') { changeMode('advanced'); milestoneList.openDetails(command.id); return; }
   switch (command.type) {
     case 'update':
       state.milestones = updateMilestone(state.milestones, command.id, command.patch, METRICS);
@@ -1510,7 +1461,7 @@ function runMilestoneCommand(command) {
       const before = new Set(state.milestones.map((milestone) => milestone.id));
       // Opened on whatever the page is being judged on, so the reader's first
       // move is to type a figure rather than to go looking for a column.
-      state.milestones = addMilestone(state.milestones, METRICS, { metric: preferred });
+      state.milestones = addMilestone(state.milestones, METRICS, { metric: viewMode === 'simple' ? 'net' : preferred });
       const created = state.milestones.find((milestone) => !before.has(milestone.id));
       persist();
       render();
@@ -1622,6 +1573,7 @@ function runProjectCommand(command) {
       forgetRanking();
       forgetAsked();
       metricChosen = false;
+      interfaceView.clearDrafts();
       fillControls();
       save();
       render();
@@ -1657,27 +1609,8 @@ function runProjectCommand(command) {
 
     case 'add': {
       if (state.projects.length >= MAX_PROJECTS) return;
-      // Empty, not a copy. Adding a *strategy* copies what is on screen because
-      // comparing means "the same, but…"; adding a *project* means a different
-      // question, and carrying the last one's rent and mortgage into it would
-      // be an answer to the wrong one. The horizon comes over, because a
-      // horizon is a habit rather than an answer, and the slider is one drag.
-      const created = normalizeProject({}, projectCoerce, false);
-      state.projects = addProject(
-        parkOpen(state.projects, state.openProjectId, state), created,
-      );
-      state.openProjectId = created.id;
-      Object.assign(state, normalizePlan({ months: state.months }, projectCoerce));
-      state.projects = state.projects.map(
-        (project) => (project.id === created.id ? { ...project, plan: null } : project),
-      );
-      forgetRanking();
-      forgetAsked();
-      metricChosen = false;
-      fillControls();
-      save();
-      render();
-      projectList.focusName(created.id);
+      ui.projectsDialog.close();
+      interfaceView.showWelcome();
       return;
     }
 
@@ -1698,6 +1631,7 @@ function runProjectCommand(command) {
       forgetRanking();
       forgetAsked();
       metricChosen = false;
+      interfaceView.clearDrafts();
       fillControls();
       save();
       render();
@@ -1858,6 +1792,7 @@ function spreadIfSynced(id) {
 /** Every edit the list can ask for. Each one ends in the same place: new
  *  fields, saved, redrawn, with focus left where the reader expects it. */
 function runCommand(command) {
+  if (command.type === 'advanced') { changeMode('advanced'); setRail(true); list.openDetails(command.id); return; }
   switch (command.type) {
     case 'update':
       setActiveFields(updateField(fields(), command.id, normalizeLabelPatch(command.patch, command.id)));
@@ -1872,11 +1807,11 @@ function runCommand(command) {
         const amount = toAmount(patch.amount);
         // Their own decimal separator: a French reader who typed 12,50 and got
         // back 12.5 would reasonably think the app had misread them.
-        patch.amount = amount ? formatTyped(amount) : '';
+        patch.amount = String(patch.amount).trim() ? formatTyped(amount) : '';
       }
       if ('fees' in patch) {
         const fees = toAmount(patch.fees);
-        patch.fees = fees ? formatTyped(fees) : '';
+        patch.fees = String(patch.fees).trim() ? formatTyped(fees) : '';
       }
       if ('annualRate' in patch) {
         const rate = toRateNumber(patch.annualRate);
@@ -1900,7 +1835,7 @@ function runCommand(command) {
     }
 
     case 'add': {
-      setActiveFields(addField(fields()));
+      setActiveFields(addField(fields(), { kind: command.kind || 'plain', direction: command.direction || 'expense', ...(command.kind === 'plain' ? { labelKey: command.direction === 'income' ? 'field.default.income' : 'field.default.expense' } : {}) }));
       persist();
       render();
       const added = fields();
@@ -1949,7 +1884,7 @@ let noteTimer = 0;
 
 function renderSummary(projection, hasInput) {
   const horizon = formatHorizon(projection.months, t);
-  ui.heroLabel.textContent = t('summary.heroLabel', projection.months);
+  ui.heroLabel.textContent = `${t('ui.cash')} · ${horizon}`;
   // Exact amounts, not rounded ones: whole-unit rounding let the tiles and the
   // hero disagree by a unit (24,010 − 0 shown against a net of 24,009).
   ui.heroValue.textContent = hasInput ? formatAmount(projection.totals.net) : '—';
@@ -2178,29 +2113,7 @@ function render() {
   renderComparison(projections);
   // After the comparison, always: that call is what settles the column the
   // ranking is judged on. `renderRanking` says why at length.
-  renderRanking(projection, projections);
-
-  // The dock is a column of the shell on a wide screen, and a column that
-  // reserves its width for two hidden sections is a strip of empty plane the
-  // readings could have had. Nothing here decides *whether* the comparison or
-  // the ranking shows — each has already decided that for itself, above — this
-  // only tells the stylesheet whether anything is left in the box, because CSS
-  // cannot ask. Written on <body> rather than the box so a layout rule can be
-  // filed on `main` without :has(), which this project does not use.
-  // Three states, not two, because the two sections in here want very different
-  // widths and only one of them is why the column is wide. The comparison is the
-  // starved section — ten columns of table, 1,160px of it in French — and the
-  // dock's whole width is sized for it. The ranking is a list of bars that has
-  // never wanted more than ~820px.
-  //
-  // `rankable` counts fields, not plans, so a single plan with a few amounts in
-  // it hides the comparison and still shows the ranking. Said as one boolean,
-  // that plan reserved the comparison's width for a list that could not use it:
-  // 1,940px of column holding an 820px reading, measured on a 5120px screen —
-  // which is the complaint this whole layout exists to answer, restated one
-  // column to the right.
-  document.body.dataset.dock = !ui.compare.hidden ? 'on'
-    : (!ui.rank.hidden ? 'rank' : 'off');
+  if (viewMode === 'advanced') renderRanking(projection, projections); else ui.rank.hidden = true;
 
   // Under a year the horizon restates the month count ("1 month · 1 mo"), so it
   // is only worth spelling out once there are years to spell out.
@@ -2221,6 +2134,7 @@ function render() {
   renderUndo();
   paintSaveStatus();
   renderSummary(projection, hasInput);
+  renderInterface(projection, projections);
 }
 
 /* ------------------------------------------------------------------ horizon */
@@ -2237,56 +2151,18 @@ function fillControls() {
 }
 fillControls();
 
-ui.tax.addEventListener('blur', () => {
-  state.tax = formatTyped(annualPercent(ui.tax.value, 0, 100));
-  ui.tax.value = state.tax;
-  persist();
-  render();
-});
-
-ui.tax.addEventListener('input', () => {
-  state.tax = ui.tax.value;
-  persist();
-  render();
-});
-
-ui.rangeToggle.addEventListener('click', () => {
-  state.showRange = !state.showRange;
-  persist();
-  render();
-});
-
-ui.spread.addEventListener('blur', () => {
-  state.spread = formatTyped(annualPercent(ui.spread.value, 0, 1000));
-  ui.spread.value = state.spread;
-  persist();
-  render();
-});
-
-ui.spread.addEventListener('input', () => {
-  state.spread = ui.spread.value;
-  persist();
-  render();
-});
-
-ui.realToggle.addEventListener('click', () => {
-  state.realMoney = !state.realMoney;
-  persist();
-  render();
-});
-
-ui.inflation.addEventListener('blur', () => {
-  state.inflation = formatTyped(annualPercent(ui.inflation.value, 0, 1000));
-  ui.inflation.value = state.inflation;
-  persist();
-  render();
-});
-
-ui.inflation.addEventListener('input', () => {
-  state.inflation = ui.inflation.value;
-  persist();
-  render();
-});
+for (const [input, key, max] of [[ui.tax, 'tax', 100], [ui.spread, 'spread', 1000], [ui.inflation, 'inflation', 1000]]) {
+  const error = html('p', 'input-error', input.parentElement.parentElement);
+  assumptionInputs.push(bindNumericInput(input, {
+    options: () => ({ rate: true, max }), errorNode: error,
+    message: (result) => t(result.reason === 'bounds' ? 'ui.inputBounds' : 'ui.inputInvalid'),
+    onInput: (text) => { state[key] = text; persist(); render(); },
+    onSettle: (text) => { state[key] = text.trim() ? formatTyped(annualPercent(text, 0, max)) : ''; input.value = state[key]; persist(); render(); },
+    onValidity: inputValidity,
+  }));
+}
+ui.rangeToggle.addEventListener('click', () => { state.showRange = !state.showRange; persist(); render(); });
+ui.realToggle.addEventListener('click', () => { state.realMoney = !state.realMoney; persist(); render(); });
 
 ui.months.addEventListener('input', () => {
   state.months = toMonths(ui.months.value);
@@ -2307,6 +2183,7 @@ function setRail(open) {
   document.body.dataset.rail = open ? 'open' : 'closed';
   ui.railToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
   ui.railToggle.setAttribute('aria-label', t(open ? 'inputs.fold' : 'inputs.unfold'));
+  ui.railToggle.textContent = t(open ? 'inputs.fold' : 'inputs.unfold');
   // `hidden` rather than a class: it takes the form out of the accessibility
   // tree too, so there is no phantom list of rows behind the fold for anyone
   // reading the page with something other than their eyes.
@@ -2458,6 +2335,50 @@ function closeOnBackdrop(dialog) {
 
 closeOnBackdrop(ui.aboutDialog);
 
+/* --------------------------------------------------------- interface choices */
+
+function changeMode(next) {
+  const chosen = viewModeOf(next);
+  if (chosen === viewMode) return;
+  if (chosen === 'simple') { advancedMonthly = monthly; monthly = false; document.querySelector('.summary-details').open = false; }
+  else monthly = advancedMonthly;
+  viewMode = chosen;
+  document.body.dataset.mode = viewMode;
+  writeStore(VIEW_MODE_KEY, viewMode);
+  render();
+}
+
+function startGuided(kind) {
+  if (kind === 'examples') {
+    introPending = false; writeStore(INTRO_KEY, true); persist();
+    window.setTimeout(openProjects, 0);
+    return true;
+  }
+  const replacingExamples = introPending && freshWorkspace;
+  if (!replacingExamples && state.projects.length >= MAX_PROJECTS) return false;
+  const plan = guidedPlan(kind, t);
+  const created = normalizeProject({ name: t(kind === 'compare' ? 'ui.compareProject' : kind === 'savings' ? 'ui.savings' : 'ui.budget') }, projectCoerce, true);
+  if (replacingExamples) state.projects = [created];
+  else {
+    checkpointShelf('project', planOf(state), state.openProjectId, [created.id]);
+    state.projects = addProject(parkOpen(state.projects, state.openProjectId, state), created);
+  }
+  state.openProjectId = created.id;
+  Object.assign(state, plan);
+  introPending = false; writeStore(INTRO_KEY, true);
+  forgetRanking(); forgetAsked(); metricChosen = false;
+  interfaceView.clearDrafts();
+  workspaceView.navigate('data', { focus: false });
+  setRail(true); fillControls(); persist(); render();
+  window.setTimeout(() => { $('inputs').scrollIntoView({ block: 'start' }); list.focus(fields()[0]?.id); }, 0);
+  return true;
+}
+
+function renderInterface(projection, projections) {
+  interfaceView.update(projection, projections);
+  workspaceView.update(projection, projections);
+}
+
 /* ----------------------------------------------------------------- language */
 
 let language = resolveLanguage();
@@ -2512,7 +2433,10 @@ const list = createFieldList({
   mount: ui.fields,
   labels: fieldLabels(),
   t,
+  mode: () => viewMode,
+  counterparts: (id) => state.strategies.filter((strategy) => strategy.fields.some((field) => field.id === id && field.synced)).length,
   onCommand: runCommand,
+  onValidity: inputValidity,
 });
 
 // The eight quantities are handed in rather than looked up: which of them a
@@ -2522,7 +2446,55 @@ const milestoneList = createMilestoneList({
   metrics: METRICS,
   labels: milestoneLabels(projectionFor(fields())),
   onCommand: runMilestoneCommand,
+  onValidity: inputValidity,
+  t,
 });
+
+const interfaceView = createInterfaceView({
+  state, store: planStore, saver,
+  translator: () => t, mode: () => viewMode, metric: () => simpleMetric,
+  fresh: () => introPending && freshWorkspace,
+  onMode: changeMode, onStart: startGuided, onValidity: inputValidity,
+  readCurrency: () => readStore('finapp.currency.v1', ''),
+  onCurrency: (value) => { writeStore('finapp.currency.v1', value); setDisplayCurrency(value); relabelCharts(); render(); },
+  onData: () => setRail(true),
+  onHorizon: (value) => { if (state.months === value) return; state.months = value; ui.months.value = String(value); persist(); render(); },
+  onScenario: (id) => runStrategyCommand({ type: 'select', id }),
+  onEdit: (id) => { runStrategyCommand({ type: 'select', id }); workspaceView.navigate('data'); },
+  onAmount: (strategyId, fieldId, text, begin) => {
+    const before = state.strategies.find((one) => one.id === strategyId)?.fields.find((one) => one.id === fieldId);
+    if (!before || before.amount === text) return;
+    if (begin) checkpoint('edit');
+    state.strategies = editScenarioAmount(state.strategies, strategyId, fieldId, text);
+    persist(); render();
+  },
+  onMetric: (key) => { simpleMetric = key; render(); },
+  describeField: (field) => fieldLabels().saidFor(field),
+  onAdvanced: (id) => {
+    const owner = state.strategies.find((strategy) => strategy.fields.some((field) => field.id === id));
+    if (owner && !fields().some((field) => field.id === id)) runStrategyCommand({ type: 'select', id: owner.id });
+    workspaceView.navigate('data', { focus: false });
+    changeMode('advanced'); setRail(true); list.openDetails(id);
+  },
+});
+const workspaceView = createWorkspaceView({
+  state, translator: () => t, metric: () => simpleMetric,
+  read: readStore, write: writeStore, onValidity: inputValidity,
+  onProjects: openProjects, onData: () => setRail(true),
+  onKm: (value, begin) => {
+    const next = changeAnnualKm(state.strategies, value);
+    if (JSON.stringify(next) === JSON.stringify(state.strategies)) return;
+    if (begin) checkpoint('edit');
+    state.strategies = next; persist(); render();
+  },
+});
+createBrowserTools({
+  state, translator: () => t, projections: () => state.strategies.map((one) => projectionFor(one.fields)),
+  onNavigate: (section) => workspaceView.navigate(section), onProjects: openProjects,
+  onBackup: exportBackup, onRestore: (file) => interfaceView.offerBackup(file),
+  onMode: () => changeMode(viewMode === 'simple' ? 'advanced' : 'simple'),
+});
+$('welcome').addEventListener('close', () => { if (introPending) { introPending = false; writeStore(INTRO_KEY, true); persist(); } });
 
 function applyLanguage(next) {
   language = LANGUAGES.includes(next) ? next : 'en';
@@ -2736,7 +2708,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { scope: './' })
+    navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
       .then((registration) => {
         registered = registration;
         // Until there is a worker, the button has nobody to ask.
@@ -2978,3 +2950,6 @@ window.addEventListener('hashchange', () => {
 
 // After the language, so the question is asked in the reader's own.
 offerPlanFromLink();
+
+if (introPending && !planInHash(window.location.hash)) interfaceView.showWelcome();
+else if (introPending) { introPending = false; writeStore(INTRO_KEY, true); }

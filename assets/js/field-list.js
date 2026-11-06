@@ -11,8 +11,7 @@
  */
 
 import { labelOf, MAX_FIELDS, PERIODS, KINDS } from './fields.js';
-import { toNumber } from './projection.js';
-import { formatTyped } from './format.js';
+import { bindNumericInput } from './input-validation.js';
 import { html, setVisible, svgEl, syncValue } from './dom.js';
 
 const ACTION_ICONS = {
@@ -71,15 +70,34 @@ export function createFieldList(options) {
   let t = options.t;
 
   const root = html('div', 'field-list', mount);
+  const commonHeading = html('h3', 'field-group-heading', root);
+  const commonNote = html('p', 'hint', root);
+  const common = html('div', 'field-rows common-fields', root);
+  common.setAttribute('role', 'list');
+  const specificHeading = html('h3', 'field-group-heading', root);
   const list = html('div', 'field-rows', root);
   list.setAttribute('role', 'list');
 
   const empty = html('p', 'fields-empty', root);
   empty.hidden = true;
 
-  const addButton = html('button', 'add-field', root);
-  addButton.type = 'button';
-  addButton.addEventListener('click', () => onCommand({ type: 'add' }));
+  const addActions = html('div', 'field-add-actions', root);
+  const addButtons = [];
+  function addAction(key, patch, parent = addActions) {
+    const button = html('button', 'add-field', parent);
+    button.type = 'button';
+    button.dataset.word = key;
+    button.addEventListener('click', () => onCommand({ type: 'add', ...patch }));
+    addButtons.push(button);
+    return button;
+  }
+  const addButton = addAction('ui.addIncome', { kind: 'plain', direction: 'income' });
+  addAction('ui.addExpense', { kind: 'plain', direction: 'expense' });
+  const more = html('details', 'add-other', addActions);
+  const moreLabel = html('summary', null, more);
+  for (const [key, kind] of [['ui.addLoan', 'loan'], ['ui.addInvestment', 'investment'], ['ui.addAsset', 'asset'], ['ui.addOnce', 'once']]) {
+    addAction(key, { kind, direction: 'expense' }, more);
+  }
 
   const rows = new Map();
 
@@ -97,7 +115,7 @@ export function createFieldList(options) {
     const body = html('div', 'field-body', element);
     const head = html('div', 'field-head', body);
 
-    const nameLabel = html('label', 'sr-only', head);
+    const nameLabel = html('label', 'field-label', head);
     const name = html('input', 'field-name', head);
     name.type = 'text';
     name.id = `field-${field.id}-name`;
@@ -105,7 +123,7 @@ export function createFieldList(options) {
     name.autocomplete = 'off';
     nameLabel.htmlFor = name.id;
 
-    const amountLabel = html('label', 'sr-only', head);
+    const amountLabel = html('label', 'field-label', head);
     const amount = html('input', 'field-amount', head);
     // Text, not number: a number box parses by the browser's locale, and a
     // comma typed into one where that locale does not use it is dropped before
@@ -124,6 +142,7 @@ export function createFieldList(options) {
 
     // What a loan works out to, under the row that describes it — and, while
     // the row is shut, what the fold is holding.
+    const commonBadge = html('p', 'hint common-badge', body);
     const derived = html('p', 'field-derived', body);
     derived.hidden = true;
 
@@ -135,7 +154,7 @@ export function createFieldList(options) {
     detail.id = `field-${field.id}-detail`;
     toggle.setAttribute('aria-controls', detail.id);
 
-    const kindLabel = html('label', 'sr-only', detail);
+    const kindLabel = html('label', 'field-label', detail);
     const kind = html('select', 'field-kind', detail);
     kind.id = `field-${field.id}-kind`;
     kindLabel.htmlFor = kind.id;
@@ -145,7 +164,7 @@ export function createFieldList(options) {
       return option;
     });
 
-    const directionLabel = html('label', 'sr-only', detail);
+    const directionLabel = html('label', 'field-label', detail);
     const direction = html('select', 'field-direction', detail);
     direction.id = `field-${field.id}-direction`;
     directionLabel.htmlFor = direction.id;
@@ -154,7 +173,7 @@ export function createFieldList(options) {
     const expense = html('option', null, direction);
     expense.value = 'expense';
 
-    const periodLabel = html('label', 'sr-only', detail);
+    const periodLabel = html('label', 'field-label', detail);
     const period = html('select', 'field-period', detail);
     period.id = `field-${field.id}-period`;
     periodLabel.htmlFor = period.id;
@@ -164,7 +183,7 @@ export function createFieldList(options) {
       return option;
     });
 
-    const rateLabel = html('label', 'sr-only', detail);
+    const rateLabel = html('label', 'field-label', detail);
     const rateWrap = html('span', 'field-unit field-unit-rate', detail);
     const rate = html('input', 'field-rate', rateWrap);
     const rateUnit = html('span', 'unit', rateWrap);
@@ -176,13 +195,13 @@ export function createFieldList(options) {
     rate.autocomplete = 'off';
     rateLabel.htmlFor = rate.id;
 
-    const termLabel = html('label', 'sr-only', detail);
+    const termLabel = html('label', 'field-label', detail);
     const termWrap = html('span', 'field-unit field-unit-term', detail);
     const term = html('input', 'field-term', termWrap);
     const termUnit = html('span', 'unit', termWrap);
     const termUnitFull = html('span', 'unit-full', termUnit);
     const termUnitShort = html('span', 'unit-short', termUnit);
-    term.type = 'number';
+    term.type = 'text';
     term.id = `field-${field.id}-term`;
     term.inputMode = 'numeric';
     term.min = '1';
@@ -196,7 +215,7 @@ export function createFieldList(options) {
     // only kind that shows it, a loan, direction and period are hidden, so the
     // cells read kind, rate, term, fees, window. That is the same sentence in
     // the same order the shut row says it in.
-    const feesLabel = html('label', 'sr-only', detail);
+    const feesLabel = html('label', 'field-label', detail);
     const feesWrap = html('span', 'field-unit field-unit-fees', detail);
     const fees = html('input', 'field-fees', feesWrap);
     const feesUnit = html('span', 'unit', feesWrap);
@@ -214,13 +233,13 @@ export function createFieldList(options) {
     // The three boxes take a line of their own, so a window is read as one
     // thing rather than as two numbers that happened to land side by side.
     const window = html('span', 'field-window', detail);
-    const fromLabel = html('label', 'sr-only', window);
+    const fromLabel = html('label', 'field-label', window);
     const fromWrap = html('span', 'field-when field-when-from', window);
     const fromUnit = html('span', 'when-word', fromWrap);
     const fromWordFull = html('span', 'unit-full', fromUnit);
     const fromWordShort = html('span', 'unit-short', fromUnit);
     const from = html('input', 'field-from', fromWrap);
-    from.type = 'number';
+    from.type = 'text';
     from.id = `field-${field.id}-from`;
     from.inputMode = 'numeric';
     from.min = '1';
@@ -238,13 +257,13 @@ export function createFieldList(options) {
 
     // Only an investment can be cashed in, so this sits with the window rather
     // than beside the amount: it is a date, and it is when the holding ends.
-    const sellLabel = html('label', 'sr-only', window);
+    const sellLabel = html('label', 'field-label', window);
     const sellWrap = html('span', 'field-when field-when-sell', window);
     const sellUnit = html('span', 'when-word', sellWrap);
     const sellWordFull = html('span', 'unit-full', sellUnit);
     const sellWordShort = html('span', 'unit-short', sellUnit);
     const sell = html('input', 'field-sell', sellWrap);
-    sell.type = 'number';
+    sell.type = 'text';
     sell.id = `field-${field.id}-sell`;
     sell.inputMode = 'numeric';
     sell.min = '1';
@@ -260,13 +279,13 @@ export function createFieldList(options) {
     sellAt.id = `field-${field.id}-sell-at`;
     const sellSaid = html('span', 'field-at-said', sellWrap);
 
-    const toLabel = html('label', 'sr-only', window);
+    const toLabel = html('label', 'field-label', window);
     const toWrap = html('span', 'field-when field-when-to', window);
     const toUnit = html('span', 'when-word', toWrap);
     const toWordFull = html('span', 'unit-full', toUnit);
     const toWordShort = html('span', 'unit-short', toUnit);
     const to = html('input', 'field-to', toWrap);
-    to.type = 'number';
+    to.type = 'text';
     to.id = `field-${field.id}-to`;
     to.inputMode = 'numeric';
     to.min = '1';
@@ -296,6 +315,28 @@ export function createFieldList(options) {
     remove.type = 'button';
     actionIcon('remove', remove);
 
+    function control(label, node, parent = detail) {
+      const wrap = html('div', 'field-control', parent);
+      wrap.append(label, node);
+      return wrap;
+    }
+    control(nameLabel, name, head);
+    control(amountLabel, amount, head);
+    head.append(toggle);
+    const kindControl = control(kindLabel, kind);
+    kindControl.classList.add('advanced-only');
+    control(directionLabel, direction);
+    control(periodLabel, period);
+    const rateControl = control(rateLabel, rateWrap);
+    control(termLabel, termWrap);
+    control(feesLabel, feesWrap);
+    detail.append(window, actions);
+    for (const [label, wrap] of [[fromLabel, fromWrap], [sellLabel, sellWrap], [toLabel, toWrap]]) control(label, wrap, window);
+    sync.classList.add('advanced-only'); duplicate.classList.add('advanced-only');
+    const advanced = html('button', 'ghost-button simple-only', body);
+    advanced.type = 'button';
+    advanced.addEventListener('click', () => onCommand({ type: 'advanced', id: field.id }));
+
     const row = {
       element, name, nameLabel, kind, kindLabel, kindOptions,
       direction, directionLabel, income, expense,
@@ -308,14 +349,14 @@ export function createFieldList(options) {
       fees, feesLabel, feesWrap, feesUnitFull, feesUnitShort,
       rate, rateLabel, rateWrap, rateUnitFull, rateUnitShort,
       term, termLabel, termWrap, termUnitFull, termUnitShort,
-      derived, sync, duplicate, remove, shown: '',
-      head, detail, toggle,
+      derived, commonBadge, sync, duplicate, remove, shown: '',
+      head, detail, toggle, advanced, rateControl, numeric: {},
       // A field with no amount yet is one the reader is still filling in, so it
       // arrives open: needing a click to reach the boxes you were sent here to
       // fill would be a fold working against the reader. Evaluated once, here,
       // and never again — clearing an amount mid-edit must not pop a row open
       // under the caret.
-      open: !String(field.amount).trim(),
+      open: !String(field.amount).trim() && field.kind !== 'plain',
       // The arguments of the last `syncRow`, so the row can redraw itself when
       // nothing about the model changed and only the way it is being looked at
       // did. One redraw path rather than two: whatever `syncRow` does for the
@@ -333,48 +374,23 @@ export function createFieldList(options) {
       onCommand({ type: 'settle', id, patch: { label: name.value } });
     });
     direction.addEventListener('change', () => onCommand({ type: 'update', id, patch: { direction: direction.value } }));
-    amount.addEventListener('input', () => {
-      // A negative amount is meaningless here — the direction carries the sign
-      // — so drop the sign rather than the digits the reader just typed.
-      const typed = toNumber(amount.value);
-      if (amount.value !== '' && Number.isFinite(typed) && typed < 0) {
-        amount.value = formatTyped(Math.abs(typed));
-      }
-      onCommand({ type: 'update', id, patch: { amount: amount.value } });
-    });
-    amount.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { amount: amount.value } }));
     kind.addEventListener('change', () => onCommand({ type: 'update', id, patch: { kind: kind.value } }));
     period.addEventListener('change', () => onCommand({ type: 'update', id, patch: { periodMonths: period.value } }));
-    fees.addEventListener('input', () => {
-      // Negative fees would be a lender paying you to borrow; the same rule the
-      // amount follows, for the same reason.
-      const typed = toNumber(fees.value);
-      if (fees.value !== '' && Number.isFinite(typed) && typed < 0) {
-        fees.value = formatTyped(Math.abs(typed));
-      }
-      onCommand({ type: 'update', id, patch: { fees: fees.value } });
-    });
-    fees.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { fees: fees.value } }));
-    rate.addEventListener('input', () => onCommand({ type: 'update', id, patch: { annualRate: rate.value } }));
-    rate.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { annualRate: rate.value } }));
-    term.addEventListener('input', () => onCommand({ type: 'update', id, patch: { termMonths: term.value } }));
-    term.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { termMonths: term.value } }));
-    // An empty box is "not set", which the model reads as 0 — from the
-    // beginning, or with no end.
     for (const [picker, key] of [[fromAt, 'startAt'], [sellAt, 'sellAt'], [toAt, 'endAt']]) {
       picker.addEventListener('change', () => onCommand({ type: 'update', id, patch: { [key]: picker.value } }));
     }
-    from.addEventListener('input', () => onCommand({ type: 'update', id, patch: { startMonth: from.value } }));
-    sell.addEventListener('input', () => onCommand({ type: 'update', id, patch: { sellMonth: sell.value } }));
-    sell.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { sellMonth: sell.value } }));
-    to.addEventListener('input', () => onCommand({ type: 'update', id, patch: { endMonth: to.value } }));
-    // Every other numeric box settles on blur, and these two need it as much:
-    // `normalizeField` clamps an end back up to its beginning, and gives a
-    // one-off at least month 1 — corrections `syncValue` refuses to write while
-    // the reader is still in the box, so without a settle the row goes on
-    // showing a number the projection has already thrown away.
-    from.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { startMonth: from.value } }));
-    to.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { endMonth: to.value } }));
+    for (const [key, input] of [['amount', amount], ['fees', fees], ['annualRate', rate], ['termMonths', term], ['startMonth', from], ['sellMonth', sell], ['endMonth', to]]) {
+      const error = html('p', 'input-error', input === amount ? body : input.parentElement.parentElement);
+      row.numeric[key] = bindNumericInput(input, {
+        options: () => key === 'annualRate' ? { rate: true, min: row.last?.[0].kind === 'loan' ? 0 : -100 }
+          : key.endsWith('Month') || key === 'termMonths' ? { integer: true, allowEmpty: key !== 'termMonths', min: key === 'termMonths' ? 1 : 0, max: 600 } : {},
+        errorNode: error,
+        message: (result) => t(result.reason === 'bounds' ? 'ui.inputBounds' : result.reason === 'integer' ? 'ui.inputInteger' : 'ui.inputInvalid'),
+        onInput: (text) => onCommand({ type: 'update', id, patch: { [key]: text } }),
+        onSettle: (text) => onCommand({ type: 'settle', id, patch: { [key]: text } }),
+        onValidity: options.onValidity,
+      });
+    }
 
     // No command, and so no undo entry and nothing stored: whether a row is
     // folded is how it is being looked at, not part of the plan. Two readers
@@ -399,6 +415,8 @@ export function createFieldList(options) {
     const shown = labelOf(field, t);
     const named = shown || labels.untitled;
     row.shown = shown;
+    row.commonBadge.hidden = !comparing || !field.synced;
+    row.commonBadge.textContent = t('ui.commonCount', options.counterparts?.(field.id) || 1);
 
     row.nameLabel.textContent = labels.name;
     row.name.placeholder = labels.namePlaceholder;
@@ -440,6 +458,10 @@ export function createFieldList(options) {
     // Every kind carries a window of some sort now; which boxes it shows is
     // settled above, kind by kind.
     row.window.hidden = false;
+    row.window.classList.toggle('advanced-only', !isOnce || Boolean(field.startAt));
+    row.rateControl.classList.toggle('advanced-only', field.kind === 'plain');
+    row.advanced.hidden = !(field.startAt || field.endAt || field.sellAt || field.startMonth > 1 || field.endMonth || field.sellMonth || (field.kind === 'plain' && field.annualRate));
+    row.advanced.textContent = t('ui.editAdvanced');
 
     row.fromLabel.textContent = isOnce ? labels.onceMonth : (isAsset ? labels.ownedFrom : labels.from);
     row.fromWordFull.textContent = isOnce ? labels.onceWord : labels.fromWord;
@@ -481,40 +503,40 @@ export function createFieldList(options) {
       if (chosen) said.textContent = labels.monthSaid(picker.value);
     }
 
-    syncValue(row.from, field.startMonth ? String(field.startMonth) : '');
+    row.numeric.startMonth.sync(field.startMonth ? String(field.startMonth) : '');
 
     row.sellLabel.textContent = labels.sell;
     row.sellWordFull.textContent = labels.sellWord;
     row.sellWordShort.textContent = labels.sellWordShort;
     row.sell.placeholder = '';
-    syncValue(row.sell, field.sellMonth ? String(field.sellMonth) : '');
+    row.numeric.sellMonth.sync(field.sellMonth ? String(field.sellMonth) : '');
 
     row.toLabel.textContent = labels.to;
     row.toWordFull.textContent = labels.toWord;
     row.toWordShort.textContent = labels.toWordShort;
     row.to.placeholder = '';
-    syncValue(row.to, field.endMonth ? String(field.endMonth) : '');
+    row.numeric.endMonth.sync(field.endMonth ? String(field.endMonth) : '');
 
     row.amountLabel.textContent = labels.amountFor(field.kind);
     row.amount.placeholder = '0';
-    syncValue(row.amount, field.amount);
+    row.numeric.amount.sync(field.amount);
 
     row.feesLabel.textContent = labels.fees;
     row.feesUnitFull.textContent = labels.feesUnit;
     row.feesUnitShort.textContent = labels.feesUnitShort;
     row.fees.placeholder = '0';
-    syncValue(row.fees, field.fees);
+    row.numeric.fees.sync(field.fees);
 
     row.rateLabel.textContent = labels.rateFor(field.kind);
     row.rate.placeholder = '0';
     row.rateUnitFull.textContent = labels.rateUnit;
     row.rateUnitShort.textContent = labels.rateUnitShort;
-    syncValue(row.rate, field.annualRate);
+    row.numeric.annualRate.sync(field.annualRate);
 
     row.termLabel.textContent = labels.term;
     row.termUnitFull.textContent = labels.termUnit;
     row.termUnitShort.textContent = labels.termUnitShort;
-    syncValue(row.term, String(field.termMonths));
+    row.numeric.termMonths.sync(String(field.termMonths));
 
     // What a loan works out to, or what a climbing amount climbs to: both are
     // arithmetic the reader would otherwise have to do in their head.
@@ -525,7 +547,8 @@ export function createFieldList(options) {
     // cadence, term, a set rate and every set month — because the name and the
     // amount above it cannot carry any of that. Open, it goes back to being the
     // arithmetic, which is the thing you want in front of you while you edit.
-    const said = row.open ? summary : labels.saidFor(field);
+    const expanded = row.open || (options.mode?.() === 'simple' && isLoan);
+    const said = expanded ? summary : labels.saidFor(field);
     row.derived.textContent = said;
     row.derived.hidden = !said;
 
@@ -550,9 +573,10 @@ export function createFieldList(options) {
     // pressing it would do, so it says both which field it belongs to and which
     // way it goes. `aria-expanded` says the same thing a second way, for the
     // reader whose screen reader announces state rather than the whole name.
-    row.element.classList.toggle('is-open', row.open);
-    row.toggle.setAttribute('aria-expanded', row.open ? 'true' : 'false');
-    row.toggle.setAttribute('aria-label', row.open ? labels.closeNamed(named) : labels.openNamed(named));
+    row.element.classList.toggle('is-open', expanded);
+    row.toggle.hidden = options.mode?.() === 'simple' && isLoan;
+    row.toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    row.toggle.setAttribute('aria-label', expanded ? labels.closeNamed(named) : labels.openNamed(named));
 
     row.sync.hidden = !comparing;
     row.sync.setAttribute('aria-pressed', field.synced ? 'true' : 'false');
@@ -575,19 +599,27 @@ export function createFieldList(options) {
 
   return {
     element: root,
+    clearDrafts() { for (const row of rows.values()) Object.values(row.numeric).forEach((numeric) => numeric.clear()); },
+    openDetails(id) { const row = rows.get(id); if (row) { row.open = true; if (row.last) syncRow(row, ...row.last); row.kind.focus(); row.element.scrollIntoView({ block: 'center' }); } },
 
     /** Draw `fields`, keeping every row the reader is working in untouched. */
     update(fields, nextLabels, nextT, { comparing = false } = {}) {
       if (nextLabels) labels = nextLabels;
       if (nextT) t = nextT;
 
-      addButton.textContent = labels.add;
+      addButtons.forEach((button) => { button.textContent = t(button.dataset.word); });
+      moreLabel.textContent = t('ui.addOther');
       empty.textContent = labels.empty;
 
       const atCap = fields.length >= MAX_FIELDS;
-      addButton.disabled = atCap;
+      addButtons.forEach((button) => { button.disabled = atCap; });
 
-      let cursor = list.firstChild;
+      const shared = comparing && fields.some((field) => field.synced);
+      commonHeading.hidden = commonNote.hidden = common.hidden = !shared;
+      specificHeading.hidden = !comparing;
+      commonHeading.textContent = t('ui.common'); commonNote.textContent = t('ui.commonNote');
+      specificHeading.textContent = t('ui.specific');
+      const cursors = new Map([[list, list.firstChild], [common, common.firstChild]]);
       const present = new Set();
       for (const field of fields) {
         present.add(field.id);
@@ -598,13 +630,16 @@ export function createFieldList(options) {
         }
         // Move a row only when its position actually changed: moving a node
         // that holds focus would drop the caret out of it.
-        if (row.element !== cursor) list.insertBefore(row.element, cursor);
-        else cursor = cursor.nextSibling;
+        const parent = comparing && field.synced ? common : list;
+        const cursor = cursors.get(parent);
+        if (row.element !== cursor) parent.insertBefore(row.element, cursor);
+        else cursors.set(parent, cursor.nextSibling);
         syncRow(row, field, atCap, comparing);
       }
 
       for (const [id, row] of rows) {
         if (present.has(id)) continue;
+        Object.values(row.numeric).forEach((numeric) => numeric.clear());
         row.element.remove();
         rows.delete(id);
       }
@@ -620,7 +655,7 @@ export function createFieldList(options) {
      *   text of a neighbour after a deletion would arm the next keystroke to
      *   overwrite a name they meant to keep.
      */
-    focus(id, { control = 'name', select = false } = {}) {
+    focus(id, { control = 'amount', select = false } = {}) {
       const row = id ? rows.get(id) : null;
       if (!row) {
         addButton.focus();

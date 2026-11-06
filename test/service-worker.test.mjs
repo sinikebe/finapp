@@ -12,7 +12,7 @@ function worker({ cache, openError = false, networkError = false } = {}) {
     self: { location: new URL('https://example.org/finapp/sw.js'), addEventListener: (type, handler) => handlers.set(type, handler) },
     caches: { open: async () => { if (openError) throw Error('Unavailable'); return cache; } },
     fetch: async () => { if (networkError) throw Error('Offline'); return response; },
-    URL, Response,
+    URL, Response, Request,
   });
   vm.runInContext(source, context);
   return { handlers, response };
@@ -29,11 +29,13 @@ async function request(instance, path, mode = 'cors') {
 
 test('the offline generation contains every application module', async () => {
   const files = (await readdir(new URL('../assets/js', import.meta.url))).filter((file) => file.endsWith('.js'));
-  let paths;
-  const instance = worker({ cache: { addAll: async (entries) => { paths = entries; } } });
+  let requests;
+  const instance = worker({ cache: { addAll: async (entries) => { requests = entries; } } });
   let installing;
   instance.handlers.get('install')({ waitUntil: (work) => { installing = work; } });
   await installing;
+  assert.ok(requests.every((request) => request.cache === 'reload'), 'a release must not reuse HTTP-cached bytes from an older deployment');
+  const paths = requests.map((request) => './' + new URL(request.url).pathname.slice('/finapp/'.length));
   for (const file of files) assert.ok(paths.includes(`./assets/js/${file}`), file);
   assert.equal(new Set(paths).size, paths.length, 'no duplicate precache entries');
 });
@@ -59,4 +61,24 @@ test('cached generations work offline and leave sibling-app navigations alone', 
   assert.equal(await request(instance, '/other-app/', 'navigate'), undefined);
   const missing = worker({ openError: true, networkError: true });
   assert.equal((await request(missing, '/finapp/', 'navigate')).type, 'error');
+});
+
+
+test('activating main or dev only removes that scope’s older cache generations', async () => {
+  for (const scope of ['/finapp/', '/finapp/dev/']) {
+    const own = `finapp@${encodeURIComponent(scope)}:`;
+    const other = `finapp@${encodeURIComponent(scope === '/finapp/' ? '/finapp/dev/' : '/finapp/')}:`;
+    const deleted = [];
+    const version = source.match(/^const CACHE_VERSION = '([^']+)'/m)[1];
+    const names = [own + 'v1', own + version, other + 'v66', 'unrelated', 'finapp-v66'];
+    const handlers = new Map(); let activating;
+    const context = vm.createContext({
+      self: { location: new URL(`https://example.org${scope}sw.js`), addEventListener: (key, work) => handlers.set(key, work), clients: { claim() {} } },
+      caches: { keys: async () => names, delete: async (key) => deleted.push(key) }, URL,
+    });
+    vm.runInContext(source, context);
+    handlers.get('activate')({ waitUntil: (work) => { activating = work; } });
+    await activating;
+    assert.deepEqual(deleted, [own + 'v1']);
+  }
 });

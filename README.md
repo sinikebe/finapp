@@ -1,16 +1,44 @@
 # Finapp
 
 Project income, expenses, cash and total worth over the next 1–600 months.
-Compare up to four strategies for each of six projects. Everything is calculated
+Compare up to four scenarios for each of six projects. Everything is calculated
 in the browser; there is no account, backend or runtime dependency.
 
 [![CI](https://github.com/sinikebe/finapp/actions/workflows/ci.yml/badge.svg)](https://github.com/sinikebe/finapp/actions/workflows/ci.yml)
 [![Open Finapp](https://img.shields.io/badge/open-Finapp-blue)](https://sinikebe.github.io/finapp/)
 
-**[Open Finapp](https://sinikebe.github.io/finapp/)** · English and French ·
+**[Open Finapp](https://sinikebe.github.io/finapp/)** · [Development preview](https://sinikebe.github.io/finapp/dev/) · English and French ·
 light and dark themes · installable PWA
 
 ![Finapp comparing three ways of buying a home](docs/screenshot.png)
+
+## Simple or Advanced
+
+The **Workspace theme** dropdown offers three arrangements of the same data:
+**Horizon** puts results first with editing on demand, **Atelier** lets you edit
+real scenario amounts side by side, and **Parcours** provides three steps with
+a live recap. The choice is remembered separately from Simple/Advanced and
+light/dark appearance. Navigation, accessible controls and all financial rules
+are shared. In the Peugeot example, annual mileage recalculates the energy
+provisions from the documented catalogue assumptions; manually edited energy
+budgets are labelled as custom usage.
+
+**Ctrl/⌘K** opens searchable actions. Tools can export a CSV comparison, print
+results to PDF, save complete backups and restore a dropped JSON file after a
+preview. Native file saving and sharing are used when available, with ordinary
+download and copy-link fallbacks. Cancelling a file picker does not download a
+second copy. **Ctrl/⌘Z** triggers the visible Undo outside editable controls.
+
+Simple starts with a guided choice: a budget, two scenarios to compare, a cash
+savings goal, or clearly marked examples. Personal projects start with blank
+figures. Simple keeps loan essentials, a cash/worth chart, scenario comparison
+and all cash warnings. The summary and comparison appear before the long form
+on phones.
+
+Advanced opens the generic editor, conditional dates, multiple target metrics,
+the solver, manual linking, full charts, flows and sensitivity analysis. Both
+views use exactly the same financial data and results. Switching modes is a
+local presentation preference and preserves all advanced rules.
 
 ## Build a plan
 
@@ -35,13 +63,21 @@ counterparts, while duplication creates an independent field.
 
 Amounts accept decimal points, French decimal commas and grouping spaces.
 English comma grouping such as `1,234.56` is also accepted. **Rates never use
-comma grouping:** `3,125` and `3.125` both mean a rate of 3.125%. Malformed
-figures are not partially parsed.
+comma grouping:** `3,125` and `3.125` both mean a rate of 3.125%. Currency affixes such as `2 200 €` are accepted. Invalid entries stay visible
+with an inline error; results continue to use the last valid value.
 
-The first run contains a worked home-buying comparison and housing/car templates.
+The example collection contains a worked home-buying comparison and housing/car templates.
 Template figures are examples to replace, not offers or tax advice. Their
 shared rows stay synchronized. A 48-month lease has one initial rent and 47
 ordinary rents.
+
+**Peugeot 308 · four powertrains** compares new Allure hatchbacks in petrol,
+diesel, electric and non-plug-in 48 V hybrid form. Open **Projects → Start from
+a template** to add it to an existing workspace. It uses a dated French May
+2024 catalogue, 2024 energy prices, a five-year cash purchase and 15,000 km/year.
+The results disclose sources and distinguish WLTP/list-price facts from
+estimated maintenance, insurance, charger and depreciation budgets.
+[Assumptions, source tables and exclusions](docs/car-energy-example.md).
 
 ## Read the results
 
@@ -110,8 +146,10 @@ or download the open work as a backup.
 
 A per-tab recovery draft is staged before the delayed save, so closing a tab
 before its save completes does not discard the last edit. A later opening offers
-the latest unsaved draft. **Download a backup** in About exports every project
-and any recovery drafts as JSON. Keep a separate copy if the data matters:
+the latest unsaved draft. **Download a backup** in Tools or About exports every project
+and any recovery drafts as JSON. **Restore a backup** in Tools validates the
+file, previews its projects and drafts, and explicitly replaces the workspace
+after saving a recovery copy of the current projects. Keep a separate copy if the data matters:
 clearing browser storage removes the workspace and its drafts.
 
 If saving fails, a visible message says so. Without safe storage/coordination,

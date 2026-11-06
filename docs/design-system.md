@@ -23,19 +23,18 @@ Everything is a custom property on `:root`, and there is no build step, so
 |---|---|
 | surfaces and ink | `--plane`, `--surface-1`, `--surface-2`, `--text-primary`, `--text-secondary`, `--text-muted`, `--grid-line`, `--axis-line`, `--border`, `--border-strong`, `--shadow` |
 | meaning | `--accent`, `--accent-solid`, five `--series-*`, four `--strategy-*`, two status, four `--origin-*` |
-| type | nine `--type-*` steps |
+| type | eight `--type-*` steps |
 | space | eleven `--space-*` steps |
 | shape | `--radius`, `--radius-sm`, `--font` |
-| layout | `--shell`, `--rail`, `--dock` |
+| layout | `--shell` |
 
 Dark is the same names with different values, declared twice — once under
 `@media (prefers-color-scheme: dark)` for the reader who never chose, and once
 under `:root[data-theme="dark"]` for the reader who did. Only colour changes
 between themes. Type, space, shape and layout are the same in both.
 
-The three layout tokens are the unusual ones: they are *rewritten by the tier
-ladder* rather than fixed, which is how one set of rules covers a 320px phone
-and a 5,120px wall. See [The tier ladder](#the-tier-ladder).
+The shell is capped at 1440px. A single breakpoint at 1100px places the data
+column beside the results; the phone follows semantic document order.
 
 ---
 
@@ -223,95 +222,13 @@ do with the surfaces.
 `--shadow` is one two-layer shadow, used on every raised surface and nowhere
 else, and it is the only shadow in the file. Depth is not a meaning here.
 
-### Two switchers, two shapes
+### Project and scenario selection
 
-There are two switchers on one screen and they are not the same kind of control.
-A strategy is switched constantly while you compare, so it is a row of pills you
-can hit without aiming. A project is switched a handful of times a session, and
-switching it replaces every plan, every target and the horizon at once, so it is
-one button carrying the current name, and pressing it opens a sheet.
-
-Colour cannot tell them apart — the palette is full, and a coloured mark up
-beside the heading would read as a fifth legend swatch. **Shape does the work,
-and the rule is worth stating on its own:**
-
-- **A stadium is a peer you switch between.** Tabs, presets, ghost buttons.
-- **A 9px box with a hairline is a control that takes a value**, and the form
-  below is made of them — every input, every select.
-- **A 9px box with a caret behind a divider is a control that opens a list.**
-  It is the shape a `<select>` takes on every platform this app runs on, and the
-  project switch is the only thing in the app that wears it.
-
-So the project switch is a `--surface-1` box with a `--border-strong` hairline
-and a `--radius-sm` corner — the chrome of the fields under it — with the name
-ellipsised and the caret in a cell of its own, divided by a `--border` hairline
-that runs the full height of the box (all 44px of it under a thumb). The caret
-is a **solid 10px** triangle against the fold button's **stroked 20px** chevron
-40px to its right: filled where that one is stroked, half its size, and in a
-compartment where that one is bare. The two must never read as a pair, and that
-sentence is older than this paragraph.
-
-Before this, the resting state was 14px/600 near-black text on nothing with an
-8px caret at `--text-muted` beside it, and a box that appeared on hover. It read
-as a heading, because that is exactly what it looked like — and a reader cannot
-hover what they have not noticed. Hover now confirms rather than announces: the
-fill steps to `--surface-2` and the hairline to `--text-muted`, which is the step
-an input takes under a pointer.
-
-**The cue that clears the contrast floor is the caret, not the box.**
-`--border-strong` on `--surface-1` is 1.49:1 in light and 1.90:1 in dark, under
-the 3:1 this file names for a mark that is not text — but it is the same hairline
-every input and select in the form wears, and making this one control's outline
-darker than the boxes it sits above would say it was the emphatic thing on the
-page. So the box is the family resemblance and the caret carries the meaning: a
-solid triangle in `--text-secondary`, 7.73:1 light and 9.72:1 dark. If that
-hairline is too faint it is too faint everywhere, which is a decision about the
-form, not about this control.
-
-**The box hangs 8px into the panel's padding and takes those 8px back as
-measure.** The hang is so the *name* still starts on the column every label and
-hint below it starts on; aligning the box edge instead would push the one word
-that says which figures these are 8px right of everything under it. The
-`max-width: calc(100% + var(--space-sm))` is the other half: the 8px is room the
-button really has, and stopping at `100%` spends it on a wider gap to the fold
-chevron instead of on the name. Measured on the upgrade store, where the switch
-carries the panel's own heading — *What comes in and goes out* comes to 263.6px
-in a 312px rail, which fits in the 268 this gives it and not in the 260 the
-heading alone is.
-
-What it cost: the control is **11px wider** (147.6 → 158.6 at 1440 in English,
-195.4 → 206.4 in French). The panel head's height did not move at a single rung,
-measured in both languages and in all three shelf states — one project named,
-one unnamed, three:
-
-| | 320 | 390 | 768 | 1024 | 1280–2560 | 3440–5120 |
-|---|---|---|---|---|---|---|
-| EN | 146 | 146 | 144 | 100 | 178 | 176 |
-| FR | 146 | 146 | 186 | 144 | 178 | 218 |
-
-**These are the numbers, and an earlier release note got them wrong.** The pull
-request that introduced the type scale claimed the panel head was "identical to
-v59 to the pixel" at 180 and 220. It was not: the scale moved 1280–2560 from 180
-to 178, and at 3440 it took English from 220 to 176 — a whole line, because the
-strategy tabs stopped wrapping once their text lost a pixel — while French, whose
-names are longer, still wraps and reads 218. Measured across the releases: v59
-and v61 give 180/220, and v62 onwards gives the table above. Nothing since has
-moved them. If you are checking a layout against a remembered figure, check it
-against this table instead, and measure the baseline you actually served.
-
-No name truncates that did not truncate before, in either language, in any of
-those states, and the gap to the fold chevron never falls below 12px — the
-`--space-lg` the title row is laid out on.
-
-**Pinned, the box comes off again.** In the bar at the top of the window the
-switch stands in a row of controls, behind a rule, with the pills beside it, and
-the row is the cue that nothing around a lone heading above a form can give. What
-a box would cost there is width: the button is capped at `min(30vw, 220px)` and
-full at every width below about 730px, so a border and a divided cell come
-straight out of the name — 11 of the 117px a 390px phone gives it, which is the
-difference between *Acheter u…* and *Achete…*. The name is the only thing saying
-which question these plans answer, so it keeps the pixels. The caret is the same
-mark in both places.
+A project opens a sheet because it replaces the comparison, targets and horizon.
+The current scenario is an always-visible, labelled native select with an
+explicit count. Rename is a separate action with Done and Cancel; choosing a
+scenario never places a caret in its name. Full names wrap in comparison cards.
+Origins have visible text: example figures, your figures, or shared scenario.
 
 ---
 
@@ -452,103 +369,29 @@ saved about 4px, and it is the one sentence that has to be read.
 
 ---
 
-## The tier ladder
+## Responsive workspace and modes
 
-Twelve `min-width` rungs and four `max-width` ones. The shell grows **in order to
-seat columns**, and stops the moment there is no further column worth seating:
-measured at 1440, every section in the readings is already at its full height by
-the time the column is 986px wide and stays there to 7680, so width on its own
-buys 60px of page — 1.8%. What buys page height is how many things stand beside
-each other.
+Below 1100px, document order is project/scenario, horizon, summary, comparison,
+data, charts and goals. Navigation links reach Data, Comparison and Results.
+Above it, a 340–420px data column sits beside the results. All reading tracks use
+`minmax(0, 1fr)`, and every container may shrink. The page scrolls as one document;
+forms and assumptions have no internal scrollport. Hiding data leaves the
+scenario selector and the action to show it visible.
 
-Every number below was measured in a browser against the plan the app ships
-with, one pixel either side of the rung. `column` is the reading column and
-`page` is `document.scrollHeight` at a 900px-tall window.
+Simple is the default. It has three primary figures and one selected cash or
+worth chart, with exact tables and details on demand. Comparison stays in
+Simple. Advanced displays the generic editor, every relevant chart, the solver,
+flows and sensitivity ranking. Mode changes are presentation only. Active
+conditional settings retain a readable summary and a route to the relevant
+Advanced control; warnings and restore/export stay available in either mode.
 
-| rung | what it buys | measured, at rung−1 → rung |
-|---|---|---|
-| **720** | four flow cards go 2×2 rather than 3-and-a-lonely-fourth | the rule holds 2 across until 1830; without it `auto-fit` seats 3 at 349px from a 1,080px column and 4 at 330px from 1,367 |
-| **1180** | the form stands beside the readings instead of above them | shell 1120 → 1400, `--rail` takes effect at 354, the readings drop 1080 → 766, page 4056 → 3283 |
-| **1600** | the readings finally clear the comparison table | shell → `min(2600px, 100vw − 48px)`, column 986 → 1138 — the first reading column wide enough for four plans without a sideways scroll. Also where the measure caps land (68ch on always-visible prose, 72ch inside disclosures) and where the ranked list is capped at 820 from 986 |
-| **1830** | four cards go four across | 2 across at 675.5px → 4 at 330px, page 3186 → 2818 |
-| **2720** | **nothing** — see below | no change in any state its selectors name |
-| **3000** | the comparison dock stands up as a third column | shell → `min(3400px, …)`, `--dock` 0 → 1180, the readings drop 2186 → 1338, page 2818 → 1839 |
-| **3060** | five cards go five across with the form folded | 3 across at 555.7px → 5 at 327.2px, in a 1,700px column |
-| **3300** | the rail widens so the form stops being in phone mode | rail 354 → 620, column 1637 → 1372; the panel's content box crosses the 558px container threshold and the plan switcher stops scrolling sideways |
-| **3370** | five across with the comparison away or ranking only | 3 across at 589.7px → 5 at 347.6px, in an 1,802px column |
-| **3560** | the targets and the flow diagram come up side by side | the readings split `1fr / 1.6fr`, flow diagram 1200 → 923.1, page 1840 → 1591 |
-| **4220** | the dock takes the comparison chart beside its table | shell → `min(4400px, …)`, dock 1180 → 1940, `#compare` → `1fr / 1160px` |
-| **4352** | five across with the comparison docked | 3 across at 543.7px → 5 at 320px, in a 1,664px column |
+Amounts, annual rates, loan terms and fees have visible labels. Invalid input
+is preserved, described inline with `aria-invalid`, and excluded from model
+commands. A banner explains that results use the last valid values. A normal
+save has a stable small status; failure/conflict/recovery use the action banner.
 
-And the four narrow ones, which are `max-width` and so apply *at* the number:
-
-| rung | what it does |
-|---|---|
-| **640** | the strategy tabs become a sideways scroller instead of wrapping onto three full-width lines; the unit inside a rate box says `%` rather than `% a year` |
-| **420** | the ranked row drops to two columns, the name on its own line |
-| **380** | the page and header margins come down from 20 to 12, and the padding of a panel *and of a dialog* from 20 to 16 — a dialog is a surface like a panel and had been left out of this rung. The eight pixels it gives back are eight of measure, and measure is what decides how many lines a paragraph takes: in French the first template's note falls from 137px to 117px, a whole line, and the sheet's content comes down 28px in English and 27 in French. The dialog's own height does not move, because it is at its cap either way. **The rule sits beside `.about` rather than in this block**, and has to: `.about`'s padding is declared *after* the block, so the copy that first shipped inside it lost the cascade and did nothing — computed padding stayed 20px at 320. If you move it back up here, measure it before you believe it. |
-| **358** | a field's head wraps: the name takes the line and the amount and the toggle share the next |
-
-### The two floors the whole ladder is built on
-
-1. **The comparison table wants 1,160px** with four plans in French. That is why
-   the dock starts at 1,180 and not anywhere narrower.
-2. **A flow card wants about 320px** before `chart.js` starts dropping its
-   end-labels, and about 560 before the plot goes flat — the plot is 220px tall
-   at every width there has ever been. Cards are counted against those two
-   numbers, not eyeballed. Measured on the rung that got this wrong once: at 3369
-   three across at 470px with 6 of 6 labels, at 3370 five across at 275.6px with
-   0 of 6.
-
-### 2720 is inert
-
-Its two rules restate what `@media (min-width: 1600px) and (max-width: 2999px)`
-already says below 3000 and what `@media (min-width: 3000px) and
-(max-width: 4219px)` already says above it, and the 3060 rule that follows it
-wins where they would differ. Measured in both states its selectors name
-(`data-rail="closed"` with four cards and with five): **no change at 2719 → 2720**.
-
-It is left in place rather than removed. The `max-width: 2999px` /
-`min-width: 3000px` pair leaves a gap at fractional viewport widths — a browser
-at a zoom level that computes 2999.5px matches neither — and the 2720 block is
-currently the only thing covering that sliver for a folded rail. Removing it
-would widen a hole that already exists for an open one. The honest fix is to make
-every `max-width` in the ladder `…99.98px`, which is a change to twelve rungs and
-wants its own pass with its own measurements.
-
-### Two mechanisms, on purpose
-
-The form's narrow layout is written **twice**: once as `@media (max-width: 640px)`
-and `@media (max-width: 358px)`, and once as `@container inputs (max-width: 558px)`
-and `@container inputs (max-width: 300px)`.
-
-This is not duplication to be tidied away. Container queries want Chrome 105 /
-Firefox 110 / Safari 16 and this app's floor is Chrome 88 / Firefox 98 /
-Safari 15.4, so the media queries are the floor-safe baseline a real phone must
-keep and the container twins are for the one case a width query cannot see: a
-narrow column of form on a wide screen, which is what the panel becomes when it
-is docked as a rail (312px of content box inside a 354px rail). They never fight
-— a phone is never inside a wide container, and a 312px rail is never inside a
-640px window. **Do not fold one into the other.**
-
-558 is what the panel's content box measures inside a 640px window and 300 is
-what it measures inside a 358px one, both measured, so every window keeps exactly
-the layout it had.
-
-### The coarse-pointer block
-
-`@media (pointer: coarse)` is **the last at-rule in the file** and every new touch
-size goes inside it. A media query adds no specificity, so a rule filed after it
-with the same specificity wins — and a thumb gets a 36px target with the
-stylesheet still saying 44 a few lines up. That is the failure mode: not an
-error, just a control that is quietly too small on exactly the devices the block
-exists for.
-
-Keyed on the pointer rather than the width, because a phone held in landscape is
-still a phone and a touchscreen laptop is still touched. Nothing in it changes
-what the app looks like under a mouse.
-
----
+Keep the coarse-pointer block last. Controls and disclosure summaries are at
+least 44px under a thumb. The shell and fields must also fit a 320px viewport.
 
 ## Accessibility invariants
 
@@ -614,36 +457,18 @@ From [`test/design-system.test.mjs`](../test/design-system.test.mjs):
 
 From [`test/layout.test.mjs`](../test/layout.test.mjs):
 
-4. `@media (pointer: coarse)` is the last at-rule in the stylesheet.
-5. Every rule that gives `main` its columns floors the reading column at
-   `minmax(0, 1fr)`, and `.output > *` opts out of `min-width: auto`.
-6. Every rule that gives `main` its columns has a `[data-rail="closed"]`
-   counterpart filed no earlier in the file, or folding the form turns a chevron
-   and changes nothing.
-7. The rail's first row is `minmax(0, 1fr)` and its second is capped as a
-   percentage, and the assumptions scroll past that cap.
-8. The strategy switcher stays outside the part of the form that folds.
-9. The assumptions stay outside the panel a strategy switcher names — they are
-   siblings of `strategies` in the state, and a comparison read on different
-   terms would mean nothing.
-10. The fold button names what it folds and ships saying which way it is.
-11. Every kind of `<details>` in the markup has a coarse-pointer rule for its
-    summary.
-12. The dock never sets `overflow`, `overflow-y`, `max-height` or
-    `position: sticky`.
-13. Every `[data-dock="…"]` state the stylesheet lays out is one `app.js` writes,
-    and every state it writes is one the stylesheet lays out.
-14. A five-across rule below 4352 excludes the docked state.
-15. The fold only reserves room for the pinned bar where that bar can exist —
-    which is to say, where there is more than one plan.
-16. The project switch never wears the pill's radius, and the caret keeps the
-    cell that tells a list from a button — see
-    [Two switchers, two shapes](#two-switchers-two-shapes).
+- Touch overrides stay last and cover every disclosure summary.
+- Mobile document order puts summary and comparison before data.
+- Columns shrink and editable panels do not introduce scrollports.
+- Scenario selection stays outside the data fold.
+- Shared assumptions stay outside the active scenario form.
+- Simple retains comparison, warnings, saving and backup actions.
+- Scenario selection and explicit renaming remain distinct controls.
 
 Elsewhere: `test/docs.test.mjs` holds `CONTRIBUTING.md`'s Layout block to the
 files the project actually ships, and `test/about.test.mjs` holds the changelog
 to having an entry for the running build and to the French spacing rule.
-`test/templates.test.mjs` holds the two rules that keep
+`test/templates.test.mjs` holds the rules that keep
 [the template shelf](#a-shelf-that-grows) readable as it grows: no template's
 note repeats the claim the shelf's head already makes, and the lead that counts
 the templates actually names the number it is given, in both languages.
@@ -651,6 +476,16 @@ the templates actually names the number it is given, in both languages.
 ---
 
 ## Adding something
+
+The car powertrain example adds a source disclosure above its summary. A short
+dated caption stays visible in both modes; a native `details` holds the original
+price/consumption table, estimated budgets, exclusions and source links. It
+explicitly describes the initial baseline, so editing a field cannot make the
+source table masquerade as the current calculation. Nodes stay mounted while
+editing. Only the read-only table scrolls horizontally on narrow screens; its
+460px minimum preserves four readable columns, and the scroll region is
+keyboard focusable and named. The disclosure uses the existing type/spacing
+scales and the same 44px coarse-pointer summary target as other disclosures.
 
 1. **Does it need a colour?** Almost certainly not — see
    [Colour](#colour-and-what-it-is-allowed-to-mean). Reach for weight, position,

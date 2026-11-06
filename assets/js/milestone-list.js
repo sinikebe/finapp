@@ -23,6 +23,7 @@
 
 import { actionIcon } from './field-list.js';
 import { html, syncValue } from './dom.js';
+import { bindNumericInput } from './input-validation.js';
 import { MAX_MILESTONES, MAX_MILESTONE_NAME } from './milestones.js';
 
 /**
@@ -36,6 +37,7 @@ import { MAX_MILESTONES, MAX_MILESTONE_NAME } from './milestones.js';
 export function createMilestoneList(options) {
   const { mount, metrics, onCommand } = options;
   let labels = options.labels;
+  let t = options.t;
 
   const root = html('div', 'milestone-list', mount);
   const list = html('div', 'milestone-rows', root);
@@ -58,7 +60,7 @@ export function createMilestoneList(options) {
     // a field to refer to it by, so this box is the whole affordance. It is
     // first because it is what the row is called, and optional because a target
     // read only for its own sake never needs one.
-    const nameLabel = html('label', 'sr-only', main);
+    const nameLabel = html('label', 'field-label', main);
     const name = html('input', 'milestone-name', main);
     name.type = 'text';
     name.autocomplete = 'off';
@@ -66,7 +68,7 @@ export function createMilestoneList(options) {
     name.id = `milestone-${milestone.id}-name`;
     nameLabel.htmlFor = name.id;
 
-    const metricLabel = html('label', 'sr-only', main);
+    const metricLabel = html('label', 'field-label', main);
     const metric = html('select', 'milestone-metric', main);
     metric.id = `milestone-${milestone.id}-metric`;
     metricLabel.htmlFor = metric.id;
@@ -76,7 +78,7 @@ export function createMilestoneList(options) {
       return option;
     });
 
-    const amountLabel = html('label', 'sr-only', main);
+    const amountLabel = html('label', 'field-label', main);
     const amount = html('input', 'milestone-amount', main);
     // Text rather than number, for the reason every amount in the app is text:
     // a number box parses by the browser's locale and drops the comma out of a
@@ -108,7 +110,7 @@ export function createMilestoneList(options) {
     // this appearing and disappearing under the caret.
     const ask = html('div', 'milestone-ask', element);
     const asking = html('div', 'milestone-asking', ask);
-    const chooseLabel = html('label', 'sr-only', asking);
+    const chooseLabel = html('label', 'field-label', asking);
     const choose = html('select', 'milestone-choice', asking);
     choose.id = `milestone-${milestone.id}-choice`;
     chooseLabel.htmlFor = choose.id;
@@ -126,9 +128,25 @@ export function createMilestoneList(options) {
     const answer = html('p', 'milestone-answer', ask);
     answer.setAttribute('role', 'status');
 
+    const title = html('p', 'milestone-title simple-only', element);
+    element.prepend(title);
+    const advanced = html('button', 'ghost-button simple-only', element);
+    advanced.type = 'button';
+    advanced.addEventListener('click', () => onCommand({ type: 'advanced', id: milestone.id }));
+    name.classList.add('advanced-only'); nameLabel.classList.add('advanced-only');
+    metric.classList.add('advanced-only'); metricLabel.classList.add('advanced-only');
+    ask.classList.add('advanced-only');
+    const error = html('p', 'input-error', element);
+    const numeric = bindNumericInput(amount, {
+      options: () => ({ signed: true, max: Number.MAX_VALUE }), errorNode: error,
+      message: () => t('ui.inputInvalid'),
+      onInput: (text) => onCommand({ type: 'update', id: milestone.id, patch: { amount: text } }),
+      onSettle: (text) => onCommand({ type: 'settle', id: milestone.id, patch: { amount: text } }),
+      onValidity: options.onValidity,
+    });
     const row = {
       element, name, nameLabel, metric, metricLabel, metricOptions, amount, amountLabel, said, used, remove,
-      ask, choose, chooseLabel, askButton, answer, offered: '',
+      ask, choose, chooseLabel, askButton, answer, title, advanced, numeric, offered: '',
     };
 
     const id = milestone.id;
@@ -137,10 +155,6 @@ export function createMilestoneList(options) {
     // trimmed, and a box left holding only spaces is a target with no name.
     name.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { name: name.value } }));
     metric.addEventListener('change', () => onCommand({ type: 'update', id, patch: { metric: metric.value } }));
-    amount.addEventListener('input', () => onCommand({ type: 'update', id, patch: { amount: amount.value } }));
-    // Leaving the box shows the figure the read will actually use, in the
-    // reader's own separators — the same settle every amount in the app makes.
-    amount.addEventListener('blur', () => onCommand({ type: 'settle', id, patch: { amount: amount.value } }));
     remove.addEventListener('click', () => onCommand({ type: 'remove', id }));
     askButton.addEventListener('click', () => onCommand({ type: 'ask', id, key: choose.value }));
 
@@ -165,7 +179,10 @@ export function createMilestoneList(options) {
 
     row.amountLabel.textContent = labels.figure;
     row.amount.setAttribute('aria-label', labels.figureNamed(named));
-    syncValue(row.amount, milestone.amount);
+    row.numeric.sync(milestone.amount);
+    row.title.textContent = [milestone.name, named, milestone.metric !== 'net' ? milestone.amount : ''].filter(Boolean).join(' · ');
+    row.advanced.textContent = t('ui.editAdvanced');
+    row.element.classList.toggle('advanced-goal', milestone.metric !== 'net');
 
     row.element.setAttribute('aria-label', named);
     row.remove.setAttribute('aria-label', labels.removeNamed(named));
@@ -225,12 +242,16 @@ export function createMilestoneList(options) {
 
   return {
     element: root,
+    clearDrafts() { for (const row of rows.values()) row.numeric.clear(); },
+    openDetails(id) { const row = rows.get(id); if (row) { row.name.focus(); row.element.scrollIntoView({ block: 'center' }); } },
 
     /** Draw `milestones`, keeping every row the reader is working in untouched. */
-    update(milestones, nextLabels) {
+    update(milestones, nextLabels, nextT) {
+      if (nextT) t = nextT;
       if (nextLabels) labels = nextLabels;
 
       addButton.textContent = labels.add;
+      addButton.classList.toggle('advanced-only', milestones.some((one) => one.metric === 'net'));
       const atCap = milestones.length >= MAX_MILESTONES;
       addButton.disabled = atCap;
 
@@ -252,6 +273,7 @@ export function createMilestoneList(options) {
 
       for (const [id, row] of rows) {
         if (present.has(id)) continue;
+        row.numeric.clear();
         row.element.remove();
         rows.delete(id);
       }

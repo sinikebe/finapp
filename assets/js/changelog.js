@@ -15,7 +15,32 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v66', date: '2026-11-06',
+    version: 'v71', date: '2026-11-06',
+    en: 'Three selectable workspaces share the same projects: Horizon presents results first, Atelier edits scenarios side by side, and Parcours guides planning in three steps with a live summary. The workspace choice is remembered independently of Simple/Advanced and light/dark preferences. Quick actions, CSV results, print/PDF, native sharing and file saving with download fallbacks, and backup drag-and-drop are available. The car example can recalculate energy for a common annual mileage. All workspaces preserve advanced rules and use the same financial engine.',
+    fr: 'Trois espaces au choix partagent les mêmes projets : Horizon présente les résultats en premier, Atelier permet d’ajuster les scénarios côte à côte, et Parcours guide la simulation en trois étapes avec une synthèse en direct. Le choix est mémorisé indépendamment du mode Simple/Avancé et de l’apparence claire/sombre. Actions rapides, résultats CSV, impression/PDF, partage et enregistrement natifs avec solutions classiques, et dépôt de sauvegarde sont disponibles. L’exemple automobile peut recalculer l’énergie pour un kilométrage annuel commun. Les trois espaces conservent les règles avancées et utilisent le même moteur financier.',
+  },
+  {
+    version: 'v70', date: '2026-11-06', commit: '81c30e1',
+    en: 'A new Peugeot 308 Allure example compares petrol, diesel, electric and non-plug-in 48 V hybrid purchases over five years. It uses French May 2024 list prices, combined WLTP consumption and 2024 energy tariffs. Original assumptions and source links are available in the results; insurance, maintenance, charger and depreciation provisions are explicitly estimates. Existing projects are preserved.',
+    fr: 'Un nouvel exemple Peugeot 308 Allure compare l’achat en essence, diesel, électrique et hybride 48 V non rechargeable sur cinq ans. Il utilise les prix catalogue français de mai 2024, les consommations WLTP mixtes et des tarifs d’énergie de 2024. Les hypothèses initiales et les sources sont accessibles dans les résultats ; l’assurance, l’entretien, la borne et la décote sont clairement estimés. Les projets existants sont conservés.',
+  },
+  {
+    version: 'v69', date: '2026-11-06', commit: '9114dba',
+    en: 'Offline updates fetch fresh deployment assets instead of reusing the browser’s HTTP cache from the previous release. Worker update checks also bypass that HTTP cache.',
+    fr: 'Les mises à jour hors ligne téléchargent les nouveaux fichiers sans réutiliser le cache HTTP de la version précédente. La recherche d’une mise à jour du service worker contourne aussi ce cache HTTP.',
+  },
+  {
+    version: 'v68', date: '2026-11-06', commit: '97636cc',
+    en: 'The English welcome screen correctly asks what you would like to plan. The updated wording is included in a new offline cache generation.',
+    fr: 'L’accueil en anglais demande correctement ce que vous souhaitez préparer. Le libellé corrigé est inclus dans une nouvelle version du cache hors ligne.',
+  },
+  {
+    version: 'v67', date: '2026-11-06', commit: 'dc99dea',
+    en: 'Simple and Advanced are two views of the same projects. Guided creation starts with blank personal figures; examples are explicitly marked. The summary and scenario comparison come before the long form on phones, scenario selection and renaming are separate, and essential loan controls have visible labels. Invalid numeric entries preserve the last valid value and show an error. Reverted edits no longer leave saving pending. Complete JSON backups can be previewed and restored with a recovery copy. Development previews isolate storage, locks and offline caches from production.',
+    fr: 'Simple et Avancé sont deux vues des mêmes projets. La création guidée part de chiffres personnels vides ; les exemples sont identifiés. Sur téléphone, la synthèse et la comparaison précèdent le formulaire. Le choix du scénario est séparé du renommage et les prêts gardent leurs réglages essentiels avec des libellés visibles. Une saisie numérique invalide conserve la dernière valeur valide et affiche une erreur. Annuler une saisie ne bloque plus l’enregistrement. Les sauvegardes JSON peuvent être vérifiées puis restaurées avec une copie de récupération. La préversion isole ses données, ses verrous et son cache hors ligne du site principal.',
+  },
+  {
+    version: 'v66', date: '2026-11-06', commit: '64fb772',
     en: 'Shared template fields keep one identity across plans, target names no longer clear their amounts, and shared links preserve named targets and their dependent operations. Solver answers and return ranges now rerun the complete conditional plan; conditional answers are checked examples rather than promised bounds. Referenced targets cannot be removed until their fields are reassigned. Rates accept decimal commas and retain negative signs, loan payments remain stable near zero interest, and a four-year lease contains its first rent and 47 ordinary rents. Workspace saves are atomic, concurrent tabs report conflicts, and recoverable drafts and a local backup export protect edits when storage fails. State, storage, scenario runs, plan commands and field labels now have separate modules. The offline shell, documentation and regression tests follow the new structure.',
     fr: 'Les postes communs des modèles gardent une identité unique entre les plans, les noms des objectifs ne vident plus leurs montants, et les liens partagés conservent les objectifs nommés et les opérations qui en dépendent. Le solveur et les fourchettes de rendement rejouent désormais le plan conditionnel complet ; les réponses conditionnelles sont des exemples vérifiés plutôt que des bornes promises. Un objectif utilisé ne peut être supprimé avant la réaffectation de ses postes. Les taux acceptent la virgule décimale et gardent leur signe négatif, les mensualités restent stables près de zéro, et une location de quatre ans comprend son premier loyer et 47 loyers ordinaires. Les sauvegardes sont atomiques, les onglets concurrents signalent les conflits, et des brouillons récupérables ainsi qu’un export local protègent les modifications en cas d’échec du stockage. L’état, le stockage, les scénarios, les commandes et les libellés des postes disposent de modules distincts. Le cache hors ligne, la documentation et les tests de régression suivent cette organisation.',
   },

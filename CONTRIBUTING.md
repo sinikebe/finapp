@@ -10,6 +10,7 @@ Node 20 or later; no build step and no runtime dependencies.
 
 ```sh
 npm start          # http://127.0.0.1:4173
+npm run dev        # same development server; also used by preview tooling
 npm test           # all Node tests, including review regressions and storage failures
 npm run icons      # regenerate the icon set
 npm run stamp      # update the version stamp after changing the cache version
@@ -31,6 +32,8 @@ assets/js/fields.js           field schema and pure operations
 assets/js/strategies.js       strategies, shared identity and defaults
 assets/js/projects.js         project boundaries and switching operations
 assets/js/templates.js        example projects and old-template identity repair
+assets/js/car-energy.js       dated car specifications, budgets and example builder
+assets/js/example-context.js  original example assumptions and source disclosure
 assets/js/state.js            pure workspace defaults, migration and snapshot shape
 assets/js/store.js            atomic persistence, revision checks and recovery drafts
 assets/js/plan-operations.js  target dependency checks and shared-plan merging
@@ -53,6 +56,17 @@ assets/js/format.js           locale-aware formatting
 assets/js/i18n.js             English/French copy
 assets/js/changelog.js        release history in both languages
 assets/js/version.js          generated build stamp
+assets/js/input-validation.js numeric drafts, currency affixes and inline validity
+assets/js/save-controller.js  debounced saves, reverts and queued-write coordination
+assets/js/deployment.js       production/preview storage and lock namespaces
+assets/js/backup.js           bounded backup validation and restore summaries
+assets/js/interface.js        presentation preferences and guided blank projects
+assets/js/interface-view.js   mode controls, summary/comparison and backup preview
+assets/js/workspace.js        presentation preferences, scenario amount and mileage commands
+assets/js/workspace-view.js   Horizon, Atelier and Parcours navigation and live recap
+assets/js/workspace-cards.js  shared comparison cards and validated inline editing
+assets/js/browser-tools.js    quick actions, native files/sharing, CSV and backup drop
+assets/css/workspace.css      workspace palettes, responsive arrangements and printing
 assets/js/app.js              controller and view composition
 tools/generate-icons.mjs     dependency-free icon generation
 tools/serve.mjs              local development server
@@ -153,6 +167,23 @@ changes the displayed net-profit figure, not cash or total worth, even on sale;
 those remain before tax and are labeled accordingly. Housing-template taxes are
 fixed example fields. Changes to these conventions need explicit product copy,
 independent arithmetic tests and updated worked examples.
+
+## Simple and Advanced
+
+Simple is the initial presentation. `finapp.viewMode.v1` is a device preference;
+changing it does not edit a financial field, identity, target, assumption or
+shared link. Advanced controls that affect a Simple result have a readable
+summary and an action that opens the relevant field. Keep comparison, cash
+warnings and save/recovery actions available in both views.
+
+`input-validation.js` owns incomplete or invalid DOM drafts. It sends commands
+only for valid entries. Reconciliation and blur must not clear an invalid draft
+or turn it into zero; the last valid model value remains in the results.
+
+Backup restoration validates every project before showing a replacement action.
+It creates an independent recovery draft before replacement, checks the current
+saved revision and uses the same atomic store as ordinary edits. Never replace
+anything when validation or recovery storage fails.
 
 ## Production and development publication
 

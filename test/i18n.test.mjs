@@ -175,3 +175,10 @@ test('a phrase is looked up on the dictionary itself, never on what it inherits'
     }
   }
 });
+
+test('every English parameterized phrase renders both singular and plural paths', () => {
+  for (const [key, value] of Object.entries(STRINGS.en)) {
+    if (typeof value !== 'function') continue;
+    for (const count of [1, 2]) assert.equal(typeof value(...Array(value.length).fill(count)), 'string', `${key} at ${count}`);
+  }
+});

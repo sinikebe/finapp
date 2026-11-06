@@ -56,18 +56,15 @@ export const SNAPSHOT_KEYS = [
  * The moves a reader can take back, and the only values a snapshot's `what`
  * ever holds.
  *
- * Six now, and the new one is the largest of them: a project is every plan in
- * it, its horizon and its targets, thrown away by one press.
- *
- * Every one of these throws something away — which is what puts them on the
- * list and keeps a keystroke off it.
+ * Structural actions and a grouped amount edit can be taken back. Amount edits
+ * photograph the first valid change in a focus session, not every keystroke.
  *
  * They are here rather than in the app because the list is a fact about the
  * feature and the wording is not: the strings move with the language and the
- * case does not, so what is remembered is which of the six happened and the
+ * case does not, so what is remembered is which action happened and the
  * words are found again on every render.
  */
-export const UNDOABLE = ['field', 'strategy', 'project', 'milestone', 'reset', 'shared'];
+export const UNDOABLE = ['field', 'strategy', 'project', 'milestone', 'reset', 'shared', 'edit'];
 
 /**
  * How far back the app can go.
