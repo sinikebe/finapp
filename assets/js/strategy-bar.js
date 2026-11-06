@@ -19,9 +19,12 @@ export function createStrategyBar(options) {
   const actions = html('div', 'strategy-actions', bar);
   const rename = html('button', 'ghost-button', actions);
   rename.type = 'button';
-  const add = html('button', 'ghost-button', actions);
+  const menu = html('details', 'scenario-tools', actions);
+  const menuLabel = html('summary', null, menu);
+  const menuItems = html('div', 'scenario-menu', menu);
+  const add = html('button', 'ghost-button', menuItems);
   add.type = 'button';
-  const remove = html('button', 'ghost-button', actions);
+  const remove = html('button', 'ghost-button', menuItems);
   remove.type = 'button';
   const editor = html('form', 'scenario-rename', bar);
   editor.hidden = true;
@@ -44,8 +47,10 @@ export function createStrategyBar(options) {
   }
   select.addEventListener('change', () => { renaming = false; editor.hidden = true; onCommand({ type: 'select', id: select.value }); });
   rename.addEventListener('click', open);
-  add.addEventListener('click', () => onCommand({ type: 'add' }));
-  remove.addEventListener('click', () => onCommand({ type: 'remove' }));
+  add.addEventListener('click', () => { menu.open = false; onCommand({ type: 'add' }); });
+  remove.addEventListener('click', () => { menu.open = false; onCommand({ type: 'remove' }); });
+  document.addEventListener('click', (event) => { if (!menu.contains(event.target)) menu.open = false; });
+  menu.addEventListener('keydown', (event) => { if (event.key === 'Escape') { menu.open = false; menuLabel.focus(); } });
   editor.addEventListener('submit', (event) => {
     event.preventDefault();
     if (current) onCommand({ type: 'rename', id: current.id, name: input.value });
@@ -73,6 +78,7 @@ export function createStrategyBar(options) {
       origin.textContent = t(source === 'default' ? 'ui.example' : source.startsWith('shared') ? 'ui.shared' : 'ui.own');
       origin.dataset.origin = source;
       rename.textContent = t('ui.rename');
+      menuLabel.textContent = t('workspace.scenarioActions');
       add.textContent = t('ui.copyScenario');
       add.disabled = strategies.length >= MAX_STRATEGIES;
       remove.textContent = t('ui.removeScenario');

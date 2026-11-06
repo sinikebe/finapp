@@ -8,7 +8,8 @@ import { advancedFields } from './interface.js';
 import { readNumericInput } from './input-validation.js';
 import { parseBackup, backupSummary, MAX_BACKUP_BYTES } from './backup.js';
 import { formatAmount, formatRate } from './format.js';
-import { runsDryAt, hasAmounts } from './projection.js';
+import { hasAmounts } from './projection.js';
+import { createWorkspaceCards } from './workspace-cards.js';
 import { createExampleContext } from './example-context.js';
 
 export function createInterfaceView(options) {
@@ -23,7 +24,8 @@ export function createInterfaceView(options) {
   let offered = null;
   let source = null;
   let fileName = '';
-  const cards = new Map();
+  const cards = createWorkspaceCards($('simple-comparison'), options);
+  let selectedFile = null;
   const rules = new Map();
   const exampleContext = createExampleContext($('example-context'));
 
@@ -70,15 +72,17 @@ export function createInterfaceView(options) {
 
   $('backup-open').addEventListener('click', () => { closeTools(); restore.showModal(); });
   $('backup-close').addEventListener('click', () => restore.close());
-  $('backup-file').addEventListener('change', async () => {
-    const file = $('backup-file').files[0];
+  $('backup-file').addEventListener('change', () => offerBackup($('backup-file').files[0]));
+  async function offerBackup(file) {
+    selectedFile = file;
+    if (!restore.open) restore.showModal();
     offered = source = null; $('backup-preview').hidden = true; $('backup-message').textContent = '';
     if (!file) return;
     try {
       if (file.size > MAX_BACKUP_BYTES) throw { code: 'tooLarge' };
       const text = await file.text();
       // A slow previous file read must not replace the current selection.
-      if ($('backup-file').files[0] !== file) return;
+      if (selectedFile !== file) return;
       offered = parseBackup(text); fileName = file.name;
       $('backup-source').textContent = '';
       const main = html('option', null, $('backup-source')); main.value = '0'; main.textContent = t('ui.restoreSaved');
@@ -88,10 +92,10 @@ export function createInterfaceView(options) {
       });
       previewBackup();
     } catch (error) {
-      if ($('backup-file').files[0] !== file) return;
+      if (selectedFile !== file) return;
       $('backup-message').textContent = t(error.code === 'tooLarge' ? 'ui.restoreLarge' : error.code === 'references' ? 'ui.restoreReferences' : 'ui.restoreInvalid');
     }
-  });
+  }
   function previewBackup() {
     if (!offered) return;
     const selected = Number($('backup-source').value);
@@ -136,36 +140,7 @@ export function createInterfaceView(options) {
     if (state.showRange) assumptions.push(`${t('ui.returnRange')} : ±${formatRate(state.spread)} %`);
     $('active-assumptions').textContent = assumptions.join(' · ');
 
-    const present = new Set();
-    state.strategies.forEach((strategy, index) => {
-      present.add(strategy.id);
-      let card = cards.get(strategy.id);
-      if (!card) {
-        const element = html('article', 'comparison-card', $('simple-comparison'));
-        const title = html('h3', null, element);
-        const source = html('p', 'hint', element);
-        const figures = html('dl', null, element);
-        const cashLabel = html('dt', null, figures); const cash = html('dd', null, figures);
-        const worthLabel = html('dt', null, figures); const worth = html('dd', null, figures);
-        const warning = html('p', 'hint', element);
-        const select = html('button', 'ghost-button', element); select.type = 'button';
-        select.addEventListener('click', () => options.onScenario(strategy.id));
-        card = { element, title, source, cashLabel, cash, worthLabel, worth, warning, select }; cards.set(strategy.id, card);
-      }
-      const run = projections[index];
-      const dry = runsDryAt(run);
-      card.element.dataset.active = String(strategy.id === state.activeId);
-      card.title.textContent = nameOf(strategy, index, t);
-      card.source.textContent = t(strategy.origin === 'default' ? 'ui.example' : strategy.origin === 'shared' ? 'ui.shared' : 'ui.own');
-      card.cashLabel.textContent = t('ui.cash'); card.cash.textContent = hasAmounts(run) ? formatAmount(run.totals.net) : '—';
-      card.worthLabel.textContent = t('ui.worth'); card.worth.textContent = hasAmounts(run) ? formatAmount(run.totals.worth) : '—';
-      card.warning.textContent = dry ? t('summary.runsDry', dry.month, formatAmount(Math.abs(dry.worst))) : hasAmounts(run) ? t('ui.noShortfall') : t('charts.notePrompt');
-      card.warning.classList.toggle('is-warning', Boolean(dry));
-      card.select.textContent = t('ui.selectScenario');
-      card.select.setAttribute('aria-label', `${t('ui.selectScenario')} · ${nameOf(strategy, index, t)}`);
-      card.select.setAttribute('aria-pressed', String(strategy.id === state.activeId));
-    });
-    for (const [id, card] of cards) if (!present.has(id)) { card.element.remove(); cards.delete(id); }
+    cards.update(state, projections);
 
     const active = advancedFields(state.strategies.flatMap((strategy) => strategy.fields));
     const keys = new Set();
@@ -186,9 +161,9 @@ export function createInterfaceView(options) {
     if (offered) previewBackup();
   }
   return {
-    update,
+    update, offerBackup,
     showWelcome() { welcome.showModal(); },
     hideWelcome() { if (welcome.open) welcome.close(); },
-    clearDrafts() { horizonInvalid = false; onValidity('horizon', false); $('horizon-error').hidden = true; for (const input of [years, months]) input.removeAttribute('aria-invalid'); },
+    clearDrafts() { cards.clearDrafts(); horizonInvalid = false; onValidity('horizon', false); $('horizon-error').hidden = true; for (const input of [years, months]) input.removeAttribute('aria-invalid'); },
   };
 }

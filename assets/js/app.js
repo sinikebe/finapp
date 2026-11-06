@@ -11,6 +11,9 @@
 import { createSaveController } from './save-controller.js';
 import { deploymentFor, scopedStorage } from './deployment.js';
 import { createInterfaceView } from './interface-view.js';
+import { createWorkspaceView } from './workspace-view.js';
+import { createBrowserTools, saveFile } from './browser-tools.js';
+import { editScenarioAmount, changeAnnualKm } from './workspace.js';
 import { bindNumericInput } from './input-validation.js';
 import { VIEW_MODE_KEY, INTRO_KEY, viewModeOf, guidedPlan } from './interface.js';
 import { annualPercent } from './numbers.js';
@@ -219,7 +222,7 @@ const saver = createSaveController({
   store: planStore, snapshot: () => snapshotOf(state), initial: loaded,
   initialBaseline: freshWorkspace ? '' : JSON.stringify(snapshotOf(state)),
   adopt: adoptWorkspace,
-  editing: () => document.activeElement instanceof Element && Boolean(document.activeElement.closest('.field-list, .strategy-bar, .filter-row, .milestone-list, .project-list, .horizon')),
+  editing: () => document.activeElement instanceof Element && Boolean(document.activeElement.closest('.field-list, .strategy-bar, .filter-row, .milestone-list, .project-list, .horizon, .quick-fields')),
   notify: paintSaveStatus,
 });
 
@@ -275,6 +278,7 @@ const receiveSaved = () => saver.receive();
 
 function adoptWorkspace(snapshot) {
   list.clearDrafts(); milestoneList.clearDrafts(); interfaceView.clearDrafts();
+  workspaceView.clearDrafts();
   for (const input of assumptionInputs) input.clear();
   invalidInputs.clear(); $('input-warning').hidden = true;
   Object.assign(state, loadWorkspace(snapshot, language));
@@ -311,14 +315,9 @@ ui.saveRecover.addEventListener('click', async () => {
   paintSaveStatus();
 });
 
-function exportBackup() {
+async function exportBackup({ native = false } = {}) {
   const contents = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), workspace: snapshotOf(state), drafts: planStore.drafts() }, null, 2);
-  const url = URL.createObjectURL(new Blob([contents], { type: 'application/json' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `finapp-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  link.click();
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  await saveFile(contents, `finapp-backup-${new Date().toISOString().slice(0, 10)}.json`, 'application/json', window, { native });
 }
 
 /* --------------------------------------------------------------------- undo */
@@ -2369,12 +2368,16 @@ function startGuided(kind) {
   introPending = false; writeStore(INTRO_KEY, true);
   forgetRanking(); forgetAsked(); metricChosen = false;
   interfaceView.clearDrafts();
+  workspaceView.navigate('data', { focus: false });
   setRail(true); fillControls(); persist(); render();
   window.setTimeout(() => { $('inputs').scrollIntoView({ block: 'start' }); list.focus(fields()[0]?.id); }, 0);
   return true;
 }
 
-function renderInterface(projection, projections) { interfaceView.update(projection, projections); }
+function renderInterface(projection, projections) {
+  interfaceView.update(projection, projections);
+  workspaceView.update(projection, projections);
+}
 
 /* ----------------------------------------------------------------- language */
 
@@ -2457,13 +2460,39 @@ const interfaceView = createInterfaceView({
   onData: () => setRail(true),
   onHorizon: (value) => { if (state.months === value) return; state.months = value; ui.months.value = String(value); persist(); render(); },
   onScenario: (id) => runStrategyCommand({ type: 'select', id }),
+  onEdit: (id) => { runStrategyCommand({ type: 'select', id }); workspaceView.navigate('data'); },
+  onAmount: (strategyId, fieldId, text, begin) => {
+    const before = state.strategies.find((one) => one.id === strategyId)?.fields.find((one) => one.id === fieldId);
+    if (!before || before.amount === text) return;
+    if (begin) checkpoint('edit');
+    state.strategies = editScenarioAmount(state.strategies, strategyId, fieldId, text);
+    persist(); render();
+  },
   onMetric: (key) => { simpleMetric = key; render(); },
   describeField: (field) => fieldLabels().saidFor(field),
   onAdvanced: (id) => {
     const owner = state.strategies.find((strategy) => strategy.fields.some((field) => field.id === id));
     if (owner && !fields().some((field) => field.id === id)) runStrategyCommand({ type: 'select', id: owner.id });
+    workspaceView.navigate('data', { focus: false });
     changeMode('advanced'); setRail(true); list.openDetails(id);
   },
+});
+const workspaceView = createWorkspaceView({
+  state, translator: () => t, metric: () => simpleMetric,
+  read: readStore, write: writeStore, onValidity: inputValidity,
+  onProjects: openProjects, onData: () => setRail(true),
+  onKm: (value, begin) => {
+    const next = changeAnnualKm(state.strategies, value);
+    if (JSON.stringify(next) === JSON.stringify(state.strategies)) return;
+    if (begin) checkpoint('edit');
+    state.strategies = next; persist(); render();
+  },
+});
+createBrowserTools({
+  state, translator: () => t, projections: () => state.strategies.map((one) => projectionFor(one.fields)),
+  onNavigate: (section) => workspaceView.navigate(section), onProjects: openProjects,
+  onBackup: exportBackup, onRestore: (file) => interfaceView.offerBackup(file),
+  onMode: () => changeMode(viewMode === 'simple' ? 'advanced' : 'simple'),
 });
 $('welcome').addEventListener('close', () => { if (introPending) { introPending = false; writeStore(INTRO_KEY, true); persist(); } });
 

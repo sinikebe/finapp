@@ -10,6 +10,7 @@ Node 20 or later; no build step and no runtime dependencies.
 
 ```sh
 npm start          # http://127.0.0.1:4173
+npm run dev        # same development server; also used by preview tooling
 npm test           # all Node tests, including review regressions and storage failures
 npm run icons      # regenerate the icon set
 npm run stamp      # update the version stamp after changing the cache version
@@ -61,6 +62,11 @@ assets/js/deployment.js       production/preview storage and lock namespaces
 assets/js/backup.js           bounded backup validation and restore summaries
 assets/js/interface.js        presentation preferences and guided blank projects
 assets/js/interface-view.js   mode controls, summary/comparison and backup preview
+assets/js/workspace.js        presentation preferences, scenario amount and mileage commands
+assets/js/workspace-view.js   Horizon, Atelier and Parcours navigation and live recap
+assets/js/workspace-cards.js  shared comparison cards and validated inline editing
+assets/js/browser-tools.js    quick actions, native files/sharing, CSV and backup drop
+assets/css/workspace.css      workspace palettes, responsive arrangements and printing
 assets/js/app.js              controller and view composition
 tools/generate-icons.mjs     dependency-free icon generation
 tools/serve.mjs              local development server

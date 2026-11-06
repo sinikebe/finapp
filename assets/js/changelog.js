@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v70', date: '2026-11-06',
+    version: 'v71', date: '2026-11-06',
+    en: 'Three selectable workspaces share the same projects: Horizon presents results first, Atelier edits scenarios side by side, and Parcours guides planning in three steps with a live summary. The workspace choice is remembered independently of Simple/Advanced and light/dark preferences. Quick actions, CSV results, print/PDF, native sharing and file saving with download fallbacks, and backup drag-and-drop are available. The car example can recalculate energy for a common annual mileage. All workspaces preserve advanced rules and use the same financial engine.',
+    fr: 'Trois espaces au choix partagent les mêmes projets : Horizon présente les résultats en premier, Atelier permet d’ajuster les scénarios côte à côte, et Parcours guide la simulation en trois étapes avec une synthèse en direct. Le choix est mémorisé indépendamment du mode Simple/Avancé et de l’apparence claire/sombre. Actions rapides, résultats CSV, impression/PDF, partage et enregistrement natifs avec solutions classiques, et dépôt de sauvegarde sont disponibles. L’exemple automobile peut recalculer l’énergie pour un kilométrage annuel commun. Les trois espaces conservent les règles avancées et utilisent le même moteur financier.',
+  },
+  {
+    version: 'v70', date: '2026-11-06', commit: '81c30e1',
     en: 'A new Peugeot 308 Allure example compares petrol, diesel, electric and non-plug-in 48 V hybrid purchases over five years. It uses French May 2024 list prices, combined WLTP consumption and 2024 energy tariffs. Original assumptions and source links are available in the results; insurance, maintenance, charger and depreciation provisions are explicitly estimates. Existing projects are preserved.',
     fr: 'Un nouvel exemple Peugeot 308 Allure compare l’achat en essence, diesel, électrique et hybride 48 V non rechargeable sur cinq ans. Il utilise les prix catalogue français de mai 2024, les consommations WLTP mixtes et des tarifs d’énergie de 2024. Les hypothèses initiales et les sources sont accessibles dans les résultats ; l’assurance, l’entretien, la borne et la décote sont clairement estimés. Les projets existants sont conservés.',
   },

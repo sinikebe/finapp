@@ -14,6 +14,21 @@ light and dark themes · installable PWA
 
 ## Simple or Advanced
 
+The **Workspace theme** dropdown offers three arrangements of the same data:
+**Horizon** puts results first with editing on demand, **Atelier** lets you edit
+real scenario amounts side by side, and **Parcours** provides three steps with
+a live recap. The choice is remembered separately from Simple/Advanced and
+light/dark appearance. Navigation, accessible controls and all financial rules
+are shared. In the Peugeot example, annual mileage recalculates the energy
+provisions from the documented catalogue assumptions; manually edited energy
+budgets are labelled as custom usage.
+
+**Ctrl/⌘K** opens searchable actions. Tools can export a CSV comparison, print
+results to PDF, save complete backups and restore a dropped JSON file after a
+preview. Native file saving and sharing are used when available, with ordinary
+download and copy-link fallbacks. Cancelling a file picker does not download a
+second copy. **Ctrl/⌘Z** triggers the visible Undo outside editable controls.
+
 Simple starts with a guided choice: a budget, two scenarios to compare, a cash
 savings goal, or clearly marked examples. Personal projects start with blank
 figures. Simple keeps loan essentials, a cash/worth chart, scenario comparison

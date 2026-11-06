@@ -15,6 +15,7 @@
   <link rel="icon" href="./assets/icons/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="./assets/css/app.css">
+  <link rel="stylesheet" href="./assets/css/workspace.css">
   <script type="module" src="./assets/js/app.js"></script>
 </head>
 <body data-mode="simple">
@@ -29,16 +30,22 @@
       <span>Finapp</span>
     </p>
     <div class="app-bar-actions">
+      <label class="layout-picker" for="layout-select"><span data-i18n="workspace.theme">Workspace theme</span><select id="layout-select" data-i18n-aria="workspace.theme" aria-label="Workspace theme"><option value="horizon">Horizon</option><option value="atelier">Atelier</option><option value="parcours">Parcours</option></select></label>
+      <button id="commands-open" type="button" class="ghost-button command-trigger"><span data-i18n="workspace.actions">Quick actions</span><kbd>⌘ / Ctrl K</kbd></button>
 <div class="view-modes" role="group" data-i18n-aria="ui.mode"><button id="mode-simple" type="button" class="preset" aria-pressed="true" data-i18n="ui.simple">Simple</button><button id="mode-advanced" type="button" class="preset" aria-pressed="false" data-i18n="ui.advanced">Advanced</button></div><details class="tools-menu"><summary data-i18n="ui.tools">Tools</summary><div class="tools-content"><button id="share-open" class="ghost-button" type="button" data-i18n="action.share">Share</button><button id="about-open" class="ghost-button" type="button" data-i18n="about.open">About</button><button id="lang" class="ghost-button" type="button" aria-label="Language: English. Switch to French">
         <span id="lang-label" aria-hidden="true">EN</span>
       </button><button id="theme" class="ghost-button" type="button" aria-label="Colour theme: follow system">
         <span id="theme-label" aria-hidden="true">Auto</span>
       </button>
 <button id="backup-download" type="button" class="ghost-button" data-i18n="save.export">Download a backup</button>
+<button id="backup-save-as" type="button" class="ghost-button" data-i18n="workspace.saveAs" hidden>Save backup as…</button>
 <button id="backup-open" type="button" class="ghost-button" data-i18n="ui.restore">Restore a backup</button>
 <label for="currency" data-i18n="ui.currency">Currency label</label>
 <select id="currency"><option value="" data-i18n="ui.currencyNone">No symbol</option><option value="EUR">EUR — €</option><option value="USD">USD — $</option><option value="GBP">GBP — £</option><option value="CHF">CHF</option></select>
 <p class="hint" data-i18n="ui.currencyNote">Display only. No currency conversion.</p>
+<button id="results-download" type="button" class="ghost-button" data-i18n="workspace.exportResults">Export results (CSV)</button>
+<button id="print-results" type="button" class="ghost-button" data-i18n="workspace.print">Print / PDF</button>
+<button id="commands-menu" type="button" class="ghost-button" data-i18n="workspace.actions">Quick actions</button>
 </div></details>
       <button id="undo" class="ghost-button" type="button" data-i18n="undo.label" hidden>Undo</button>
       <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
@@ -48,7 +55,19 @@
 </header>
 <p id="preview-banner" class="preview-banner" data-i18n="ui.preview" hidden>Development preview — data is separate from the main site.</p>
 <p id="input-warning" class="validation-banner" role="status" data-i18n="ui.invalidSummary" hidden>Check the highlighted entries. Results use their last valid values.</p>
-<nav class="workspace-nav" aria-label="Workspace"><a href="#inputs" id="nav-data" data-i18n="ui.data">Data</a><a href="#compare" id="nav-compare" data-i18n="ui.compare">Comparison</a><a href="#summary" data-i18n="ui.results">Results</a></nav>
+<aside class="workspace-sidebar">
+  <div class="sidebar-heading"><span class="sidebar-mark" aria-hidden="true">f.</span><p id="workspace-sidebar-name">Horizon</p><p class="hint" data-i18n="workspace.workspace">Your decision space</p></div>
+  <button id="sidebar-projects" type="button" class="ghost-button" data-i18n="workspace.projects">My projects</button>
+  <nav class="workspace-nav" data-i18n-aria="workspace.navigation" aria-label="Workspace navigation">
+    <a href="#summary" id="nav-overview" data-workspace-section="overview" aria-current="page"><span aria-hidden="true">◫</span><span data-i18n="workspace.overview">Overview</span></a>
+    <a href="#compare" id="nav-compare" data-workspace-section="compare"><span aria-hidden="true">◧</span><span data-i18n="ui.compare">Comparison</span></a>
+    <a href="#inputs" id="nav-data" data-workspace-section="data"><span aria-hidden="true">≡</span><span data-i18n="workspace.myFigures">My figures</span></a>
+    <a href="#assumptions-heading" data-workspace-section="assumptions"><span aria-hidden="true">⚙</span><span data-i18n="workspace.assumptions">Assumptions</span></a>
+  </nav>
+  <button id="sidebar-new" type="button" class="ghost-button sidebar-new" data-i18n="ui.newProject">New project</button>
+  <p class="hint sidebar-device" id="connection-status" role="status"></p>
+</aside>
+<p id="workspace-announcement" class="sr-only" role="status"></p>
   <div class="save-status" id="save-status" hidden>
     <p id="save-message" role="status"></p>
     <div class="save-actions">
@@ -61,6 +80,7 @@
   <div id="strategy-jump"></div>
   <main id="main">
 <div class="panel workspace-head">
+        <p class="workspace-eyebrow" data-i18n="workspace.eyebrow">A little perspective. A better decision.</p>
         <div class="panel-title">
           <h2 id="inputs-heading" class="project-heading"></h2>
           <button type="button" class="icon-button rail-toggle" id="rail-toggle"
@@ -71,7 +91,10 @@
           </button>
         </div>
         <button id="new-project" class="ghost-button" type="button" data-i18n="ui.newProject">New project</button><div id="strategies"></div>
+        <p id="workspace-description" class="hint"></p>
       </div>
+    <nav id="journey-nav" class="journey-nav" data-i18n-aria="workspace.steps" aria-label="Planning steps"><button type="button" data-journey-step="0" aria-current="step"><span>1</span><span data-i18n="workspace.usage">Your horizon</span></button><button type="button" data-journey-step="1"><span>2</span><span data-i18n="workspace.figures">Your figures</span></button><button type="button" data-journey-step="2"><span>3</span><span data-i18n="workspace.result">Your result</span></button></nav>
+    <section class="journey-question" id="journey-question-panel"><p id="journey-progress" class="workspace-eyebrow"></p><h2 id="journey-question"></h2><p class="hint" id="journey-explanation"></p></section>
     <div class="filter-row panel horizon" id="horizon">
         <div class="filter">
 <h2 data-i18n="filter.label">Projection length</h2><label class="sr-only" for="months" data-i18n="filter.label">Projection length</label>
@@ -95,6 +118,7 @@
         <h2 id="summary-heading" class="sr-only" data-i18n="summary.heading">Projected totals</h2>
         <div id="example-context" hidden></div>
         <div class="hero">
+          <div class="workspace-result-heading"><span class="result-dot" aria-hidden="true"></span><p id="workspace-active-name"></p><span id="workspace-period"></span></div>
           <p class="hero-label" id="hero-label">Net after 24 months</p>
           <p class="hero-value" id="hero-value">—</p>
           <p class="status-chip" id="hero-chip" hidden>
@@ -143,11 +167,13 @@
             <dd id="worth-value">—</dd>
           </div>
         </dl></details><p class="hint" data-i18n="ui.cashNote">Cash starts at zero. Net worth adds investments and assets, then subtracts outstanding debt.</p><div class="assumptions-summary"><p class="hint" id="active-assumptions"></p><button id="assumptions-edit" type="button" class="ghost-button" data-i18n="ui.editAssumptions">Edit assumptions</button></div>
+        <div class="workspace-result-actions"><button type="button" id="workspace-edit" class="workspace-primary" data-i18n="workspace.editFigures">Adjust my figures</button><button type="button" id="workspace-assumptions" class="ghost-button" data-i18n="workspace.assumptions">Assumptions</button></div>
         <p class="hint" id="tax-scope" data-i18n="summary.taxScope" hidden>Cash and total worth are before investment tax, including after a sale. Only net profit applies the tax rate shown in the assumptions.</p>
     </section>
 <section class="panel charts-section" id="compare" aria-labelledby="compare-heading" hidden>
         <h2 id="compare-heading" data-i18n="compare.heading">Scenarios side by side</h2>
-        <div id="simple-comparison" class="simple-comparison simple-only"></div><p class="section-note advanced-only" id="compare-note" aria-live="polite"></p>
+        <p id="workspace-comparison-note" class="hint"></p>
+        <div id="simple-comparison" class="simple-comparison"></div><p class="section-note advanced-only" id="compare-note" aria-live="polite"></p>
         <div class="filter-row advanced-only">
           <div class="presets" role="group" id="compare-metrics" data-i18n-aria="compare.metricAria"></div>
         </div>
@@ -268,6 +294,8 @@
           <p class="scale-note" data-i18n="rank.caveat.parts">The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.</p>
         </details>
       </section></div>
+  <aside class="journey-recap" aria-labelledby="journey-recap-heading"><p class="workspace-eyebrow" id="journey-recap-heading" data-i18n="workspace.liveRecap">Your live summary</p><h3 id="journey-recap-name"></h3><p class="hint" id="journey-recap-duration"></p><p id="journey-recap-label" class="hint"></p><p id="journey-recap-value" class="recap-value"></p><p class="hint" data-i18n="workspace.recapHelp">Adjust your figures. The summary updates as you go.</p></aside>
+  <div class="journey-actions"><button id="journey-back" type="button" class="ghost-button" data-i18n="workspace.back">Back</button><button id="journey-next" type="button" class="workspace-primary" data-i18n="workspace.continue">Continue</button></div>
 </main>
   <footer class="app-footer">
     <p data-i18n="footer.note">Everything is calculated on your device and saved only in this browser. No account, no network.</p>
@@ -321,6 +349,7 @@
     <input id="share-link" class="share-link" type="text" readonly>
     <div class="share-actions">
       <button id="share-copy" class="ghost-button" type="button" data-i18n="share.copy">Copy link</button>
+      <button id="share-native" class="ghost-button" type="button" data-i18n="workspace.nativeShare" hidden>Share with…</button>
       <p class="hint" id="share-said" role="status"></p>
     </div>
   </dialog>
@@ -360,5 +389,7 @@
   <div id="backup-preview" hidden><label for="backup-source" data-i18n="ui.restoreSource">Version to restore</label><select id="backup-source"></select><p id="backup-summary"></p><ul id="backup-projects"></ul><p class="hint" data-i18n="ui.restoreWarning">Restoring replaces every project on this device. A recovery copy of the current workspace is kept first.</p><button id="backup-confirm" class="ghost-button is-grave" type="button" data-i18n="ui.restoreConfirm">Replace my projects</button></div>
   <p id="backup-message" role="status"></p>
 </dialog>
+  <dialog id="commands" class="about command-dialog" aria-labelledby="commands-heading"><div class="about-head"><h2 id="commands-heading" data-i18n="workspace.actions">Quick actions</h2><button id="commands-close" class="ghost-button" type="button" data-i18n="ui.close">Close</button></div><label for="commands-search" class="sr-only" data-i18n="workspace.searchActions">Find an action</label><input id="commands-search" type="search" autocomplete="off"><div id="commands-list" class="command-list"></div><p id="commands-empty" class="hint" data-i18n="workspace.noAction" hidden>No matching action.</p></dialog>
+  <div id="backup-drop" class="backup-drop" hidden><p data-i18n="workspace.dropBackup">Drop a JSON backup to preview it</p></div>
 </body>
 </html>
