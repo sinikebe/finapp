@@ -80,12 +80,12 @@ test('main and dev storage, drafts, preference enumeration and events are isolat
   const db = new MemoryStorage();
   const main = scopedStorage(() => db, deploymentFor('https://example.org/finapp/').prefix);
   const dev = scopedStorage(() => db, deploymentFor('https://example.org/finapp/dev/').prefix);
-  for (const key of ['finapp.workspace.v1', 'finapp.draft.v1.A', 'finapp.viewMode.v1']) {
+  for (const key of ['finapp.workspace.v1', 'finapp.draft.v1.A', 'finapp.viewMode.v1', 'finapp.navigation.v1']) {
     main.storage().setItem(key, 'main'); dev.storage().setItem(key, 'dev');
     assert.equal(main.storage().getItem(key), 'main'); assert.equal(dev.storage().getItem(key), 'dev');
     assert.equal(main.logical(dev.physical(key)), undefined); assert.equal(dev.logical(main.physical(key)), undefined);
   }
-  assert.equal(main.storage().length, 3); assert.equal(dev.storage().length, 3);
+  assert.equal(main.storage().length, 4); assert.equal(dev.storage().length, 4);
   dev.storage().removeItem('finapp.workspace.v1'); assert.equal(main.storage().getItem('finapp.workspace.v1'), 'main');
   assert.equal(dev.logical(null), null);
   assert.equal(deploymentFor('https://example.org/finapp/').preview, false);

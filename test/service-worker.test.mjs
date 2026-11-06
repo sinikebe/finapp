@@ -5,11 +5,11 @@ import vm from 'node:vm';
 
 const source = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
 
-function worker({ cache, openError = false, networkError = false } = {}) {
+function worker({ cache, openError = false, networkError = false, scope = '/finapp/' } = {}) {
   const handlers = new Map();
   const response = { ok: true, status: 200, type: 'basic', clone() { return this; } };
   const context = vm.createContext({
-    self: { location: new URL('https://example.org/finapp/sw.js'), addEventListener: (type, handler) => handlers.set(type, handler) },
+    self: { location: new URL(`https://example.org${scope}sw.js`), addEventListener: (type, handler) => handlers.set(type, handler) },
     caches: { open: async () => { if (openError) throw Error('Unavailable'); return cache; } },
     fetch: async () => { if (networkError) throw Error('Offline'); return response; },
     URL, Response, Request,
@@ -61,6 +61,17 @@ test('cached generations work offline and leave sibling-app navigations alone', 
   assert.equal(await request(instance, '/other-app/', 'navigate'), undefined);
   const missing = worker({ openError: true, networkError: true });
   assert.equal((await request(missing, '/finapp/', 'navigate')).type, 'error');
+});
+
+test('even a root development worker leaves Garapp resources and other app scopes alone', async () => {
+  const cached = { status: 200 };
+  for (const scope of ['/', '/finapp/', '/finapp/dev/']) {
+    const instance = worker({ scope, cache: { match: async () => cached }, networkError: true });
+    assert.equal(await request(instance, '/Garapp/dev/assets/js/app.js'), undefined);
+    assert.equal(await request(instance, '/Garapp/dev/assets/css/app.css'), undefined);
+    assert.equal(await request(instance, '/Garapp/dev/', 'navigate'), undefined);
+    assert.equal(await request(instance, `${scope}assets/js/app.js`), cached);
+  }
 });
 
 

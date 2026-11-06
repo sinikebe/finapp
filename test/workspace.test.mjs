@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LAYOUTS, layoutOf, stepOf, editScenarioAmount, annualKmOf, changeAnnualKm, comparisonReading } from '../assets/js/workspace.js';
+import { LAYOUTS, NAVIGATION_KEY, layoutOf, stepOf, navigationOf, createWorkspaceNavigation, editScenarioAmount, annualKmOf, changeAnnualKm, comparisonReading } from '../assets/js/workspace.js';
 import { buildCarEnergy, monthlyCarEnergy, CAR_ENERGY } from '../assets/js/car-energy.js';
 import { createScenarioRunner } from '../assets/js/scenarios.js';
 import { loadWorkspace, snapshotOf } from '../assets/js/state.js';
@@ -13,6 +13,34 @@ import { resultsCsv, csvCell, saveFile } from '../assets/js/browser-tools.js';
 
 const carState = () => ({ ...loadWorkspace(), ...normalizePlan(buildCarEnergy(), projectCoerce) });
 const runs = (state) => { const runner = createScenarioRunner(state); return state.strategies.map((one) => runner.run(one.fields)); };
+
+test('returning to the open project restores its section and guided step without touching project data', () => {
+  const state = carState(); const before = snapshotOf(state);
+  const stored = new Map();
+  const prefs = { read: (key, fallback) => stored.get(key) ?? fallback, write: (key, value) => { stored.set(key, structuredClone(value)); return true; } };
+  const first = createWorkspaceNavigation(prefs);
+  first.remember(state.openProjectId, { section: 'data', step: 1, fields: state.strategies });
+  assert.deepEqual(stored.get(NAVIGATION_KEY), { projectId: state.openProjectId, section: 'data', step: 1 });
+  const returned = createWorkspaceNavigation(prefs);
+  assert.deepEqual(returned.forProject(state.openProjectId), { section: 'data', step: 1 });
+  assert.deepEqual(returned.forProject('another-project'), { section: 'overview', step: 0 });
+  returned.remember('another-project', { section: 'compare', step: 2 });
+  assert.deepEqual(returned.forProject(state.openProjectId), { section: 'data', step: 1 });
+  assert.deepEqual(snapshotOf(state), before);
+});
+
+test('invalid navigation preferences fall back safely and unavailable storage keeps navigation usable', () => {
+  for (const value of [null, 'corrupt', [], { section: 'https://example.org/', step: '2' }]) {
+    assert.deepEqual(navigationOf(value), { section: 'overview', step: 0 });
+  }
+  for (const section of ['overview', 'compare', 'data', 'assumptions']) {
+    assert.deepEqual(navigationOf({ section, step: 99 }), { section, step: 2 });
+  }
+  const navigation = createWorkspaceNavigation({ read: () => ({ projectId: {}, section: 'data', step: 1 }), write: () => false });
+  assert.deepEqual(navigation.forProject('project'), { section: 'overview', step: 0 });
+  assert.equal(navigation.remember('project', { section: 'assumptions', step: 1 }), false);
+  assert.deepEqual(navigation.forProject('project'), { section: 'assumptions', step: 1 });
+});
 
 test('all three presentation choices leave complete project snapshots and projections unchanged', () => {
   const state = loadWorkspace();

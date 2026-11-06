@@ -66,8 +66,10 @@ assets/js/workspace.js        presentation preferences, scenario amount and mile
 assets/js/workspace-view.js   Horizon, Atelier and Parcours navigation and live recap
 assets/js/workspace-cards.js  shared comparison cards and validated inline editing
 assets/js/browser-tools.js    quick actions, native files/sharing, CSV and backup drop
-assets/css/workspace.css      workspace palettes, responsive arrangements and printing
+assets/css/workspace.css      responsive workspace arrangements, controls and printing
+assets/css/finapps-ui.css     versioned finapps palettes and outline icon primitives
 assets/js/app.js              controller and view composition
+assets/js/app-switcher.js    Shared Finapp/Garapp launcher and environment-aware links
 tools/generate-icons.mjs     dependency-free icon generation
 tools/serve.mjs              local development server
 tools/stamp-version.mjs      cache/build metadata

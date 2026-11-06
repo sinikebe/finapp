@@ -15,38 +15,68 @@
   <link rel="icon" href="./assets/icons/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="./assets/icons/apple-touch-icon.png">
   <link rel="stylesheet" href="./assets/css/app.css">
+  <link rel="stylesheet" href="./assets/css/finapps-ui.css">
   <link rel="stylesheet" href="./assets/css/workspace.css">
+  <link rel="stylesheet" href="./assets/css/app-switcher.css">
   <script type="module" src="./assets/js/app.js"></script>
+  <script type="module" src="./assets/js/app-switcher.js"></script>
 </head>
 <body data-mode="simple">
   <a class="skip-link" href="#main" data-i18n="skip.link">Skip to content</a>
   <header class="app-bar">
-    <p class="brand">
+    <details class="brand suite-switcher" data-suite-switcher="finapp">
+      <summary class="suite-trigger" aria-label="Switch application">
       <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
         <path d="M3 19h18" />
         <path d="M4 15.5 9.5 10l4 3.5L20 6" />
         <circle cx="20" cy="6" r="1.9" />
       </svg>
       <span>Finapp</span>
-    </p>
+      <svg class="suite-grid" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><path d="M1 1h3v3H1zm6 0h3v3H7zm6 0h3v3h-3zM1 7h3v3H1zm6 0h3v3H7zm6 0h3v3h-3zM1 13h3v3H1zm6 0h3v3H7zm6 0h3v3h-3z"/></svg>
+      </summary>
+      <div class="suite-panel">
+        <p data-suite-title>Your applications</p><p data-suite-environment>Main versions</p>
+        <nav class="suite-apps" aria-label="finapps applications">
+          <a href="https://sinikebe.github.io/finapp/" data-suite-app="finapp" aria-current="page"><span class="suite-app-mark" aria-hidden="true">f.</span><strong>Finapp</strong><small data-suite-description>Plan and compare</small></a>
+          <a href="https://sinikebe.github.io/Garapp/" data-suite-app="garapp"><span class="suite-app-mark" aria-hidden="true">g.</span><strong>Garapp</strong><small data-suite-description>Look after your vehicle</small></a>
+        </nav>
+      </div>
+    </details>
     <div class="app-bar-actions">
-      <label class="layout-picker" for="layout-select"><span data-i18n="workspace.theme">Workspace theme</span><select id="layout-select" data-i18n-aria="workspace.theme" aria-label="Workspace theme"><option value="horizon">Horizon</option><option value="atelier">Atelier</option><option value="parcours">Parcours</option></select></label>
-      <button id="commands-open" type="button" class="ghost-button command-trigger"><span data-i18n="workspace.actions">Quick actions</span><kbd>⌘ / Ctrl K</kbd></button>
-<div class="view-modes" role="group" data-i18n-aria="ui.mode"><button id="mode-simple" type="button" class="preset" aria-pressed="true" data-i18n="ui.simple">Simple</button><button id="mode-advanced" type="button" class="preset" aria-pressed="false" data-i18n="ui.advanced">Advanced</button></div><details class="tools-menu"><summary data-i18n="ui.tools">Tools</summary><div class="tools-content"><button id="share-open" class="ghost-button" type="button" data-i18n="action.share">Share</button><button id="about-open" class="ghost-button" type="button" data-i18n="about.open">About</button><button id="lang" class="ghost-button" type="button" aria-label="Language: English. Switch to French">
-        <span id="lang-label" aria-hidden="true">EN</span>
-      </button><button id="theme" class="ghost-button" type="button" aria-label="Colour theme: follow system">
-        <span id="theme-label" aria-hidden="true">Auto</span>
+      <label class="layout-picker" for="layout-select"><span data-i18n="workspace.presentation">Presentation</span><select id="layout-select" data-i18n-aria="workspace.presentation" aria-label="Presentation" aria-describedby="workspace-description"><option value="horizon">Horizon</option><option value="atelier">Atelier</option><option value="parcours">Parcours</option></select></label>
+      <button id="commands-open" type="button" class="ghost-button command-trigger"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6"/></svg><span data-i18n="workspace.actions">Quick actions</span><kbd>⌘ / Ctrl K</kbd></button>
+      <button id="theme" class="ghost-button appearance-trigger" type="button" aria-label="Appearance: automatic. Switch to light.">
+        <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12 1 1M5 19l1-1M18 6l1-1"/></svg><span class="appearance-name" data-i18n="workspace.appearance">Appearance</span><span id="theme-label" aria-hidden="true">Auto</span>
       </button>
-<button id="backup-download" type="button" class="ghost-button" data-i18n="save.export">Download a backup</button>
-<button id="backup-save-as" type="button" class="ghost-button" data-i18n="workspace.saveAs" hidden>Save backup as…</button>
-<button id="backup-open" type="button" class="ghost-button" data-i18n="ui.restore">Restore a backup</button>
-<label for="currency" data-i18n="ui.currency">Currency label</label>
-<select id="currency"><option value="" data-i18n="ui.currencyNone">No symbol</option><option value="EUR">EUR — €</option><option value="USD">USD — $</option><option value="GBP">GBP — £</option><option value="CHF">CHF</option></select>
-<p class="hint" data-i18n="ui.currencyNote">Display only. No currency conversion.</p>
-<button id="results-download" type="button" class="ghost-button" data-i18n="workspace.exportResults">Export results (CSV)</button>
-<button id="print-results" type="button" class="ghost-button" data-i18n="workspace.print">Print / PDF</button>
-<button id="commands-menu" type="button" class="ghost-button" data-i18n="workspace.actions">Quick actions</button>
-</div></details>
+      <details class="tools-menu"><summary><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg><span data-i18n="ui.tools">Tools</span></summary>
+        <div class="tools-content">
+          <div class="tools-group" role="group" data-i18n-aria="ui.settings">
+            <p class="tools-heading" data-i18n="ui.settings">Display settings</p>
+            <span class="control-label" data-i18n="ui.mode">Interface</span>
+            <div class="view-modes" role="group" data-i18n-aria="ui.mode"><button id="mode-simple" type="button" class="preset" aria-pressed="true" data-i18n="ui.simple">Simple</button><button id="mode-advanced" type="button" class="preset" aria-pressed="false" data-i18n="ui.advanced">Advanced</button></div>
+            <button id="lang" class="ghost-button" type="button" aria-label="Language: English. Switch to French"><span id="lang-label" aria-hidden="true">EN</span></button>
+            <label for="currency" data-i18n="ui.currency">Currency label</label>
+            <select id="currency"><option value="" data-i18n="ui.currencyNone">No symbol</option><option value="EUR">EUR — €</option><option value="USD">USD — $</option><option value="GBP">GBP — £</option><option value="CHF">CHF</option></select>
+            <p class="hint" data-i18n="ui.currencyNote">Display only. No currency conversion.</p>
+          </div>
+          <div class="tools-group" role="group" data-i18n-aria="ui.backups">
+            <p class="tools-heading" data-i18n="ui.backups">Backups</p>
+            <button id="backup-download" type="button" class="ghost-button" data-i18n="save.export">Download a backup</button>
+            <button id="backup-save-as" type="button" class="ghost-button" data-i18n="workspace.saveAs" hidden>Save backup as…</button>
+            <button id="backup-open" type="button" class="ghost-button" data-i18n="ui.restore">Restore a backup</button>
+          </div>
+          <div class="tools-group" role="group" data-i18n-aria="ui.results">
+            <p class="tools-heading" data-i18n="ui.results">Results</p>
+            <button id="share-open" class="ghost-button" type="button" data-i18n="action.share">Share</button>
+            <button id="results-download" type="button" class="ghost-button" data-i18n="workspace.exportResults">Export results (CSV)</button>
+            <button id="print-results" type="button" class="ghost-button" data-i18n="workspace.print">Print / PDF</button>
+          </div>
+          <div class="tools-group">
+            <button id="commands-menu" type="button" class="ghost-button" data-i18n="workspace.actions">Quick actions</button>
+            <button id="about-open" class="ghost-button" type="button" data-i18n="about.open">About</button>
+          </div>
+        </div>
+      </details>
       <button id="undo" class="ghost-button" type="button" data-i18n="undo.label" hidden>Undo</button>
       <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
     </div>
@@ -59,10 +89,10 @@
   <div class="sidebar-heading"><span class="sidebar-mark" aria-hidden="true">f.</span><p id="workspace-sidebar-name">Horizon</p><p class="hint" data-i18n="workspace.workspace">Your decision space</p></div>
   <button id="sidebar-projects" type="button" class="ghost-button" data-i18n="workspace.projects">My projects</button>
   <nav class="workspace-nav" data-i18n-aria="workspace.navigation" aria-label="Workspace navigation">
-    <a href="#summary" id="nav-overview" data-workspace-section="overview" aria-current="page"><span aria-hidden="true">◫</span><span data-i18n="workspace.overview">Overview</span></a>
-    <a href="#compare" id="nav-compare" data-workspace-section="compare"><span aria-hidden="true">◧</span><span data-i18n="ui.compare">Comparison</span></a>
-    <a href="#inputs" id="nav-data" data-workspace-section="data"><span aria-hidden="true">≡</span><span data-i18n="workspace.myFigures">My figures</span></a>
-    <a href="#assumptions-heading" data-workspace-section="assumptions"><span aria-hidden="true">⚙</span><span data-i18n="workspace.assumptions">Assumptions</span></a>
+    <a href="#summary" id="nav-overview" data-workspace-section="overview" aria-current="page"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m3 10 9-7 9 7v11H3ZM9 21v-8h6v8"/></svg><span data-i18n="workspace.overview">Overview</span></a>
+    <a href="#compare" id="nav-compare" data-workspace-section="compare"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 21V11m5 10V4m6 17v-7m5 7V8M2 21h20"/></svg><span data-i18n="ui.compare">Comparison</span></a>
+    <a href="#inputs" id="nav-data" data-workspace-section="data"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5h12M9 12h12M9 19h12M3 5h1M3 12h1M3 19h1"/></svg><span data-i18n="workspace.myFigures">My figures</span></a>
+    <a href="#assumptions-heading" data-workspace-section="assumptions"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h9m4 0h3M4 17h3m4 0h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span data-i18n="workspace.assumptions">Assumptions</span></a>
   </nav>
   <button id="sidebar-new" type="button" class="ghost-button sidebar-new" data-i18n="ui.newProject">New project</button>
   <p class="hint sidebar-device" id="connection-status" role="status"></p>

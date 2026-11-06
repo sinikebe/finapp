@@ -41,6 +41,18 @@ export function resultsCsv(state, projections, t) {
 export function createBrowserTools(options) {
   const $ = (id) => document.getElementById(id);
   const t = (...args) => options.translator()(...args);
+  const tools = document.querySelector('.tools-menu');
+  tools.addEventListener('toggle', () => {
+    if (tools.open) document.querySelectorAll('[data-suite-switcher][open]').forEach((menu) => { menu.open = false; });
+  });
+  document.addEventListener('click', (event) => {
+    if (tools.open && !tools.contains(event.target)) tools.open = false;
+  });
+  tools.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && tools.open && !document.querySelector('dialog[open]')) {
+      event.preventDefault(); tools.open = false; tools.querySelector('summary').focus();
+    }
+  });
   const dialog = $('commands');
   const search = $('commands-search');
   const list = $('commands-list');

@@ -5,9 +5,35 @@ import { CAR_ENERGY, monthlyCarEnergy } from './car-energy.js';
 import { readNumericInput } from './input-validation.js';
 
 export const LAYOUT_KEY = 'finapp.layout.v1';
+export const NAVIGATION_KEY = 'finapp.navigation.v1';
 export const LAYOUTS = Object.freeze(['horizon', 'atelier', 'parcours']);
 export const layoutOf = (value) => LAYOUTS.includes(value) ? value : 'horizon';
 export const stepOf = (value) => Number.isInteger(value) ? Math.max(0, Math.min(2, value)) : 0;
+
+/** View preferences contain no financial values and never travel in app links. */
+export function navigationOf(value) {
+  return {
+    section: ['overview', 'compare', 'data', 'assumptions'].includes(value?.section) ? value.section : 'overview',
+    step: stepOf(value?.step),
+  };
+}
+
+/** Restore the last open project after a reload or an application round trip. */
+export function createWorkspaceNavigation({ read, write }) {
+  const views = new Map();
+  const saved = read(NAVIGATION_KEY, null);
+  if (typeof saved?.projectId === 'string' && saved.projectId.length > 0 && saved.projectId.length <= 200) {
+    views.set(saved.projectId, navigationOf(saved));
+  }
+  return {
+    forProject: (id) => ({ ...(views.get(id) || navigationOf()) }),
+    remember(id, value) {
+      const view = navigationOf(value);
+      views.set(id, view);
+      return write(NAVIGATION_KEY, { projectId: id, ...view });
+    },
+  };
+}
 
 /** Update the requested scenario without changing which one is selected. */
 export function editScenarioAmount(strategies, strategyId, fieldId, text) {
