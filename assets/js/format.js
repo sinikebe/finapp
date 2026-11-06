@@ -7,6 +7,8 @@
  * one (a chart, say) picks up the new locale automatically.
  */
 
+import { annualPercent } from './numbers.js';
+
 let current = { amount: null, whole: null, compact: null };
 
 function plainFallback(value) {
@@ -58,6 +60,7 @@ export function setFormatLocale(locale) {
   current = {
     point: decimalPointOf(tag),
     amount: build(tag, { maximumFractionDigits: 2, minimumFractionDigits: 0 }, plainFallback),
+    rate: build(tag, { maximumFractionDigits: 6, useGrouping: false }, plainFallback),
     whole: build(tag, { maximumFractionDigits: 0 }, plainFallback),
     compact: build(tag, { notation: 'compact', maximumFractionDigits: 1 }, compactFallback),
   };
@@ -85,9 +88,7 @@ export function formatAmount(value) {
  * enough to need it, and "1 000 %" would read as a typo rather than a number.
  */
 export function formatRate(value) {
-  const rate = Number.parseFloat(value);
-  if (!Number.isFinite(rate)) return current.amount(0);
-  return current.amount(Math.max(0, Math.min(rate, 1000)));
+  return current.rate(annualPercent(value));
 }
 
 /** Whole amounts for headline figures: 72,012 */

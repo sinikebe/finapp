@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Finapp — estimate your financial future</title>
   <meta id="doc-description" name="description" content="An offline-first calculator that projects cumulative income, expenses and net over the months ahead.">
@@ -54,6 +55,16 @@
          away with it, and this is what is left where the reader was. -->
     <p class="hint undo-said" id="undo-said" role="status" tabindex="-1" hidden></p>
   </header>
+
+  <div class="save-status" id="save-status" hidden>
+    <p id="save-message" role="status"></p>
+    <div class="save-actions">
+      <button type="button" class="ghost-button" id="save-retry" data-i18n="save.retry" hidden>Try saving again</button>
+      <button type="button" class="ghost-button" id="save-latest" data-i18n="save.latest" hidden>Load saved changes</button>
+      <button type="button" class="ghost-button" id="save-recover" data-i18n="save.recover" hidden>Recover latest draft</button>
+      <button type="button" class="ghost-button" id="save-export" data-i18n="save.export">Download a backup</button>
+    </div>
+  </div>
 
   <!-- Filled in and revealed only once the strategy bar in the form has
        scrolled out of view, and only while there is more than one strategy. -->
@@ -133,6 +144,7 @@
           <h2 id="assumptions-heading" data-i18n="assumptions.heading">How money behaves</h2>
         </summary>
         <p class="hint" data-i18n="assumptions.note">These apply to every plan at once, which is what keeps two plans worth comparing.</p>
+        <p class="hint" data-i18n="filter.rateConvention">Rates on balances are nominal annual percentages divided by twelve. The rate on a repeating amount changes it on each anniversary.</p>
 
         <div class="assumption-groups">
           <div class="assumption-group">
@@ -236,7 +248,8 @@
             <dd id="worth-value">—</dd>
           </div>
         </dl>
-      </section>
+        <p class="hint" id="tax-scope" data-i18n="summary.taxScope" hidden>Cash and total worth are before investment tax, including after a sale. Only net profit applies the tax rate shown in the assumptions.</p>
+    </section>
 
       <div class="filter-row">
         <div class="filter">
@@ -305,6 +318,7 @@
              it, and a paragraph read out on every keystroke is worse than one
              they find when they look. -->
         <p class="section-note is-warning" id="milestone-unsettled" data-i18n="milestone.unsettled" hidden></p>
+        <p class="hint" id="milestone-invalid" data-i18n="milestone.invalid" role="status" hidden></p>
         <div id="milestone-mount"></div>
         <details class="section-notes">
           <!-- Why a rule is drawn where it is, and what can and cannot be worked
@@ -313,7 +327,7 @@
                simply waits to be opened. -->
           <summary data-i18n="notes.how">How this works</summary>
           <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
-          <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only two figures can be worked backwards: an amount and a rate. More of either carries the answer one way and keeps carrying it, which is what lets a search bracket it and halve its way in. The month an investment is cashed in is not like that — moving it changes both what the holding grew to and what the cash then bought — and neither is a loan’s term, so neither is offered. Whatever comes back is put into the plan and run again before it is shown, and where it does not reach the target the app says so rather than naming it. Nothing here is ever written into your plan.</p>
+          <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only an amount or a rate can be solved. Each answer is checked by running the complete plan again. If events depend on targets, the answer is one checked example: larger or smaller figures can change when those events happen. Nothing is applied to your plan automatically.</p>
         </details>
       </section>
 
@@ -414,6 +428,7 @@
     </div>
 
     <div class="about-reset" id="about-reset-row">
+        <button type="button" class="ghost-button" id="about-backup" data-i18n="save.export">Download a backup</button>
       <button id="about-reset" class="ghost-button" type="button" data-i18n="about.reset">Start again</button>
       <p class="hint" id="about-reset-note" data-i18n="about.resetNote"></p>
     </div>

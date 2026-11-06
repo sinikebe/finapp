@@ -1,214 +1,154 @@
 # Contributing
 
-## Issues, and pull requests
-
-**Issues are open to everyone.** A bug, a figure that reads wrong, a question
-about why something is the way it is, an idea for a kind of field — all of them
-belong in [an issue](https://github.com/sinikebe/finapp/issues), and most of
-what this app does arrived that way.
-
-**Pull requests are limited to collaborators.** The repository is set to accept
-them only from people with write access, so a fork-and-PR will not open — which
-is worth knowing before you write the patch rather than after. Open an issue
-instead, and put the patch in it: a diff, or a branch on your own fork to look
-at, is read the same way a pull request would be.
-
-None of that touches the licence. Forking is open, and MIT means you may take
-the code, change it and ship your own — the restriction is on merging into this
-repository, not on what you may do with what is in it.
+Issues and proposed changes belong in [GitHub](https://github.com/sinikebe/finapp).
+Keep financial behavior, migrations and presentation changes independently testable.
+Work on `dev` or a topic branch; publishing the default branch is a separate step.
 
 ## Run it
 
+Node 20 or later; no build step and no runtime dependencies.
+
 ```sh
-npm start          # static server on http://127.0.0.1:4173
-npm test           # unit tests for the models, the projection, the scales
-npm run icons      # regenerate the icon set from tools/generate-icons.mjs
-npm run stamp      # rewrite assets/js/version.js from sw.js and the checkout
+npm start          # http://127.0.0.1:4173
+npm test           # all Node tests, including review regressions and storage failures
+npm run icons      # regenerate the icon set
+npm run stamp      # update the version stamp after changing the cache version
 ```
 
-There is no build step and there are no dependencies: the repository *is* what
-gets served, and any static host works — copy the contents as they stand. A
-service worker only registers over `http(s)`, so open the app through the dev
-server rather than as a `file://` URL.
-
-## The two manual steps
-
-**Bump `CACHE_VERSION` in `sw.js` whenever a precached file changes, then run
-`npm run stamp`.** Those two are the whole project's manual steps — there is no
-build to do either for you, and browsers only look for a new worker when
-`sw.js` itself changes. CI fails the build if a precached file moves without
-the bump, and a test fails if the stamp names a different version than the
-worker serves.
-
-The stamp records what is knowable rather than what would be nice. There is no
-build step, so nothing runs at deploy time to write a hash in, and a commit
-cannot contain its own hash — under squash merges the branch commit does not
-even survive into `main`. So `npm run stamp` writes the version, the branch and
-the commit the working tree sits on top of, and the About panel says **built
-from**, which is the true statement. Every released version in the changelog
-carries the commit it was merged as, which is exact, because that is history;
-the newest entry has none until the merge that publishes it creates one, and
-the panel says *not yet released* in the meantime. A test allows that for the
-newest entry and no other.
-
-The changelog lives in [`assets/js/changelog.js`](assets/js/changelog.js) and
-keeps both languages side by side rather than in the dictionary: it grows one
-entry per release and the two readings of an entry are written together, so
-splitting them would only let them drift.
-
-## The repository's own description
-
-GitHub keeps a repository's **description**, **homepage** and **topics** in its
-settings rather than in a file, so no commit can set them and no test can check
-them. `package.json` holds the copy that *is* version-controlled — `description`,
-`homepage` and `keywords` — and the settings page should be kept saying the same
-thing; treat that file as the source and the settings form as a mirror of it.
-
-One part of it is checked: a test holds the `homepage` to the README's own links
-to the app, because that is the pair whose drifting would strand a reader on the
-front page rather than merely look untidy in a sidebar.
+Use HTTPS or localhost for the browser APIs used by saving and the PWA. A
+`file://` copy is not a supported way to run ES modules or service workers.
 
 ## Layout
 
+```text
+index.html                   shell, accessible regions, dialogs, CSP and i18n hooks
+manifest.webmanifest         English PWA manifest
+manifest.fr.webmanifest      French PWA manifest
+sw.js                        versioned offline shell
+assets/css/app.css           tokens and responsive layout
+assets/js/numbers.js          bounded numeric input, percentages, amounts and months
+assets/js/fields.js           field schema and pure operations
+assets/js/strategies.js       strategies, shared identity and defaults
+assets/js/projects.js         project boundaries and switching operations
+assets/js/templates.js        example projects and old-template identity repair
+assets/js/state.js            pure workspace defaults, migration and snapshot shape
+assets/js/store.js            atomic persistence, revision checks and recovery drafts
+assets/js/plan-operations.js  target dependency checks and shared-plan merging
+assets/js/scenarios.js        original fields -> schedule -> financial projection
+assets/js/projection.js       financial arithmetic and derived series
+assets/js/schedule.js         target-dependent dates and cycle detection
+assets/js/milestones.js       target schema and readings
+assets/js/solve.js            backward search and verification on complete inputs
+assets/js/history.js          bounded, project-scoped undo
+assets/js/share.js            bounded versioned URL format and identity remapping
+assets/js/field-labels.js     read-only field descriptions and financial summaries
+assets/js/field-list.js       field controls, reconciliation and commands
+assets/js/milestone-list.js   target controls and dependency feedback
+assets/js/project-switch.js  project selector and list
+assets/js/strategy-bar.js    strategy selectors
+assets/js/chart.js           SVG charts and exact-value tables
+assets/js/sankey.js          conserving flow diagram and table
+assets/js/dom.js              shared DOM helpers
+assets/js/format.js           locale-aware formatting
+assets/js/i18n.js             English/French copy
+assets/js/changelog.js        release history in both languages
+assets/js/version.js          generated build stamp
+assets/js/app.js              controller and view composition
+tools/generate-icons.mjs     dependency-free icon generation
+tools/serve.mjs              local development server
+tools/stamp-version.mjs      cache/build metadata
+test/                       Node tests
+docs/design-system.md       tokens, layout and accessibility conventions
 ```
-index.html                   markup + i18n hooks (data-i18n)
-manifest.webmanifest         installability (manifest.fr.webmanifest: the same
-                             app, named in French)
-sw.js                        offline shell
-assets/css/app.css           design tokens (light + dark), shell, chart chrome —
-                             described in docs/design-system.md
-assets/js/fields.js          the field model — shape, coercion, operations
-assets/js/strategies.js      the strategy model — a named set of fields
-assets/js/projects.js        the project model — one comparison each, and the
-                             shelf the others wait on
-assets/js/project-switch.js  the heading that names the project, and the
-                             sheet that switches, renames and removes them
-assets/js/templates.js       projects that arrive with their figures in them
-assets/js/projection.js      fields + horizon → the cumulative series
-assets/js/field-list.js      the editable list of fields
-assets/js/milestones.js      targets, and the month each one is met
-assets/js/milestone-list.js  the editable list of targets
-assets/js/solve.js           a target read backwards: what one figure must be
-assets/js/strategy-bar.js    the tabs that name, switch and add strategies
-assets/js/chart.js           the SVG line chart, one or many series
-assets/js/sankey.js          the flow diagram: in, pooled, out
-assets/js/schedule.js        resolving a waited-on target into a real month
-assets/js/share.js           a whole plan packed into a link, and read back
-assets/js/history.js         the bounded stack of plans one press of Undo walks
-assets/js/dom.js             the DOM helpers the views share: two that build a
-                             node, two that update one in place
-assets/js/format.js          locale-aware number formatting
-assets/js/i18n.js            English and French copy
-assets/js/changelog.js       what changed, release by release, in both languages
-assets/js/version.js         the build stamp the About panel reads (generated)
-assets/js/app.js             wiring: inputs, state, theme, language, install, updates
-tools/generate-icons.mjs     icon set, rendered from a vector description
-tools/serve.mjs              development server (never deployed)
-tools/stamp-version.mjs      writes version.js from sw.js and the git checkout
-test/                        node:test unit tests
-docs/design-system.md        the design system: tokens, the two scales, what
-                             colour is allowed to mean, the tier ladder
-docs/                        and the screenshots the README shows
-```
 
-## Extending it
+## Model and view boundaries
 
-The point of the field model is that the common kind of growth — *more things
-to track* — costs nothing: that is what the "Add a field" button already does,
-and the projection sums whatever it is given.
+- `fields`, `strategies`, `projects`, `milestones` and `plan-operations` are pure
+  operations. Views send commands; rendering does not repair or mutate state.
+- Keep original fields distinct from scheduled fields. The solver and the
+  return range start from originals and resolve their own dates. Only the
+  sensitivity ranking deliberately freezes already resolved dates.
+- Shared fields keep the same ID within a project. A new project gets new IDs.
+- Target references must name a target in the same project. A used target
+  cannot be removed; the controls explain how to detach it first. Appending
+  shared plans merges/remaps targets instead of replacing existing targets.
+- Use `numbers.js` consistently. Amount grouping differs from rate syntax;
+  rates may have negative values and more than two fractional digits.
+- Translate user-facing text through `i18n.js`, including status and error text.
+  Keep French nonbreaking punctuation and parameter lists consistent.
 
-**Giving fields a new attribute** (a start month, an end month, a category) is
-the next-cheapest kind of change, and it has one seam. Periods went in this way
-— a schema entry, a rule in `contributionOf`, one control — so the steps below
-describe a change that has actually been made, not a hope:
+## Persistence contract
 
-1. Add an entry to `FIELD_SCHEMA` in `fields.js` — a default and how to read
-   whatever turns up in its place. That is the whole edit: normalisation,
-   storage, migration, duplication and the list's reconciliation all read the
-   schema rather than naming keys of their own.
-2. Give it meaning in `contributionOf()` in `projection.js` — the one function
-   that decides what a field moves in a given month.
-3. If it needs a control: build it in `createRow`, sync it in `syncRow`, and
-   send its edits through the existing command stream — plus its label in
-   `i18n.js` and one line in `fieldLabels()` in `app.js`, since the list owns no
-   English of its own. The row is a wrapping flex line, so no layout change.
-4. Append it to `WIRE_KEYS` in `share.js`, so it travels in a shared link.
-   **Append** — that list is a wire format and its order is what links already
-   in circulation are read by, so inserting into the middle would make every one
-   of them decode into a different plan. A test holds the list to the schema, so
-   forgetting this step fails the build rather than quietly shipping an
-   attribute that never reaches the person you shared the plan with.
+`finapp.workspace.v1` holds a complete workspace in a single `setItem` write.
+The record contains the flat active plan, the shelf, a revision and the previous
+legacy-mirror values. One write succeeds or leaves the previous workspace intact.
 
-This was measured, not assumed: adding a per-field start month took six edits
-across the first three of those files — the wire key came later — and duplication, storage round-trips and the
-v1 migration carried the new attribute with no changes at all.
+`finapp.state.v3` and `finapp.projects.v1` are compatibility mirrors. They are
+written only after the authoritative save. A failed mirror write cannot lose a
+project. A legacy build changing a mirror is recognized on the next read, with
+the canonical open project parked before the foreign plan is adopted.
 
-**A new derived series** (savings, taxes, a running balance) is a key on each
-point in `project()` plus one entry in the `CHARTS` list in `app.js` — and, if
-it belongs in the comparison, one more in `METRICS` and a column in the list
-`renderCompareTable` builds, which does not read `METRICS`. The chart component takes
-any `{month, value}` series and needs no changes: the investment-value card was
-added exactly that way, with two flags on its entry, `onlyWithInvestments` and
-`ownScale`. The total came the same way and cost a line in `project()`, an
-entry in each list, and a colour — the colour being the only part that took
-real work.
+Web Locks serialize read/compare/write across current tabs. Every save checks
+its expected revision under that lock. A stale save returns a conflict and
+leaves both the saved version and the open draft intact. Never resolve a conflict
+by silently overwriting the other tab or discarding the local draft.
 
-**A new kind of field** (a mortgage with an offset, a pension with employer
-matching) is an entry in `KINDS`, a branch in `contributionOf`, the controls it
-needs in `createRow`, and which of them to show in `syncRow`. A kind that holds
-a balance rather than moving cash — the way *something you own* does — adds its
-running total to the loop in `project()` and returns `0` from `contributionOf`.
+Each tab stages a complete draft under its own `finapp.draft.v1.*` key before
+waiting for its save. It is removed only if that same draft was saved; an older
+queued save must not delete a newer staged edit. Unfinished drafts can be
+recovered or exported later. These recovery drafts are distinct from undo,
+which is still kept only in memory.
 
-**Something a strategy carries** (a note, a start date, a colour of its own) is
-the same shape one level up: `strategies.js` owns the shape and the operations,
-`app.js` owns the storage version and the migration into it, and the comparison
-view reads whatever `project()` returns.
+Preferences have separate keys. Failed storage access must result in visible
+feedback and an export path, not a claim that changes were saved.
 
-**Something a project carries** (a note, a currency, a colour of its own) is the
-same shape one level further up: `projects.js` owns the shape and the
-operations, `app.js` owns the store and the migration into it, and
-`project-switch.js` owns the two controls. Two rules hold that layer down and
-both are pinned by tests:
+## Share format
 
-- **The plan on screen lives in `finapp.state.v3` and nowhere else.** The shelf,
-  under `finapp.projects.v1`, carries no plan for the open project — one copy,
-  so the two keys cannot disagree. Do not move the shelf into `finapp.state.v3`
-  to "simplify" it: a build from before projects writes a fresh nine-key literal
-  on the first keystroke and drops everything it does not know, so a stale tab
-  would take every project with it, silently. The tenth key it writes,
-  `projectId`, is a stamp such a build harmlessly drops; `loadProjects` reads its
-  absence as "an older build saved here" and adopts that work.
-- **A snapshot is a photograph of one project**, named by `at`, and is only
-  offered back in that project. Only the three moves that change which projects
-  there are — removing one, starting again, and opening a link as its own
-  project — carry the shelf as well, and even they put back only what is
-  missing. A whole-store snapshot silently reverts another project's work; that
-  was measured before this shape was chosen.
+Version 2 keeps the sparse field layout in `WIRE_KEYS` and adds target names
+and target slots to the target tuples. Field identity and target identity are
+remapped into independent fresh IDs. Keep `WIRE_KEYS` append-only.
 
-**Going backwards is a supported thing to do.** A reader who rolls back to a
-build from before projects finds `finapp.state.v3` live and correct and lands in
-the project they were last in, with the others sitting unread under a key that
-build has never heard of. Rolling forward again picks them all up.
+Read legacy version 1 links when they can be reconstructed. Conditional v1
+links omitted their target identities and cannot safely be guessed. Refuse
+missing references rather than quietly changing the resulting projection.
 
-**A new language** is a block in `STRINGS` in
-[`assets/js/i18n.js`](assets/js/i18n.js) — the English block is the key list to
-match — plus its code in `LANGUAGES` and a manifest of its own, since a
-manifest has no per-language strings. All the manifests declare the same `id`,
-`start_url` and `scope`, so it stays one installed app. Static markup is
-translated through `data-i18n` attributes and anything dynamic goes through the
-same dictionary, punctuation included: the no-break space French sets before a
-colon, and inside a pair of guillemets, is a dictionary concern and lives in
-[`test/french-spacing.mjs`](test/french-spacing.mjs), in one place because
-three files are held to it. The tests fail if a language is missing a key that
-another has, or carries different parameters for one.
+Bound the encoded input before decoding and bound lists before mapping them.
+Numeric strings are bounded separately. Never render imported values as HTML.
 
-Two habits keep all of this cheap: model operations are pure and return new
-lists, so state changes stay traceable; and the list UI reconciles rows in
-place rather than re-rendering, so nothing you add can start stealing focus
-mid-edit.
+## Validation
 
-## Tests
+`npm test` covers arithmetic, defaults, templates, identity, target dependencies,
+share round trips, conditional solver/range runs, failed writes, legacy migration,
+concurrent saves, recovery drafts, i18n and layout constraints.
 
-`npm test` runs `node --test` over `test/*.test.mjs` — no runner, no
-dependencies. CI additionally regenerates the icons and fails if they differ
-from what is committed, and checks the `CACHE_VERSION` bump described above.
+Use behavior checks for integration contracts. A source-text assertion is useful
+for a structural property, but it is not evidence that a user interaction works.
+When a financial result changes, verify its monthly cash movements independently
+before changing a fixture to match it.
+
+Browser validation should include: keyboard traversal of target names; editing
+shared rows in both templates; sharing conditional start/end/sale dates; applying
+a solved figure back to the original plan; background-tab updates; closing during
+a pending save; retry/recovery/export; both locales; mobile layout; and service
+worker installation, updates and offline loading.
+
+## Release
+
+1. Bump `CACHE_VERSION` in `sw.js` when a precached asset changes.
+2. Add every new runtime module to `PRECACHE`.
+3. Update both languages in `changelog.js`, then run `npm run stamp`.
+4. Run `npm test`, regenerate icons and verify there is no icon diff.
+5. Complete browser checks for the changed flows before publishing.
+
+CI also checks the cache bump and icon reproducibility. Actions are pinned to
+commit hashes and run with read-only repository permissions. Configure required
+checks/branch protection in repository settings; a workflow cannot require its
+own success before merging.
+
+## Financial scope
+
+The model uses nominal annual balance rates divided by twelve. Investment tax
+changes the displayed net-profit figure, not cash or total worth, even on sale;
+those remain before tax and are labeled accordingly. Housing-template taxes are
+fixed example fields. Changes to these conventions need explicit product copy,
+independent arithmetic tests and updated worked examples.

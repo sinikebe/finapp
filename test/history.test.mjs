@@ -6,6 +6,8 @@ import {
   MAX_UNDO, SNAPSHOT_KEYS, UNDOABLE, nextBack, remember, takeBack,
   restoreShelf, missingFrom, fitsAfterUndo,
 } from '../assets/js/history.js';
+import { snapshotOf } from '../assets/js/state.js';
+import { STATE_KEY, PROJECTS_KEY, STORE_KEY } from '../assets/js/store.js';
 import { LANGUAGES, STRINGS } from '../assets/js/i18n.js';
 
 const app = await readFile(new URL('../assets/js/app.js', import.meta.url), 'utf8');
@@ -28,59 +30,20 @@ const planLike = () => ({
 
 /* -------------------------------------------------------------- the snapshot */
 
-test('a snapshot holds exactly what save() writes, and nothing else', async () => {
-  /*
-   * The list and the call are one fact stated in two places, and the whole
-   * feature rests on them agreeing: a key `save()` writes and a snapshot skips
-   * is a piece of the plan undo silently declines to bring back, and one a
-   * snapshot holds and `save()` does not is a piece of the app being restored
-   * out of a store that never carried it.
-   *
-   * So the call is read rather than trusted. This is deliberately awkward to
-   * satisfy — the fix for a failure here is to add the key to both, never to
-   * loosen what is matched.
-   */
-  const body = app.split('function save() {')[1];
-  assert.ok(body, 'app.js declares save()');
-  const written = body.split('writeStore(STATE_KEY, {')[1].split('});')[0];
-  const keys = [...written.matchAll(/(\w+):\s*state\.(\w+)/g)];
-  // The tenth is the stamp: the project the nine belong to. It is written and
-  // never snapshotted, because a snapshot already names its project in `at` and
-  // a stamp inside the plan would be a second answer to the same question.
-  const stamp = keys.pop();
-  assert.deepEqual(stamp.slice(1), ['projectId', 'openProjectId']);
-  assert.deepEqual(keys.map((match) => match[1]), SNAPSHOT_KEYS);
-  for (const [, key, from] of keys) {
-    assert.equal(key, from, `save() writes state.${from} under its own name`);
-  }
+test('a snapshot holds the same plan keys the workspace saves', () => {
+  const state = { ...planLike(), openProjectId: 'p', projects: [] };
+  const flat = snapshotOf(state).flat;
+  assert.deepEqual(Object.keys(flat).filter((key) => key !== 'projectId'), SNAPSHOT_KEYS);
+  assert.equal(flat.projectId, 'p');
+  const [snapshot] = remember([], 'field', state, 'p');
+  assert.deepEqual(snapshot.plan, Object.fromEntries(SNAPSHOT_KEYS.map((key) => [key, flat[key]])));
 });
 
-test('the shelf is written first, and it is written under its own key', () => {
-  /*
-   * Both halves of one sentence about a torn write. Two keys are two chances
-   * for a full quota to write half a save, and the half that matters is a
-   * switch — the only save where a plan moves between the keys. The shelf takes
-   * the departing project's plan, so it goes first: fail there and the pair
-   * stops before the flat write can strand that plan with no copy anywhere.
-   *
-   * And the shelf lives under a key of its own so that `finapp.state.v3` stays
-   * exactly the store a build from before projects knows how to read and write.
-   * Move the shelf into it and one keystroke in a stale tab takes every project
-   * with it, because that build writes the keys it knows and drops the rest.
-   */
-  const body = app.split('function save() {')[1].split('\n}')[0];
-  assert.ok(
-    body.indexOf('writeStore(PROJECTS_KEY') < body.indexOf('writeStore(STATE_KEY'),
-    'the shelf is written before the plan on screen',
-  );
-  assert.ok(
-    /if \(!writeStore\(PROJECTS_KEY/.test(body),
-    'and a shelf that would not write stops the pair',
-  );
-  assert.ok(
-    !app.includes("PROJECTS_KEY = 'finapp.state.v3'") && app.includes("PROJECTS_KEY = 'finapp.projects.v1'"),
-    'the shelf is not inside the store an older build rewrites',
-  );
+test('legacy mirrors stay separate from the authoritative workspace', () => {
+  assert.equal(STATE_KEY, 'finapp.state.v3');
+  assert.equal(PROJECTS_KEY, 'finapp.projects.v1');
+  assert.notEqual(STORE_KEY, STATE_KEY);
+  assert.notEqual(STORE_KEY, PROJECTS_KEY);
 });
 
 test('what a snapshot leaves out is everything that is not the plan', () => {
@@ -186,25 +149,10 @@ test('every move that throws work away photographs the plan first', () => {
   assert.deepEqual(taken.slice().sort(), UNDOABLE.slice().sort(), 'and checkpoints nothing else');
 });
 
-test('a tab adopting another window\'s plans drops its own way back first', () => {
-  /*
-   * The line the whole feature is most easily broken by, and the breakage is
-   * silent: a backgrounded tab that keeps its snapshots is holding photographs
-   * of plans the other window has since replaced, and one press of Undo writes
-   * them over that window's work. Order is what makes it safe — the stack has
-   * to go before the redraw that would otherwise put the button back on screen
-   * offering it — so order is what is checked.
-   */
-  const listener = app.split("window.addEventListener('storage'")[1].split('\n});')[0];
-  assert.ok(listener.includes('forgetUndo();'), 'the storage listener forgets the stack');
-  assert.ok(
-    listener.lastIndexOf('forgetUndo();') < listener.lastIndexOf('render();'),
-    'and does it before it redraws',
-  );
-  assert.ok(
-    listener.lastIndexOf('ui.tax.value') < listener.lastIndexOf('forgetUndo();'),
-    'after the incoming plan has been taken on, so nothing is dropped for nothing',
-  );
+test('adopting another workspace clears history before rendering it', () => {
+  const adoption = app.split('function adoptWorkspace(')[1].split('\n}')[0];
+  assert.ok(adoption.includes('forgetUndo();'));
+  assert.ok(adoption.indexOf('forgetUndo();') < adoption.indexOf('render();'));
 });
 
 /* ------------------------------------------------------------------- the words */

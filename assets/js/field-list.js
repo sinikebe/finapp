@@ -467,10 +467,8 @@ export function createFieldList(options) {
         syncOptions(picker, [{ value: '', name: labels.atMonth }, ...labels.targets.map((one) => ({ value: one.id, name: one.name }))]);
         picker.setAttribute('aria-label', labels.atAria(named));
         if (picker.value !== field[key]) picker.value = field[key];
-        // A target that has since been unnamed or removed leaves the field
-        // waiting on nothing, which the select cannot show; fall back to the
-        // month box rather than to a blank the reader cannot act on.
-        if (picker.value !== field[key]) onCommand({ type: 'update', id: field.id, patch: { [key]: '' } });
+        // Missing targets are explicit options supplied by the controller.
+        // Rendering never edits the model or changes a field's schedule.
       }
       const chosen = waiting && Boolean(picker.value);
       setVisible(box, boxLabel, !chosen);

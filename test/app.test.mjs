@@ -21,6 +21,7 @@ test('a live region is written to only when what it says has changed', async () 
   // test: the undo receipt was written with it and the milestone answer was not.
   const guarded = [
     ['assets/js/app.js', 'undoSaid'],
+    ['assets/js/app.js', 'saveMessage'],
     ['assets/js/milestone-list.js', 'answer'],
   ];
 

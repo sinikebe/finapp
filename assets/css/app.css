@@ -2965,3 +2965,16 @@ main section,
      switch user reaches. */
   .skip-link { min-height: 44px; display: flex; align-items: center; }
 }
+
+
+/* Save feedback stays outside the form so conflicts remain visible when it is folded. */
+.save-status {
+  margin: var(--space-md) auto;
+  padding: var(--space-md) var(--space-lg);
+  max-width: 1440px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-1);
+}
+.save-status p { margin: 0 0 var(--space-sm); font-size: var(--type-sm); }
+.save-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }

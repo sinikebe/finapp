@@ -8,106 +8,50 @@
  * other. Everything here works from the list, never from a named field.
  */
 
-import {
-  project,
-  runsDryAt, inTodaysMoney, shiftReturns, seriesOf, monthlyOf, extentOf,
-  hasAmounts, hasDebt, hasOwned,
-  loanPayment, loanInterest, loanTotal, borrowedOf, monthlyRate, grownBy, yearsRunning, toAmount, toMonths,
-  fieldTotalOf, loanPartsOf, shareOut, toNumber, lastLandingOf, swingsOf, moversOf, swingOf, orderBySwing,
-} from './projection.js';
-import {
-  addField, updateField, duplicateField, removeField, neighbourOf,
-  normalizeFields, migrateLegacyInputs, labelOf,
-} from './fields.js';
-import {
-  formatAmount, formatCompact, formatMonth, formatHorizon, formatRate, formatTyped, setFormatLocale,
-} from './format.js';
+import { annualPercent } from './numbers.js';
+import { project, runsDryAt, shiftReturns, seriesOf, monthlyOf, extentOf, hasAmounts, hasDebt, hasOwned, monthlyRate, toAmount, toMonths, fieldTotalOf, loanPartsOf, shareOut, toNumber, toRateNumber, moversOf, swingOf, orderBySwing } from './projection.js';
+import { addField, updateField, duplicateField, removeField, neighbourOf, labelOf } from './fields.js';
+import { formatAmount, formatCompact, formatMonth, formatHorizon, formatRate, formatTyped, setFormatLocale } from './format.js';
 import { html } from './dom.js';
 import { createLineChart, endLabelPad } from './chart.js';
 import { createSankey } from './sankey.js';
+import { labelsForFields } from './field-labels.js';
 import { createFieldList } from './field-list.js';
 import { createMilestoneList } from './milestone-list.js';
-import {
-  addMilestone, updateMilestone, removeMilestone, defaultMilestones,
-  neighbourOf as milestoneNeighbourOf, normalizeMilestones, whenMet,
-  waitableOf,
-} from './milestones.js';
+import { addMilestone, updateMilestone, neighbourOf as milestoneNeighbourOf, normalizeMilestones, whenMet } from './milestones.js';
 import { candidatesOf, solveFor } from './solve.js';
 import { createStrategyBar, createStrategyJump } from './strategy-bar.js';
-import {
-  updateStrategy, duplicateStrategy, removeStrategy,
-  spreadField, unlinkField, removeEverywhere,
-  neighbourOf as strategyNeighbourOf, normalizeStrategies, activeIdOf, nameOf,
-  migrateFields, defaultStrategies, markShared, MAX_STRATEGIES,
-} from './strategies.js';
-import {
-  MAX_PROJECTS, normalizeProject, normalizeProjects, normalizePlan,
-  openIdOf, moveOpen, parkOpen, planOf,
-  addProject, updateProject, removeProject,
-  neighbourOf as projectNeighbourOf, nameOf as projectNameOf,
-} from './projects.js';
+import { updateStrategy, duplicateStrategy, removeStrategy, spreadField, unlinkField, removeEverywhere, neighbourOf as strategyNeighbourOf, activeIdOf, nameOf, markShared, MAX_STRATEGIES } from './strategies.js';
+import { MAX_PROJECTS, normalizeProject, normalizePlan, openIdOf, moveOpen, parkOpen, planOf, addProject, updateProject, removeProject, neighbourOf as projectNeighbourOf, nameOf as projectNameOf } from './projects.js';
 import { createProjectSwitch, createProjectList } from './project-switch.js';
-import { TEMPLATES, templateOf } from './templates.js';
-import { schedule } from './schedule.js';
+import { templateOf } from './templates.js';
+import { createScenarioRunner } from './scenarios.js';
+import { referencesTo, missingTargets, settleTargetPatch, removeTarget, mergeSharedPlan } from './plan-operations.js';
 import { decodePlan, linkFor, planInHash } from './share.js';
 import { remember, takeBack, nextBack, restoreShelf, fitsAfterUndo } from './history.js';
 import { LANGUAGES, detectLanguage, localeFor, makeTranslator } from './i18n.js';
+import { createPlanStore, readValue, writeValue, STORE_KEYS } from './store.js';
+import { loadWorkspace, snapshotOf, defaultState, firstRunProjects, projectCoerce, toRateText, DEFAULT_MONTHS, DEFAULT_SPREAD, DEFAULT_TAX, METRICS } from './state.js';
 import { BUILD } from './version.js';
 import { RELEASES } from './changelog.js';
 
-const STATE_KEY = 'finapp.state.v3';
-/**
- * The shelf: every project, including the one on screen.
- *
- * A key of its own rather than a tenth field in `finapp.state.v3`, and that is
- * the whole of the compatibility story. `finapp.state.v3` keeps exactly the
- * shape it has had since v3 — the plans, the horizon and the targets of the
- * project you are *in* — so a build from before projects opens this store and
- * finds the plan the reader was last looking at, complete, and can edit and
- * save it. Because it never learned this second key, it also never writes it,
- * so the other projects survive an old tab untouched rather than being wiped by
- * the first save it makes.
- *
- * Put the shelf inside `finapp.state.v3` and that same old tab, doing nothing
- * more than saving a keystroke, would take seven projects with it.
- */
-const PROJECTS_KEY = 'finapp.projects.v1';
-const LEGACY_FIELDS_KEY = 'finapp.state.v2';
-const LEGACY_INPUT_KEY = 'finapp.inputs.v1';
 const THEME_KEY = 'finapp.theme.v1';
 const UPDATE_CHECKED_KEY = 'finapp.updateChecked.v1';
 const LANG_KEY = 'finapp.language.v1';
 const THEME_ORDER = ['auto', 'light', 'dark'];
 const THEME_COLORS = { light: '#f9f9f7', dark: '#0d0d0d' };
-/** Long enough for the plans the app opens with to have played out: the
- *  loan's own term, by which point all three own the house outright. */
-const DEFAULT_MONTHS = 240;
-/** Enough that pressing the toggle visibly does something, low enough to be a
- *  reasonable thing to assume on the reader's behalf. They can change it. */
-const DEFAULT_INFLATION = '2';
-/** How far returns are moved for the pessimistic and hopeful runs, in points. */
-const DEFAULT_SPREAD = '3';
-/** What a gain is taxed at when nobody has said otherwise. */
-const DEFAULT_TAX = '30';
-/** The series a return can move. The flows are fixed amounts, so a range on
- *  them would be a range around nothing. */
 const BAND_KEYS = new Set(['invested', 'worth']);
-/**
- * The quantities a reader can ask about by name: the columns the comparison
- * offers, and the quantities a target can be set on. One list, because two
- * would be two spellings of the same eight things — and they are named through
- * `compare.metric.*` wherever either of them shows a name.
- *
- * Up here with the constants rather than beside the comparison that reads it
- * most, because the stored state is read before any of the drawing is: a target
- * arriving out of a store or a link is checked against this list, and that
- * happens on the first line of `loadState`.
- */
-const METRICS = ['net', 'worth', 'income', 'expenses', 'invested', 'profit', 'owned', 'debt'];
 
 const $ = (id) => document.getElementById(id);
 
 const ui = {
+  saveStatus: $('save-status'),
+  saveMessage: $('save-message'),
+  saveRetry: $('save-retry'),
+  saveLatest: $('save-latest'),
+  saveExport: $('save-export'),
+  saveRecover: $('save-recover'),
+  aboutBackup: $('about-backup'),
   undo: $('undo'),
   undoSaid: $('undo-said'),
   fields: $('fields'),
@@ -166,6 +110,7 @@ const ui = {
   spreadFilter: $('spread-filter'),
   spread: $('spread'),
   taxFilter: $('tax-filter'),
+  taxScope: $('tax-scope'),
   tax: $('tax'),
   contributedTile: $('contributed-tile'),
   contributedValue: $('contributed-value'),
@@ -216,6 +161,7 @@ const ui = {
   sharedDialog: $('shared'),
   sharedHeading: $('shared-heading'),
   milestoneUnsettled: $('milestone-unsettled'),
+  milestoneInvalid: $('milestone-invalid'),
   sharedWhat: $('shared-what'),
   sharedRoom: $('shared-room'),
   sharedAsk: $('shared-ask'),
@@ -234,45 +180,10 @@ const STATUS_ICONS = {
 
 /* ------------------------------------------------------------------ storage */
 
-function readStore(key, fallback) {
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw === null ? fallback : JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
+const storage = () => window.localStorage;
+const readStore = (key, fallback) => readValue(storage, key, fallback);
+const writeStore = (key, value) => writeValue(storage, key, value);
 
-/** @returns {boolean} whether the value is actually stored. */
-function writeStore(key, value) {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    /* private mode, or a full quota — the app still works, it just forgets. */
-    return false;
-  }
-}
-
-function dropStore(key) {
-  try {
-    window.localStorage.removeItem(key);
-  } catch {
-    /* nothing to do: the app never depended on it */
-  }
-}
-
-/**
- * Which language the app is in: the reader's stored choice, else the one their
- * browser asks for.
- *
- * Here rather than beside the language switcher because it is now needed twice
- * and at two different moments — once at the very top, to build the projects a
- * first-run device opens with, whose targets are named in words rather than in
- * dictionary keys; and once further down, where the switcher lives. Two copies
- * of this would be two chances for a first run to be named in one language and
- * read in another.
- */
 function resolveLanguage() {
   const saved = readStore(LANG_KEY, null);
   return LANGUAGES.includes(saved) ? saved : detectLanguage();
@@ -280,247 +191,18 @@ function resolveLanguage() {
 
 /* -------------------------------------------------------------------- state */
 
-/** Inflation as typed, kept as text like a field's rate so a half-typed
- *  "2." survives the keystroke that follows it. */
-function toRateText(value, fallback = DEFAULT_INFLATION) {
-  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  return typeof value === 'string' ? value : fallback;
-}
-
-/**
- * The stored shape is `{ strategies, activeId, months, inflation, realMoney,
- * spread, showRange, tax, milestones }`. Everything after the horizon arrived
- * later and is simply absent from an older store, which reads as the defaults —
- * no migration, because nothing changed shape. A store written before targets
- * existed has none, and reads as a plan with nothing marked on it, which is
- * exactly what it was. Two older shapes are carried over once and retired, so
- * nobody loses what they had entered: a bare list of fields from before
- * strategies, and before that a single income and a single rent.
- */
-function loadState() {
-  const saved = readStore(STATE_KEY, null);
-  if (saved && typeof saved === 'object' && Array.isArray(saved.strategies)) {
-    const strategies = normalizeStrategies(saved.strategies);
-    return {
-      strategies,
-      activeId: activeIdOf(strategies, saved.activeId),
-      months: toMonths(saved.months ?? DEFAULT_MONTHS),
-      inflation: toRateText(saved.inflation),
-      realMoney: saved.realMoney === true,
-      spread: toRateText(saved.spread, DEFAULT_SPREAD),
-      showRange: saved.showRange === true,
-      tax: toRateText(saved.tax, DEFAULT_TAX),
-      milestones: normalizeMilestones(saved.milestones, METRICS),
-    };
-  }
-
-  // A store from before strategies: a bare list of fields.
-  const withFields = readStore(LEGACY_FIELDS_KEY, null);
-  if (withFields && typeof withFields === 'object' && Array.isArray(withFields.fields)) {
-    return adopt(migrateFields(normalizeFields(withFields.fields)), withFields.months, LEGACY_FIELDS_KEY);
-  }
-
-  // And from before fields: a single income and a single rent.
-  const legacy = readStore(LEGACY_INPUT_KEY, null);
-  if (legacy && typeof legacy === 'object') {
-    return adopt(migrateFields(migrateLegacyInputs(legacy)), legacy.months, LEGACY_INPUT_KEY);
-  }
-
-  // Nothing stored: open on the worked example rather than an empty form.
-  return defaultState();
-}
-
-/**
- * What a fresh app is. Shared by the first load and by starting again, so the
- * two cannot drift into meaning different things — the button is only worth
- * having if it lands you exactly where a new reader lands.
- *
- * Theme and language are deliberately not in here. They are preferences about
- * reading the app, not part of the plan, and they live under their own keys:
- * throwing away your figures should not also switch you back to English.
- */
-function defaultState() {
-  const strategies = normalizeStrategies(defaultStrategies());
-  return {
-    // Not part of the plan and not stored: a one-shot note to `loadProjects`
-    // that these nine keys are the app's own worked example rather than
-    // somebody's work, which is the only case where naming a project for them
-    // is the app describing itself rather than putting words in their mouth.
-    fresh: true,
-    strategies,
-    activeId: strategies[0].id,
-    months: DEFAULT_MONTHS,
-    inflation: DEFAULT_INFLATION,
-    realMoney: false,
-    spread: DEFAULT_SPREAD,
-    showRange: false,
-    tax: DEFAULT_TAX,
-    // One target, asked on the reader's behalf: the three plans below are three
-    // answers to when a 100,000 house is yours, and this is what makes the app
-    // say the month rather than only know it.
-    milestones: normalizeMilestones(defaultMilestones(), METRICS),
-  };
-}
-
-/**
- * Take an older store's contents into the current shape. The old key is only
- * retired once the new one is genuinely written: a failed write plus an eager
- * delete would lose the reader's numbers for good.
- */
-function adopt(strategies, months, oldKey) {
-  const next = {
-    strategies,
-    activeId: strategies[0].id,
-    months: toMonths(months ?? DEFAULT_MONTHS),
-    inflation: DEFAULT_INFLATION,
-    realMoney: false,
-    spread: DEFAULT_SPREAD,
-    showRange: false,
-    tax: DEFAULT_TAX,
-    // Nothing marked: an older store predates targets, and inventing one on
-    // somebody's own figures would be the app putting a question in their mouth.
-    milestones: [],
-  };
-  if (writeStore(STATE_KEY, next)) dropStore(oldKey);
-  return next;
-}
-
-/** The coercions a project's own contents go through, whatever they arrive in.
- *  Handed to `projects.js` rather than duplicated there, for the reason the
- *  metric list is handed to `milestones.js`: they are the app's, not the
- *  model's. */
-const projectCoerce = {
-  months: (value) => toMonths(value ?? DEFAULT_MONTHS),
-  milestones: (value) => normalizeMilestones(value, METRICS),
-};
-
-/**
- * The shelf, and which project is open.
- *
- * The plan on screen lives in `finapp.state.v3` and **nowhere else**: the shelf
- * never holds a copy for the open project. One copy means the two keys cannot
- * disagree about the plan the reader is looking at, and it means an older
- * build's write into `finapp.state.v3` is simply the truth rather than
- * something to be reconciled against a second copy that might be fresher.
- *
- * `finapp.state.v3` grows one appended key, `projectId`, saying which project
- * the nine belong to. It is a plain string on the end of a literal; every older
- * build reads the store, ignores it, and drops it on the next write — which is
- * the case step 2 below is for.
- *
- * The rule, every branch of it, because the branches are the whole feature's
- * compatibility story:
- *
- *   1. **No shelf.** Every device in the world before this release, and a fresh
- *      one. The nine keys become one project, holding exactly what was there.
- *      Nothing is invented, nothing is named, and nothing is written: `nameOf`
- *      renders a lone unnamed project as the form's own heading, so an
- *      upgrading reader sees the words that were always there with a caret
- *      beside them.
- *   2. **A shelf, and the stamp names a project on it.** The ordinary case.
- *      That project is the open one and the nine keys are its plan.
- *   3. **A shelf, and no stamp.** An older build saved in between — it wrote the
- *      nine keys it knows and dropped the tenth. What it wrote is the reader's
- *      latest work, so it is adopted into whichever project the shelf says was
- *      open, and every other project rides out the visit untouched.
- *   4. **A shelf, and a stamp naming a project that is gone.** Removed in
- *      another tab. The shelf's own `openProjectId` decides, and failing that
- *      the first project.
- *   5. **A shelf, and the nine keys are the app's own first-run plan** (`fresh`,
- *      set only by `defaultState()`). `finapp.state.v3` was cleared and this key
- *      was not. The shelf decides who is open rather than a worked example
- *      replacing everything: the plan the reader was standing in went with the
- *      key that held it — the price of keeping exactly one copy of it — but
- *      every other project is still there, where a build before this one would
- *      have shown a demonstration and nothing else.
- *
- * @param {object} flat the nine keys `loadState` produced, plus the stamp
- * @param {boolean} fresh whether those nine are the app's own first-run plan
- */
-function loadProjects(flat, fresh) {
-  const saved = readStore(PROJECTS_KEY, null);
-  if (saved && typeof saved === 'object' && Array.isArray(saved.projects) && saved.projects.length) {
-    const stamped = typeof flat.projectId === 'string' ? flat.projectId : '';
-    // Read with the stamp preferred and the shelf's own answer behind it, so
-    // that branches 2, 3 and 4 are one expression rather than three.
-    const wanted = saved.projects.some((project) => project && project.id === stamped)
-      ? stamped : saved.openProjectId;
-    const projects = normalizeProjects(saved.projects, projectCoerce, wanted);
-    const openProjectId = openIdOf(projects, wanted);
-    // Branch 5. `normalizeProjects` has already emptied the open record's plan,
-    // so the plan to put on screen is the one the store held for it.
-    if (fresh) {
-      const kept = saved.projects.find((project) => project && project.id === openProjectId);
-      return { openProjectId, projects, plan: normalizePlan(kept && kept.plan, projectCoerce) };
-    }
-    return { openProjectId, projects };
-  }
-  const plan = planOf(flat);
-  return fresh
-    ? firstRunProjects(plan, makeTranslator(resolveLanguage()))
-    : { ...soleProject(), plan };
-}
-
-/**
- * One unnamed project holding exactly what was already there.
- *
- * The whole of the migration for a store that arrived from an older build. It
- * gets no name, because nothing here knows what it was about, and `nameOf`
- * renders a lone unnamed project as the form's own heading — so an upgrading
- * reader sees the words that were always there and nothing appears to have been
- * named, because nothing has.
- *
- * **It stays one project, deliberately.** A fresh device opens with three (see
- * `firstRunProjects`); a device with somebody's work on it gets exactly what it
- * had. Putting the templates on an existing reader's shelf would be answering a
- * question they did not ask, on a screen they had already arranged.
- */
-function soleProject() {
-  const only = normalizeProject({ nameKey: '' }, projectCoerce, true);
-  return { projects: [only], openProjectId: only.id };
-}
-
-/**
- * What a device opens with the very first time, and what "Start again" returns
- * it to: the worked example, and both templates already on the shelf.
- *
- * The worked example is open, because it is the one with figures in it that add
- * up to something and it is what every reader has landed on since the app had
- * one plan. The templates sit behind it, built rather than offered — a reader
- * who never finds the sheet still has them, and a reader who does opens them by
- * pressing a name instead of by understanding what a template is first.
- *
- * That is the whole argument for loading them rather than leaving them in the
- * shelf's "or start from a template" line: the line only works for somebody who
- * has already found the sheet, and the sheet is behind the one control readers
- * miss.
- *
- * Their targets are named in words rather than in dictionary keys, so this
- * needs a translator before the one the rest of the app uses exists — which is
- * what `resolveLanguage` above is for.
- *
- * @param {object} plan the nine keys of the worked example, already built
- * @param {(key: string, ...params: unknown[]) => string} say a translator
- */
-function firstRunProjects(plan, say) {
-  const open = normalizeProject({ nameKey: 'project.default.home' }, projectCoerce, true);
-  const behind = TEMPLATES.map((template) => {
-    const built = template.build(say);
-    return normalizeProject({ nameKey: built.nameKey, plan: built }, projectCoerce, false);
-  });
-  return { projects: [open, ...behind], openProjectId: open.id, plan };
-}
-
-const state = loadState();
-{
-  const { plan, ...shelf } = loadProjects(state, state.fresh === true);
-  Object.assign(state, shelf);
-  // Branch 1 and branch 5 both hand back the plan that belongs on screen;
-  // branches 2 to 4 leave the nine keys exactly as the store had them.
-  if (plan) Object.assign(state, plan);
-  delete state.projectId;
-}
-delete state.fresh;
+const planStore = createPlanStore(storage, {
+  // A document gets its own draft key. Duplicated tabs copy sessionStorage,
+  // so a session-stored id would let two live tabs overwrite each other's draft.
+  withLock: navigator.locks ? (work) => navigator.locks.request('finapp.workspace', work) : null,
+});
+let loaded = planStore.read();
+const state = loadWorkspace(loaded.data, resolveLanguage());
+let baseline = JSON.stringify(snapshotOf(state));
+let dirty = false;
+let saveState = 'saved';
+let pendingRemote = false;
+let recoveries = planStore.drafts();
 
 /** The open project's record. */
 function openProject() {
@@ -548,139 +230,149 @@ function setActiveFields(next) {
 }
 
 let saveTimer = 0;
+let saving = null;
 
-/**
- * Write the store: the shelf first, then the plan on screen.
- *
- * **The order is the recovery rule, and it is why there is one.** `writeStore`
- * fails soft and silent — a full quota means the app still works and just
- * forgets — so two keys are two chances to write half a save. The half that
- * matters is a switch, the only save where a plan moves between the two keys:
- * the project being left has its plan written into the shelf and the one
- * arriving has its plan written flat. Write the shelf first and a failure there
- * stops the pair before the flat write can strand the departing project's work
- * with no copy anywhere. Every other save changes nothing in the shelf but a
- * name or an order, so a torn one costs at most a rename.
- */
-function save() {
+function paintSaveStatus() {
+  const problem = saveState !== 'saved';
+  ui.saveStatus.hidden = !problem && !recoveries.length;
+  const message = t(problem ? `save.${saveState}` : 'save.recovery', recoveries.length);
+  if (ui.saveMessage.textContent !== message) ui.saveMessage.textContent = message;
+  ui.saveRetry.hidden = !['error', 'unavailable'].includes(saveState);
+  ui.saveLatest.hidden = !['conflict', 'remote'].includes(saveState);
+  ui.saveLatest.disabled = Boolean(saving);
+  ui.saveRecover.disabled = Boolean(saving);
+  ui.saveRecover.hidden = !recoveries.length;
+}
+
+/** Keep the complete workspace recoverable even if a tab closes before its lock is granted. */
+function stageChanges() {
+  const snapshot = snapshotOf(state);
+  dirty = JSON.stringify(snapshot) !== baseline;
+  if (dirty && !planStore.stage(snapshot)) saveState = 'error';
+  return snapshot;
+}
+
+async function save() {
   window.clearTimeout(saveTimer);
   saveTimer = 0;
-  if (!writeStore(PROJECTS_KEY, {
-    projects: state.projects,
-    openProjectId: state.openProjectId,
-  })) return;
-  // Second, and under its own key, so that everything here stays exactly the
-  // store an older build knows how to read and write — nine keys it recognises
-  // and a tenth it ignores.
-  writeStore(STATE_KEY, {
-    strategies: state.strategies,
-    activeId: state.activeId,
-    months: state.months,
-    inflation: state.inflation,
-    realMoney: state.realMoney,
-    spread: state.spread,
-    showRange: state.showRange,
-    tax: state.tax,
-    milestones: state.milestones,
-    projectId: state.openProjectId,
-  });
+  const snapshot = stageChanges();
+  if (saving) return saving;
+  if (!dirty) { receiveSaved(); return; }
+  const written = JSON.stringify(snapshot);
+  saveState = 'pending';
+  paintSaveStatus();
+  saving = planStore.save(snapshot, loaded.token);
+  const result = await saving;
+  saving = null;
+  if (result.status === 'saved') {
+    loaded = result.latest;
+    baseline = written;
+    dirty = JSON.stringify(snapshotOf(state)) !== baseline;
+    saveState = dirty ? 'pending' : 'saved';
+    recoveries = planStore.drafts();
+    if (dirty) saveTimer = window.setTimeout(save, 0);
+  } else {
+    saveState = result.status;
+    pendingRemote = result.status === 'conflict';
+  }
+  paintSaveStatus();
 }
 
 function persist() {
   window.clearTimeout(saveTimer);
-  saveTimer = window.setTimeout(save, 250);
+  stageChanges();
+  if (dirty) {
+    if (saveState !== 'error') saveState = 'pending';
+    saveTimer = window.setTimeout(save, 250);
+  } else receiveSaved();
+  paintSaveStatus();
 }
 
-// A tab can be closed or backgrounded inside the debounce window; the last edit
-// must not be the one that gets lost.
+function adoptWorkspace(snapshot) {
+  Object.assign(state, loadWorkspace(snapshot, language));
+  forgetUndo();
+  forgetRanking();
+  forgetAsked();
+  metricChosen = false;
+  fillControls();
+  render();
+}
+
+/** Defer foreign changes while editing; never drop the update or overwrite it later. */
+function receiveSaved() {
+  const latest = planStore.read();
+  if (latest.token === loaded.token) return;
+  pendingRemote = true;
+  const editing = document.activeElement instanceof Element
+    && document.activeElement.closest('.field-list, .strategy-bar, .filter-row, .milestone-list, .project-list');
+  if (dirty || saving || editing) {
+    saveState = dirty ? 'conflict' : 'remote';
+    paintSaveStatus();
+    return;
+  }
+  loaded = latest;
+  adoptWorkspace(latest.data);
+  baseline = JSON.stringify(snapshotOf(state));
+  pendingRemote = false;
+  saveState = 'saved';
+  recoveries = planStore.drafts();
+  paintSaveStatus();
+}
+
+window.addEventListener('storage', (event) => {
+  if (event.key === null || STORE_KEYS.includes(event.key)) receiveSaved();
+});
+document.addEventListener('focusout', () => {
+  if (pendingRemote) window.setTimeout(receiveSaved, 0);
+});
 for (const event of ['pagehide', 'beforeunload']) {
-  window.addEventListener(event, () => { if (saveTimer) save(); });
+  window.addEventListener(event, () => { if (dirty) { stageChanges(); save(); } });
 }
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && saveTimer) save();
+  if (document.visibilityState === 'hidden' && dirty) { stageChanges(); save(); }
+  if (document.visibilityState === 'visible') receiveSaved();
+});
+window.addEventListener('focus', receiveSaved);
+ui.saveRetry.addEventListener('click', save);
+ui.saveLatest.addEventListener('click', () => {
+  if (dirty && !window.confirm(t('save.discardAsk'))) return;
+  window.clearTimeout(saveTimer);
+  planStore.discardDraft();
+  loaded = planStore.read();
+  dirty = false;
+  adoptWorkspace(loaded.data);
+  baseline = JSON.stringify(snapshotOf(state));
+  pendingRemote = false;
+  saveState = 'saved';
+  paintSaveStatus();
+});
+ui.saveExport.addEventListener('click', exportBackup);
+ui.aboutBackup.addEventListener('click', exportBackup);
+ui.saveRecover.addEventListener('click', () => {
+  const recovery = planStore.drafts()[0];
+  if (!recovery || !window.confirm(t('save.recoverAsk'))) return;
+  loaded = planStore.read();
+  adoptWorkspace(recovery.snapshot);
+  persist();
+  save().then(() => {
+    if (!dirty) planStore.discardDraft(recovery.key);
+    recoveries = planStore.drafts();
+    paintSaveStatus();
+  });
 });
 
-// Two tabs, one store. The tab the reader is actually using keeps its own
-// state; an idle one adopts what the other wrote rather than sitting on stale
-// numbers and overwriting them later.
-window.addEventListener('storage', (event) => {
-  if (event.key !== STATE_KEY || !event.newValue) return;
-  // Never pull the rug out from under someone typing here, and leave the tab
-  // in the foreground alone — it is the one the reader is working in.
-  //
-  // The selector is a list of every region an adoption would write into while
-  // somebody is in it, and each entry earned its place separately:
-  //   `.field-list`    — the rows themselves, the reason the guard exists.
-  //   `.strategy-bar`  — the name box, which is a text field like any other.
-  //   `.filter-row`    — the horizon slider and the three rate boxes. These
-  //                      live outside both of the others and were written into
-  //                      unconditionally, so a figure being typed here was
-  //                      replaced under the caret by whatever another window
-  //                      had just saved.
-  //   `.milestone-list` — the targets. A figure being watched for is a figure
-  //                      being typed like any other, and the whole list is
-  //                      written below, so a half-entered target would be
-  //                      replaced by another window's.
-  // Anything else that grows an editable control and gets adopted below belongs
-  // on this list too; nothing owns it, so it is only ever as complete as the
-  // last person to add to the block of assignments underneath.
-  const editingHere = document.activeElement instanceof Element
-    && document.activeElement.closest('.field-list, .strategy-bar, .filter-row, .milestone-list');
-  if (editingHere) return;
-  // And an edit of our own still inside the debounce is an edit: adopting now
-  // would discard it before it was ever written.
-  if (saveTimer) return;
-  if (document.visibilityState === 'visible' && document.hasFocus()) return;
-  try {
-    const incoming = JSON.parse(event.newValue);
-    if (!incoming || !Array.isArray(incoming.strategies)) return;
-    state.strategies = normalizeStrategies(incoming.strategies);
-    state.activeId = activeIdOf(state.strategies, incoming.activeId);
-    state.months = toMonths(incoming.months ?? DEFAULT_MONTHS);
-    state.inflation = toRateText(incoming.inflation);
-    state.realMoney = incoming.realMoney === true;
-    state.spread = toRateText(incoming.spread, DEFAULT_SPREAD);
-    state.showRange = incoming.showRange === true;
-    state.tax = toRateText(incoming.tax, DEFAULT_TAX);
-    state.milestones = normalizeMilestones(incoming.milestones, METRICS);
-    // The nine that just arrived are the *open* project's, whichever build
-    // wrote them. Re-reading the shelf beside them keeps the two halves of one
-    // save together — and if the other window was an older build that has never
-    // heard of the shelf, this reads back the shelf it left alone and writes
-    // the work it did into the project it was standing in.
-    Object.assign(state, loadProjects(state, false));
-    ui.months.value = String(state.months);
-    ui.inflation.value = state.inflation;
-    ui.spread.value = state.spread;
-    ui.tax.value = state.tax;
-    // The single most important line in the undo feature, and it is here rather
-    // than anywhere near it. Every snapshot this tab is holding is a photograph
-    // of plans the *other* window has since replaced; keeping them would leave a
-    // backgrounded tab one press of Undo away from writing its stale plans
-    // straight over the work being done in the window the reader is actually
-    // in. The adoption is the moment those snapshots stop being about anything,
-    // so it is the moment they go — before the redraw that would otherwise put
-    // the button back on screen offering them.
-    forgetUndo();
-    render();
-  } catch {
-    /* another tab wrote something unreadable — keep what we have */
-  }
-});
+function exportBackup() {
+  const contents = JSON.stringify({ version: 1, workspace: snapshotOf(state), drafts: planStore.drafts() }, null, 2);
+  const url = URL.createObjectURL(new Blob([contents], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `finapp-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 /* --------------------------------------------------------------------- undo */
 
-/**
- * The last few plans, and the way back to them.
- *
- * Every branch below that throws work away photographs the plan first, which
- * costs one JSON round trip of something the app already serialises several
- * times a minute. What is deliberately *not* here is a push per keystroke: undo
- * steps back to "before I deleted that" rather than to "before I typed the 4",
- * and the way that is arranged is that the snapshot is taken by the command
- * rather than by the input event — the commands being, already, the only place
- * a removal can happen at all.
- */
 let undoStack = [];
 
 /**
@@ -722,15 +414,6 @@ function checkpoint(what) {
   clearUndoSaid();
 }
 
-/**
- * Whether the shelf has room for everything a snapshot would put back.
- *
- * The shelf holds six, and undoing a removal asks for a seventh whenever the
- * reader has started something new since. The button is gone rather than
- * greyed, the same as it is with nothing to take back at all — a press that
- * cannot do what it says is worse than no press, and this one would have to
- * choose between the project coming back and the project just started.
- */
 function roomToUndo(snapshot) {
   // The projects the move itself made do not count against the ceiling, because
   // taking the move back takes them away in the same breath. Without this,
@@ -764,41 +447,11 @@ function checkpointShelf(what, plan, at, born) {
   clearUndoSaid();
 }
 
-/**
- * Throw the whole stack away.
- *
- * Still one caller, and that is the point. The cross-tab listener above, where
- * the plans these snapshots are of have stopped being this tab's business.
- *
- * Switching project is deliberately *not* here. A snapshot names the project it
- * is a photograph of and is only ever offered back in that project, so changing
- * subject hides the other question's history rather than destroying it —
- * change back and the removal you made there is still yours to take back. That
- * is what makes "switching is a way of looking, not a change" true in the code
- * rather than only in a comment.
- */
 function forgetUndo() {
   undoStack = [];
   clearUndoSaid();
 }
 
-/**
- * Take the last destructive move back.
- *
- * The whole plan goes back, `activeId` with it — which is the answer to the one
- * question the feature was filed unsure about. Undoing an edit made in a plan
- * you are no longer looking at is disorienting, so the snapshot carries which
- * plan was on screen and the app switches back to it on the way past.
- *
- * What does *not* come back is the way the reader was looking at the plan. The
- * column the comparison shows and the reading the cards are in were never in
- * the snapshot, because they are not parts of a plan — undo takes back the
- * move, not the afternoon.
- *
- * Saved at once rather than through the debounce, for the reason "Start again"
- * is: a tab closed a quarter of a second later must not leave the thrown-away
- * plans in the store and the restored ones on screen.
- */
 function undo() {
   const taken = takeBack(undoStack, state.openProjectId, roomToUndo);
   if (!taken) return;
@@ -875,15 +528,6 @@ ui.undo.addEventListener('click', undo);
 
 /* ------------------------------------------------------------------- charts */
 
-/**
- * Whether an investment does anything inside the horizon, which is a different
- * question from whether one is listed. `hasInvestments` asks the fields, so it
- * says yes to a fund that starts after the last month drawn — and the app's own
- * first plan does exactly that, putting its housing money into a fund the month
- * after the mortgage ends. On the default twenty-year horizon that left an
- * Investment value card with a flat line at zero and three tiles reading 0,
- * under a note promising each card is drawn "only once it has something to say".
- */
 function investsInside(projection) {
   return projection.totals.contributed > 0 || projection.totals.invested > 0;
 }
@@ -943,20 +587,6 @@ function sayInstead(node, key) {
   node.textContent = t(key);
 }
 
-/**
- * Whether a card is drawn to a scale of its own.
- *
- * `spec.ownScale` says the card's quantity cannot be compared with the flows:
- * a balance either dwarfs a cumulative flow or is dwarfed by it, and put on the
- * shared scale it reads as a flat line along the axis. Read a month at a time
- * nothing on the page is a balance any more — every card shows what moved
- * during one month, which is the same kind of figure everywhere — so the
- * exception lapses with the reading.
- *
- * Asked here rather than at both call sites, because the shared extent and a
- * card's own domain have to give the same answer: disagree and a card is drawn
- * to one scale while its axis describes another.
- */
 function ownScaleOf(spec) {
   return Boolean(spec.ownScale) && !monthly;
 }
@@ -994,16 +624,6 @@ function chartWords(spec) {
   };
 }
 
-/**
- * Bring the set of cards into line with `specs`, keeping every card that is
- * already there.
- *
- * Rebuilding the lot was cheap to write and expensive to read: whether a card's
- * table is open lives in its own closure, so tearing down the four that did not
- * change in order to add a fifth shut every table the reader had opened. Adding
- * or clearing an investment is an ordinary edit, and reading the monthly figures
- * while making one has to be possible.
- */
 function syncCharts(specs) {
   const wanted = new Set(specs.map((spec) => spec.id));
   for (const chart of charts) {
@@ -1073,19 +693,6 @@ const CONDITIONAL_METRICS = {
   debt: (projections) => projections.some((p) => hasDebt(p)),
 };
 
-/**
- * Which quantity a reading falls back to when nobody has picked one: the total
- * wherever the comparison offers it, and the net wherever it does not — which
- * is exactly where the two are the same figure, because worth only parts from
- * net once something is invested, owed or owned.
- *
- * Four places needed that answer and each had written it out in its own words:
- * the two fallbacks in `renderMetrics`, the gap column's heading, and the note
- * under the chart. They have to agree — a table headed "Total vs the first"
- * sitting under a chart titled Net is the bug that kept coming back — so the
- * question gets asked in one place now, and whatever comes to need it next asks
- * the same one rather than writing a fifth copy.
- */
 function preferredMetric(projections) {
   return CONDITIONAL_METRICS.worth(projections) ? 'worth' : 'net';
 }
@@ -1258,50 +865,17 @@ function renderCompareTable(projections) {
  * the two extra runs behind a band — is looking at the same money.
  */
 function runPlain(planFields) {
-  const projection = project({ fields: planFields, months: state.months, taxRate: state.tax });
-  return state.realMoney ? inTodaysMoney(projection, state.inflation) : projection;
+  return createScenarioRunner(state).plain(planFields);
 }
 
-/**
- * The same, with every waited-on target resolved to a month first.
- *
- * `schedule` hands back the plan it wants projected, so the projection below is
- * built from months rather than from names and nothing under it knows a name
- * was ever involved. Its report rides along on the projection because every
- * view that would want it — the target list, the field rows, the note that says
- * a plan did not settle — already has one of these in hand and threading a
- * second argument through all of them would say nothing extra.
- *
- * A plan where nothing waits on anything costs nothing: `schedule` returns the
- * list it was given without running a projection at all, so the common case
- * pays for none of this.
- */
 function projectionFor(planFields) {
-  const placed = schedule({
-    fields: planFields,
-    milestones: state.milestones,
-    run: runPlain,
-    read: toNumber,
-  });
-  const projection = runPlain(placed.fields);
-  projection.schedule = placed;
-  return projection;
+  return createScenarioRunner(state).run(planFields);
 }
 
 /* --------------------------------------------------------------- the flow */
 
 let sankey = null;
 
-/**
- * What the flow diagram draws: every field that moved cash, as a share of the
- * direction it moved it in.
- *
- * The shares are apportioned *out of* the totals the summary already shows,
- * never summed independently beside them — ten separately rounded shares can
- * miss their own total by a few cents, and a diagram that disagrees with the
- * tile above it is worse than no diagram. A field that moves no cash at all,
- * which is every asset, weighs nothing and so is simply not there.
- */
 function sankeyData(projection) {
   // A loan's repayment is not one thing, and one ribbon says only "this much
   // left" — which is the question the diagram exists to go past. So it arrives
@@ -1599,20 +1173,6 @@ function forgetRanking() {
   rankJob += 1;
 }
 
-/**
- * Work the swings out a slice at a time, and paint once they are all in.
- *
- * A hundred fields is two hundred projections, and on a long horizon that is
- * seconds of arithmetic — measured at 5.8s on four plans of a hundred fields
- * over fifty years. Done in one go it is a frozen tab: no scrolling, no typing,
- * no theme button, and on a cold load it happened before the first paint, so
- * the reader watched a blank page for all of it.
- *
- * So the fields are taken a few at a time, giving the thread back between
- * slices. Nothing is painted until every row is in — a list that grew a row at
- * a time would reorder itself under the reader's eye, because the order is the
- * answer — and a job whose question has been superseded stops where it is.
- */
 function workOutRanking(projection, key, question) {
   const job = (rankJob += 1);
   const movers = moversOf(projection);
@@ -1688,16 +1248,6 @@ function paintRanking(projection, key) {
   }
 }
 
-/**
- * Which of the reader's figures actually decide where this plan lands.
- *
- * **Called after `renderComparison`, and not by accident.** The column the list
- * is judged on is the one the comparison is showing, and `renderMetrics` is
- * what settles that for this frame — it may have just moved, because a metric
- * whose subject has left the plan falls back to the preferred one. Called
- * first, this would rank against the column that was on screen a moment ago.
- * Nothing in the code below says so, which is why it is said here.
- */
 function renderRanking(projection, projections) {
   // Two amounts is the least that can be put in an order; one field ranked
   // against nothing is a single line announcing that it matters most.
@@ -1754,17 +1304,6 @@ function renderRanking(projection, projections) {
 
 /* -------------------------------------------------------------- milestones */
 
-/*
- * The app's largest declared limitation is that nothing in the model is
- * conditional — the months the renters buy were worked out by hand and written
- * into `strategies.js`, because "as soon as savings reach 100,000" is not a
- * rule a projection can obey. Nothing here changes that. It does not have to:
- * "the first month savings reach 100,000" is a read over the answer, and the
- * answer is already in `projection.points`. So this section runs no model of
- * its own and adds no pass over the fields — it looks at what has already been
- * computed and says which month it crossed.
- */
-
 /**
  * Which column a new target opens on.
  *
@@ -1795,17 +1334,6 @@ function milestoneSaid(projection, milestone) {
   return t('milestone.said.met', reading.month, formatAmount(reading.value));
 }
 
-/**
- * The months to rule on the cards: every target this plan actually meets.
- *
- * Read against the plan on screen, and drawn only on that plan's cards. The
- * comparison chart deliberately gets none: it holds four plans at once, and a
- * month read off one of them ruled across all four would be a claim about
- * plans it was never read from.
- *
- * Months are pooled rather than listed, so two targets met in the same month
- * are one line instead of two drawn exactly on top of each other.
- */
 function milestoneRules(projection) {
   const months = new Set();
   for (const milestone of state.milestones) {
@@ -1817,45 +1345,18 @@ function milestoneRules(projection) {
 
 /* ------------------------------------------------------- the same, backwards */
 
-/*
- * A target the plan never reaches is where the question turns round: the
- * destination is known and the figure is not. So the ask is a verb on that
- * answer rather than a control of its own — no dialog, and no fourth button on
- * every field row in the app — and it needs no second vocabulary, because the
- * quantity and the figure are the ones already in the boxes above it.
- *
- * `solve.js` does the searching and the refusing. What is here is the wiring:
- * which target is holding an answer, and whether it is still the answer to the
- * question that was asked.
- */
-
 /** Whether a target is one the plan misses — the whole of what the ask is for. */
 function unreached(projection, milestone) {
   const reading = whenMet(projection, milestone, toNumber);
   return Boolean(reading) && reading.month === null;
 }
 
-/**
- * The one answer the app is holding, and everything it was worked out from.
- *
- * Kept the way a ranking is kept, and for the same reason: it costs several
- * dozen projections and `render()` runs on every keystroke, so an answer is
- * shown back only where nothing it depended on has moved. Anything that would
- * change it — the fields, the horizon, the money, the target itself — instead
- * takes it off the screen, because an answer to a question nobody is asking any
- * more is worse than no answer at all.
- *
- * What is kept is the *finding* rather than the sentence. The language is not
- * part of the question — a figure is the same figure in French — so an answer
- * worded once would sit there in English after the reader switched, which is
- * the one thing on the page that would not have followed them.
- */
 let asked = { id: '', key: '', question: '', result: null };
 
 /** Everything an answer depends on, written down. */
 function goalQuestion(projection, milestone, key) {
   return JSON.stringify([
-    projection.fields, projection.months, projection.taxRate,
+    fields(), state.milestones, projection.months, projection.taxRate,
     state.realMoney, state.inflation, milestone.metric, milestone.amount, key,
   ]);
 }
@@ -1865,17 +1366,6 @@ function forgetAsked() {
   asked = { id: '', key: '', question: '', result: null };
 }
 
-/**
- * A solved figure, written the way the box it belongs in writes one.
- *
- * A rate goes through `formatTyped` rather than `formatRate`, which is what
- * every rate on screen otherwise uses: `formatRate` floors at nothing, because
- * the rates it writes are ones a reader typed and a box that shows a negative
- * one has been misread. A solved rate genuinely can be negative — "the living
- * costs would have to climb by -9% a year or less" is a real answer to a real
- * target — and it is a figure to be typed back into a box, so it takes the
- * reader's own decimal separator and no grouping.
- */
 function goalFigure(knob, value) {
   return knob === 'annualRate' ? t('goal.rate', formatTyped(value)) : formatAmount(value);
 }
@@ -1909,7 +1399,7 @@ function goalSaid(candidate, result) {
 function askGoal(id, key) {
   const projection = projectionFor(fields());
   const milestone = state.milestones.find((entry) => entry.id === id);
-  const candidate = candidatesOf(projection.fields).find((entry) => entry.key === key);
+  const candidate = candidatesOf(fields()).find((entry) => entry.key === key);
   // Nothing to ask about leaves nothing standing: the answer on screen was to
   // some other question, and it is not made truer by this one failing.
   if (!milestone || !candidate) {
@@ -1917,7 +1407,7 @@ function askGoal(id, key) {
     return;
   }
   const result = solveFor({
-    fields: projection.fields,
+    fields: fields(),
     fieldId: candidate.field.id,
     knob: candidate.knob,
     milestone,
@@ -1930,7 +1420,7 @@ function askGoal(id, key) {
 }
 
 function milestoneLabels(projection) {
-  const offered = candidatesOf(projection.fields);
+  const offered = candidatesOf(fields());
   // Only one target holds an answer at a time, so whether that answer is still
   // an answer to the question it was given is settled once here rather than
   // re-derived on every row — and it is put into words here too, on the render
@@ -1949,6 +1439,8 @@ function milestoneLabels(projection) {
     figure: t('milestone.figure'),
     figureNamed: (metric) => t('milestone.figureNamed', metric),
     removeNamed: (metric) => t('milestone.removeNamed', metric),
+    references: (one) => referencesTo(state.strategies, one.id),
+    used: (count) => t('milestone.used', count),
     // The comparison's own names, never a second spelling of the same eight
     // quantities: "Total" reading one way in a chip and another in a target is
     // two words for one thing on one page.
@@ -1971,7 +1463,11 @@ function milestoneLabels(projection) {
 
 function renderMilestones(projection) {
   const marked = state.milestones.length > 0;
-  ui.milestones.hidden = !marked;
+  const broken = missingTargets(state.strategies, state.milestones).length > 0;
+  const visible = marked || broken;
+  // A legacy store may have references after its last target was removed.
+  // Keep the warning visible even when there are no target rows left.
+  ui.milestones.hidden = !visible;
   // What the ask can do and what it refuses to, shown where the ask is: on a
   // page where every target is met it would be a caveat about a control the
   // reader has never been offered.
@@ -1980,7 +1476,7 @@ function renderMilestones(projection) {
   // until there is something to show, and it goes the moment the section it
   // opens can speak for itself — two ways to add the first target, one of them
   // permanently visible, is an empty state wearing a button.
-  ui.addMilestone.hidden = marked;
+  ui.addMilestone.hidden = visible;
   // Written even when there is nothing to write. Skipping it while the section
   // is hidden would leave the row of a removed target standing inside it,
   // invisible and out of date, waiting to be shown again by the next target
@@ -1988,6 +1484,7 @@ function renderMilestones(projection) {
   // Said once, above the list, rather than on the row that happens to be last
   // to move: when two targets chase each other there is no one row at fault.
   ui.milestoneUnsettled.hidden = projection.schedule.settled;
+  ui.milestoneInvalid.hidden = !broken;
   milestoneList.update(state.milestones, milestoneLabels(projection));
 }
 
@@ -2004,9 +1501,7 @@ function runMilestoneCommand(command) {
       // sign — a field's direction carries the sign so the box never needs one,
       // and a target has no direction: "net reaches −5,000" is a perfectly fair
       // thing to want the month of.
-      const patch = { ...command.patch };
-      const figure = toNumber(patch.amount);
-      patch.amount = Number.isFinite(figure) ? formatTyped(roundToCent(figure)) : '';
+      const patch = settleTargetPatch(command.patch, formatTyped);
       state.milestones = updateMilestone(state.milestones, command.id, patch, METRICS);
       break;
     }
@@ -2040,9 +1535,11 @@ function runMilestoneCommand(command) {
       // The fifth undoable move, and the one the gap was filed without: a
       // target is a figure somebody typed, and the button that removes it is
       // the same button that removes a field.
+      const next = removeTarget(planOf(state), command.id);
+      if (!next) return;
       checkpoint('milestone');
       const neighbour = milestoneNeighbourOf(state.milestones, command.id);
-      state.milestones = removeMilestone(state.milestones, command.id);
+      state.milestones = next.milestones;
       persist();
       render();
       // Removing the last one hides the section this button lived in, which
@@ -2065,154 +1562,7 @@ ui.addMilestone.addEventListener('click', () => runMilestoneCommand({ type: 'add
 /* --------------------------------------------------------------- field list */
 
 function fieldLabels(placed) {
-  const months = (placed && placed.months) || new Map();
-  // The named targets a month may wait on, and what each resolved to. Both
-  // come from the schedule the projection was built from, so the month a row
-  // shows is the month the curve above it was drawn with. Named here rather
-  // than written inline, because `saidFor` below has to look a target up by id
-  // to say its name, and two copies of the same list would be one too many.
-  const targets = waitableOf(state.milestones).map((one) => ({ id: one.id, name: one.name }));
-  return {
-    targets,
-    atMonth: t('field.atMonth'),
-    atAria: (name) => t('field.atAria', name),
-    monthSaid: (id) => {
-      const month = months.get(id);
-      return Number.isFinite(month) ? t('field.atMet', month) : t('field.atNotYet');
-    },
-    name: t('field.name'),
-    namePlaceholder: t('field.namePlaceholder'),
-    direction: t('field.direction'),
-    amount: t('field.amount'),
-    period: t('field.period'),
-    periodName: (months) => t(`field.period.${months}`),
-    kind: t('field.kind'),
-    kindName: (kind) => t(`field.kind.${kind}`),
-    amountFor: (kind) => t(`field.amount.${kind}`),
-    rateFor: (kind) => t(`field.rate.${kind}`),
-    ratePlaceholder: t('field.ratePlaceholder'),
-    term: t('field.term'),
-    from: t('field.from'),
-    to: t('field.to'),
-    fromWord: t('field.fromWord'),
-    fromWordShort: t('field.fromWordShort'),
-    toWord: t('field.toWord'),
-    ownedFrom: t('field.ownedFrom'),
-    sell: t('field.sell'),
-    sellWord: t('field.sellWord'),
-    sellWordShort: t('field.sellWordShort'),
-    toWordShort: t('field.toWordShort'),
-    onceMonth: t('field.onceMonth'),
-    onceWord: t('field.onceWord'),
-    onceWordShort: t('field.onceWordShort'),
-    rateUnit: t('field.rateUnit'),
-    rateUnitShort: t('field.rateUnitShort'),
-    fees: t('field.fees'),
-    feesUnit: t('field.feesUnit'),
-    feesUnitShort: t('field.feesUnitShort'),
-    termUnit: t('field.termUnit'),
-    termUnitShort: t('field.termUnitShort'),
-    // Only worth spelling out once it actually climbs, and only as far as the
-    // horizon on screen — the number moves with the slider, which is the point.
-    growthSummary: (field) => {
-      const rate = toNumber(field.annualRate);
-      if (!Number.isFinite(rate) || rate === 0 || !toAmount(field.amount)) return '';
-      // The month the field last lands on, not the horizon: a yearly amount
-      // over twenty months last landed at month 12, and quoting the horizon
-      // named a figure the projection never uses — 1,050 by month 20 for a
-      // field that moved 1,000 and will not move again until month 24.
-      const lands = lastLandingOf(field, state.months);
-      if (!lands) return '';
-      const years = yearsRunning(field, lands);
-      if (years < 1) return '';
-      return t(
-        'field.growthSummary',
-        formatRate(rate),
-        formatAmount(grownBy(field.amount, field.annualRate, years)),
-        lands,
-      );
-    },
-    // Two sentences, because with no fees the borrowed sum is the amount that
-    // was typed and saying it back would be noise. With fees it is the one
-    // thing the reader cannot see: they entered what they need, not what the
-    // bank will lend.
-    loanSummary: (field) => {
-      const borrowed = borrowedOf(field);
-      const payment = formatAmount(loanPayment(borrowed, field.annualRate, field.termMonths));
-      const interest = formatAmount(loanInterest(field));
-      const total = formatAmount(loanTotal(field));
-      if (toAmount(field.fees) <= 0) {
-        return t('field.loanSummary', payment, field.termMonths, interest, total);
-      }
-      return t(
-        'field.loanSummaryFees',
-        payment,
-        field.termMonths,
-        formatAmount(borrowed),
-        formatAmount(toAmount(field.amount)),
-        interest,
-        total,
-      );
-    },
-    openNamed: (name) => t('field.open', name),
-    closeNamed: (name) => t('field.close', name),
-    /*
-     * What a shut row says about itself: the facts its two visible boxes — a
-     * name and an amount — cannot carry. Kind, direction, cadence, term, a rate
-     * that has been set, and every month that has been set, including a named
-     * target the field is waiting on.
-     *
-     * Every fragment is one the dictionary already has, joined the way the two
-     * derived lines above already join theirs, with ' · '. Nothing here is a
-     * new sentence for a translator to keep in step with a layout; it is the
-     * same words the controls use, read out in the order the controls sit in.
-     */
-    saidFor: (field) => {
-      const isLoan = field.kind === 'loan';
-      const isAsset = field.kind === 'asset';
-      const isOnce = field.kind === 'once';
-      const isInvestment = field.kind === 'investment';
-      const said = [t(`field.kind.${field.kind}`)];
-      // The colour stripe repeats the direction rather than carrying it, so the
-      // line has to say it on every kind that offers the select — and on the
-      // two that hide it there is no direction to say.
-      if (!isInvestment && !isAsset) said.push(t(field.direction === 'income' ? 'field.income' : 'field.expense'));
-      if (!isLoan && !isAsset && !isOnce) said.push(t(`field.period.${field.periodMonths}`));
-      if (isLoan) said.push(`${field.termMonths} ${t('field.termUnit')}`);
-      // Only a rate that does something: zero and empty are the same to the
-      // projection, and a row that said "0% a year" would be spending a third
-      // of its line on nothing.
-      const rate = toNumber(field.annualRate);
-      if (!isOnce && Number.isFinite(rate) && rate !== 0) said.push(t('field.saidRate', formatRate(rate)));
-      // A month waiting on a target says the target's name rather than the
-      // month it resolves to: the name is what the reader chose, and the month
-      // is already on the row's own curve above.
-      const when = (month, at, word, short) => {
-        const target = at && targets.find((one) => one.id === at);
-        if (target) return `${t(short)} ${target.name}`;
-        return month ? `${t(word)} ${month}` : '';
-      };
-      said.push(when(field.startMonth, field.startAt,
-        isOnce ? 'field.onceWord' : 'field.fromWord',
-        isOnce ? 'field.onceWordShort' : 'field.fromWordShort'));
-      if (isInvestment) said.push(when(field.sellMonth, field.sellAt, 'field.sellWord', 'field.sellWordShort'));
-      if (!isAsset && !isLoan && !isOnce) said.push(when(field.endMonth, field.endAt, 'field.toWord', 'field.toWordShort'));
-      return said.filter(Boolean).join(' · ');
-    },
-    income: t('field.income'),
-    expense: t('field.expense'),
-    untitled: t('field.untitled'),
-    add: t('field.add'),
-    empty: t('fields.empty'),
-    syncNamed: (name) => t('field.syncNamed', name),
-    unsyncNamed: (name) => t('field.unsyncNamed', name),
-    syncTitle: t('field.syncTitle'),
-    syncedTitle: t('field.syncedTitle'),
-    duplicateNamed: (name) => t('field.duplicateNamed', name),
-    removeNamed: (name) => t('field.removeNamed', name),
-    directionNamed: (name) => t('field.directionNamed', name),
-    amountNamed: (what, name) => t('field.amountNamed', what, name),
-  };
+  return labelsForFields({ state, placed, t });
 }
 
 /**
@@ -2221,16 +1571,7 @@ function fieldLabels(placed) {
  * Without this, tabbing through the box (or typing the same word and never
  * leaving it) would pin the current language's word forever.
  */
-/**
- * The shelf as the switcher and the sheet should read it: every project
- * carrying a plan, including the open one.
- *
- * The one place the single-copy store is deliberately relaxed, and only for
- * reading. "3 plans · 20 ans" beside a project's name is a fact about its plan,
- * and the open project's plan is the live state rather than anything on the
- * shelf — so it is put back for the length of a render, in a list of its own,
- * and the shelf itself is left with the one copy it is supposed to have.
- */
+
 function shownProjects() {
   return parkOpen(state.projects, state.openProjectId, state);
 }
@@ -2258,17 +1599,6 @@ function projectLabels() {
   };
 }
 
-/**
- * Every move the sheet can ask for.
- *
- * `open` is the one that is deliberately **not** undoable, and it is the same
- * decision switching strategy took: it destroys nothing, it is a way of looking
- * rather than a change, and a reader who lands somewhere they did not mean to
- * gets back by pressing the name they came from. Nor does it throw the undo
- * stack away: a snapshot names the project it photographed and is only offered
- * back there, so changing subject hides the other question's history rather
- * than destroying it.
- */
 function runProjectCommand(command) {
   switch (command.type) {
     case 'open': {
@@ -2352,21 +1682,6 @@ function runProjectCommand(command) {
     }
 
     case 'template': {
-      /*
-       * A project that arrives with its figures already in it.
-       *
-       * Everything below the first two lines is what `add` does, and on purpose:
-       * a template is not a different kind of project, it is the same empty one
-       * with rows already typed into it. So it takes the same route — parked,
-       * added, opened — and the reader can rename it, remove it or undo their
-       * way out of it exactly as they can any other.
-       *
-       * The sheet closes rather than staying open on the name box. `add` keeps
-       * it open because an empty project has nothing to show and a name is the
-       * only thing to give it; a template has thirteen rows and three plans to
-       * look at, and standing a modal over them would be standing it over the
-       * answer the reader just asked for.
-       */
       if (state.projects.length >= MAX_PROJECTS) return;
       const template = templateOf(command.template);
       if (!template) return;
@@ -2559,6 +1874,15 @@ function runCommand(command) {
         // back 12.5 would reasonably think the app had misread them.
         patch.amount = amount ? formatTyped(amount) : '';
       }
+      if ('fees' in patch) {
+        const fees = toAmount(patch.fees);
+        patch.fees = fees ? formatTyped(fees) : '';
+      }
+      if ('annualRate' in patch) {
+        const rate = toRateNumber(patch.annualRate);
+        patch.annualRate = Number.isFinite(rate)
+          ? formatTyped(annualPercent(rate, fieldById(command.id)?.kind === 'loan' ? 0 : -100)) : '';
+      }
       setActiveFields(updateField(fields(), command.id, normalizeLabelPatch(patch, command.id)));
       spreadIfSynced(command.id);
       break;
@@ -2635,18 +1959,6 @@ function renderSummary(projection, hasInput) {
 
   ui.summary.classList.toggle('is-empty', !hasInput);
 
-  /* The chip says the most urgent true thing about the plan, and a month the
-     reader is overdrawn in outranks any average of the months around it.
-
-     Averaged, this chip could report a comfortable surplus for a plan that
-     spends twenty thousand it does not have at month twenty and is rescued by
-     something later — measured, not imagined: 1,555.56 a month kept, in green,
-     on a plan underwater from month one and 20,000 down at its worst. The
-     average is not wrong, it is just not an answer to "can I afford this?", and
-     it is still on the tile below, where it says what it is.
-
-     No new colour and no new icon: running dry is the critical reading the
-     shortfall already was, said about a month instead of about an average. */
   const dry = runsDryAt(projection);
   const shortfall = projection.averages.net < 0;
   const critical = Boolean(dry) || shortfall;
@@ -2706,11 +2018,11 @@ function render() {
 
   // The two runs behind a band: the same plan with every return moved down and
   // up. Only worth computing when something actually depends on a return.
-  const spread = toNumber(state.spread);
+  const spread = toRateNumber(state.spread);
   const ranged = state.showRange && Number.isFinite(spread) && spread > 0
     && (investsInside(projection) || hasOwned(projection));
-  const lower = ranged ? projectionFor(shiftReturns(projection.fields, -spread)) : null;
-  const upper = ranged ? projectionFor(shiftReturns(projection.fields, spread)) : null;
+  const lower = ranged ? projectionFor(shiftReturns(fields(), -spread)) : null;
+  const upper = ranged ? projectionFor(shiftReturns(fields(), spread)) : null;
   // The bounds are differenced with the series they bound, so the ribbon is
   // the range around the month's change rather than around the running total.
   // The two cross in the month a holding is cashed in — the run that grew more
@@ -2799,13 +2111,14 @@ function render() {
   // `afterTax` clamps at 100 and `formatRate` at 1000, so a pasted 500 gave a
   // tile reading "after 500% tax" over a profit of 0. The label names the rate
   // the arithmetic actually used.
-  ui.profitLabel.textContent = t('summary.profit', formatRate(Math.min(100, toNumber(state.tax) || 0)));
+  ui.profitLabel.textContent = t('summary.profit', formatRate(Math.min(100, toRateNumber(state.tax) || 0)));
   ui.profitValue.textContent = hasInput ? formatAmount(projection.totals.profit) : '—';
   // The rate is applied to every plan, and the comparison's Profit column is
   // offered while any of them has an investment — so gating its control on the
   // plan on screen could hide the rate while the figures it produced were still
   // in the table, with nothing to say that switching plans would bring it back.
   ui.taxFilter.hidden = !projections.some(investsInside);
+  ui.taxScope.hidden = !projections.some(investsInside);
   // The bottom line, and the only tile that names its own horizon: without an
   // investment it would repeat the hero to the cent, so it comes and goes with
   // the investment cards.
@@ -2906,6 +2219,7 @@ function render() {
   // control cannot get out of step with the stack: a render is what draws the
   // page from the state, and whether there is a way back is part of the state.
   renderUndo();
+  paintSaveStatus();
   renderSummary(projection, hasInput);
 }
 
@@ -2923,6 +2237,13 @@ function fillControls() {
 }
 fillControls();
 
+ui.tax.addEventListener('blur', () => {
+  state.tax = formatTyped(annualPercent(ui.tax.value, 0, 100));
+  ui.tax.value = state.tax;
+  persist();
+  render();
+});
+
 ui.tax.addEventListener('input', () => {
   state.tax = ui.tax.value;
   persist();
@@ -2935,6 +2256,13 @@ ui.rangeToggle.addEventListener('click', () => {
   render();
 });
 
+ui.spread.addEventListener('blur', () => {
+  state.spread = formatTyped(annualPercent(ui.spread.value, 0, 1000));
+  ui.spread.value = state.spread;
+  persist();
+  render();
+});
+
 ui.spread.addEventListener('input', () => {
   state.spread = ui.spread.value;
   persist();
@@ -2943,6 +2271,13 @@ ui.spread.addEventListener('input', () => {
 
 ui.realToggle.addEventListener('click', () => {
   state.realMoney = !state.realMoney;
+  persist();
+  render();
+});
+
+ui.inflation.addEventListener('blur', () => {
+  state.inflation = formatTyped(annualPercent(ui.inflation.value, 0, 1000));
+  ui.inflation.value = state.inflation;
   persist();
   render();
 });
@@ -2968,16 +2303,6 @@ for (const button of ui.presets) {
   });
 }
 
-/* The form folds to a gutter that still holds the button that brings it back:
-   the way back is where the way out was, and nothing floats over the readings
-   for the reader to scroll their figures under. Below the breakpoint the same
-   press simply puts the fields away and leaves the heading and the plan
-   switcher standing, which is the whole point of keeping the switcher out of
-   the folded part.
-
-   Not remembered across reloads, and deliberately: on both layouts the reader
-   has to see the form when they arrive, or the app opens on a page of figures
-   with no visible way to change them. */
 function setRail(open) {
   document.body.dataset.rail = open ? 'open' : 'closed';
   ui.railToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -2994,7 +2319,6 @@ function setRail(open) {
 
 ui.railToggle.addEventListener('click', () => setRail(ui.inputsBody.hidden));
 
-
 // Touch keeps the last tapped reading on screen; a tap anywhere else clears it.
 // Both halves matter: the guard that holds a reading through the tap's own
 // pointerleave would otherwise hold it for good, on the flow diagram as much as
@@ -3009,15 +2333,6 @@ document.addEventListener('pointerdown', (event) => {
 
 /* -------------------------------------------------------------------- about */
 
-/**
- * What this build is, and what every release before it changed.
- *
- * The version is the cache generation the service worker is actually serving,
- * so it answers the question the panel exists for — *is what I am looking at
- * the current one* — rather than restating a number from a file. The commit
- * beside it is the one the build sits on top of; the panel says as much, and
- * each release below carries the commit it was merged as, which is exact.
- */
 function renderAbout() {
   ui.aboutVersion.textContent = BUILD.version;
   ui.aboutBranch.textContent = BUILD.branch;
@@ -3131,15 +2446,6 @@ ui.aboutResetYes.addEventListener('click', () => {
 });
 ui.aboutClose.addEventListener('click', () => ui.aboutDialog.close());
 
-/**
- * A click on the backdrop lands on the dialog itself, never on its contents —
- * but so does one on the dialog's own 20px padding, or on its scrollbar, and
- * those are clicks inside the panel. So the pointer is tested against the box
- * rather than the target: outside it is the backdrop, inside it is not.
- *
- * Shared by every dialog in the app: the rule is subtle enough that three
- * copies of it would be three chances to get one of them wrong.
- */
 function closeOnBackdrop(dialog) {
   dialog.addEventListener('click', (event) => {
     if (event.target !== dialog) return;
@@ -3175,15 +2481,6 @@ const jump = createStrategyJump({
   onCommand: runStrategyCommand,
 });
 
-/**
- * The project switch, in the two places the strategy switcher lives — and only
- * those two, so there is never a third control claiming to say the same thing.
- *
- * In the form it *is* the panel's heading, which is why it takes no line of its
- * own: the fields below belong to the question named here, and the panel has
- * always been titled. In the pinned bar it stands ahead of the names, outside
- * the row that scrolls, with a rule between them.
- */
 const projectSwitch = createProjectSwitch({
   mount: ui.inputsHeading,
   className: 'project-switch',
@@ -3459,15 +2756,6 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
 
 /* -------------------------------------------------------------------- share */
 
-/*
- * Everything lives on the device, which is the point of the app and also the
- * one thing that makes showing somebody your plan awkward: there is no account
- * to share from and no copy on a server to link to. So the link *is* the copy —
- * `share.js` packs the whole configuration into a fragment, the part of an
- * address a browser never sends anywhere. The plan goes where the reader pastes
- * it and nowhere else, which is the same promise the rest of the app makes.
- */
-
 /** A decoded plan waiting on the reader's answer, or null while none is. */
 let offered = null;
 /** Whether taking it on would have to replace what is here, for want of room. */
@@ -3476,6 +2764,7 @@ let replacing = false;
 function openShare() {
   // The link carries the project on screen, name and all — never the shelf.
   ui.shareLink.value = linkFor({ ...state, project: openProject() }, window.location.href);
+  ui.shareCopy.disabled = !ui.shareLink.value;
   ui.shareSaid.textContent = '';
   ui.shareDialog.showModal();
   // Selected on opening, so the link is already in hand for a reader whose
@@ -3485,6 +2774,10 @@ function openShare() {
 }
 
 async function copyShareLink() {
+  if (!ui.shareLink.value) {
+    ui.shareSaid.textContent = t('share.cannotEncode');
+    return;
+  }
   try {
     await navigator.clipboard.writeText(ui.shareLink.value);
     ui.shareSaid.textContent = t('share.copied');
@@ -3507,43 +2800,25 @@ function roomForShared() {
   return Math.max(0, MAX_STRATEGIES - state.strategies.length);
 }
 
-/**
- * Take a shared plan on, beside the plans already here rather than over them.
- *
- * Adding is the whole point: a comparison is what this app is for, and the
- * usual reason to open somebody's link is to hold their plan against your own.
- * Replacing was the first thing this did and it was the wrong thing — it threw
- * away the very plan you wanted to compare against.
- *
- * The horizon and the assumptions do come from the shared plan, because
- * strategies share one horizon by construction: there is no arrangement where
- * both readings survive, and a plan built over forty years read at five says
- * nothing. That is cheap to put back with the slider; a discarded plan is not.
- *
- * Put through the same coercion `loadState` uses, because a link is exactly as
- * trustworthy as a store somebody has hand-edited: neither may put a value in
- * the app that the app could not have made itself. Saved at once rather than
- * through the debounce, for the reason "Start again" is.
- */
 function adoptPlan(plan, { replacing } = {}) {
   // On every adoption, not only the one with no room. Adding somebody's plans
   // beside your own throws nothing away, but it does change the horizon, the
   // assumptions and every target on the page — and a reader who opened a link
   // to look at it should be able to put the page back the way it was without
   // having to remember what their own numbers were.
-  checkpoint('shared');
   // Stamped as shared here rather than where the link is unpacked: what a plan
   // was to whoever sent it is their business, and to whoever opens it, it
   // arrived from outside.
-  const arriving = markShared(replacing ? plan.strategies : plan.strategies.slice(0, roomForShared()));
-  const kept = replacing ? [] : state.strategies;
-  const strategies = normalizeStrategies([...kept, ...arriving]);
+  const combined = mergeSharedPlan(planOf(state), plan, replacing);
+  if (combined.error) return false;
+  checkpoint('shared');
+  const { strategies, activeId, milestones } = combined.plan;
 
   Object.assign(state, {
     strategies,
     // The first plan that arrived, so the answer to opening a link is the
     // shared plan on screen rather than a list the reader has to go looking in.
-    activeId: activeIdOf(strategies, arriving.length ? arriving[0].id : state.activeId),
+    activeId,
     months: toMonths(plan.months ?? DEFAULT_MONTHS),
     inflation: toRateText(plan.inflation),
     realMoney: plan.realMoney === true,
@@ -3554,7 +2829,7 @@ function adoptPlan(plan, { replacing } = {}) {
     // asked of every strategy at once, so there is one set of them however many
     // plans are on the device — and they are part of what somebody is sending:
     // "here is how I would buy it" usually means "and here is when it happens".
-    milestones: normalizeMilestones(plan.milestones, METRICS),
+    milestones: normalizeMilestones(milestones, METRICS),
   });
   // Which column the comparison shows is module state rather than stored state,
   // so it would otherwise survive into somebody else's plan and pick a metric
@@ -3621,6 +2896,9 @@ function offerPlanFromLink() {
     ui.sharedRoom.textContent = replacing ? t('share.receivedNoRoom', MAX_STRATEGIES)
       : room >= sent ? t('share.receivedRoom')
         : t('share.receivedSome', room, sent, MAX_STRATEGIES);
+    const mergeError = mergeSharedPlan(planOf(state), offered, replacing).error;
+    ui.sharedOpen.disabled = Boolean(mergeError);
+    if (mergeError) ui.sharedRoom.textContent = t('share.targetsFull');
     ui.sharedOpen.textContent = t(replacing ? 'share.receivedReplace' : 'share.receivedYes');
     ui.sharedOpen.classList.toggle('is-grave', replacing);
     // The line about what is left alone is only true while nothing is being
@@ -3633,16 +2911,6 @@ function offerPlanFromLink() {
   ui.sharedKeep.focus();
 }
 
-/**
- * Somebody else's question, opened as its own.
- *
- * The whole of the bug that put projects in the app, in the one place it bites
- * a stranger rather than the owner: a link is usually a *different* question,
- * and dropping its plans in beside yours puts a car on the same axes as a
- * house. Here the arriving plan brings its own horizon and its own targets
- * because they came with it, and it takes the reader's assumptions because
- * those were never the sender's to set.
- */
 function adoptAsProject(plan) {
   const created = normalizeProject({
     name: typeof plan.name === 'string' ? plan.name : '',

@@ -38,7 +38,7 @@ export const ORIGINS = ['default', 'own', 'shared'];
 export function normalizeStrategy(value) {
   const source = value && typeof value === 'object' ? value : {};
   return {
-    id: typeof source.id === 'string' && source.id ? source.id : newId(),
+    id: typeof source.id === 'string' && source.id && source.id.length <= 128 ? source.id : newId(),
     // Empty means unnamed: the bar shows its position instead, translated, so
     // an untouched strategy follows the language like an untouched field does.
     name: typeof source.name === 'string' ? source.name.trim().slice(0, MAX_NAME_LENGTH) : '',

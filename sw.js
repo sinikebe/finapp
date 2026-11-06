@@ -9,7 +9,7 @@
  * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v65';
+const CACHE_VERSION = 'v66';
 const CACHE_PREFIX = 'finapp-';
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
 const SHELL = './index.html';
@@ -20,6 +20,12 @@ const PRECACHE = [
   './manifest.fr.webmanifest',
   './assets/css/app.css',
   './assets/js/app.js',
+  './assets/js/field-labels.js',
+  './assets/js/store.js',
+  './assets/js/state.js',
+  './assets/js/scenarios.js',
+  './assets/js/plan-operations.js',
+  './assets/js/numbers.js',
   './assets/js/chart.js',
   './assets/js/changelog.js',
   './assets/js/dom.js',
@@ -72,8 +78,12 @@ self.addEventListener('message', (event) => {
 
 /** Store a response only if it is a complete, same-origin, cacheable one. */
 async function cacheIfSound(cache, request, response) {
-  if (!response || !response.ok || response.status !== 200 || response.type !== 'basic') return;
-  await cache.put(request, response.clone());
+  if (!cache || !response || !response.ok || response.status !== 200 || response.type !== 'basic') return;
+  try { await cache.put(request, response.clone()); } catch { /* keep serving the valid network response */ }
+}
+
+async function cachedResponse(cache, request) {
+  try { return await cache?.match(request); } catch { return undefined; }
 }
 
 /** True for the app's own pages, and only those — a sibling app sharing this
@@ -89,8 +99,8 @@ function isAppPage(url) {
  * missing — the very first visit, or a cache that was evicted.
  */
 async function serveShell(event) {
-  const cache = await caches.open(CACHE_NAME);
-  const shell = await cache.match(SHELL);
+  const cache = await caches.open(CACHE_NAME).catch(() => null);
+  const shell = await cachedResponse(cache, SHELL);
   if (shell) return shell;
 
   try {
@@ -98,14 +108,14 @@ async function serveShell(event) {
     await cacheIfSound(cache, SHELL, response);
     return response;
   } catch {
-    return (await cache.match(event.request)) || Response.error();
+    return (await cachedResponse(cache, event.request)) || Response.error();
   }
 }
 
 /** Everything else: this generation's copy, or the network on a miss. */
 async function serveAsset(request) {
-  const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
+  const cache = await caches.open(CACHE_NAME).catch(() => null);
+  const cached = await cachedResponse(cache, request);
   if (cached) return cached;
 
   try {

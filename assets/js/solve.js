@@ -1,54 +1,13 @@
 /**
- * solve.js — the same question, asked backwards.
- *
- * The app answers *"what happens if I put in 300 a month?"*. The question
- * people arrive with is usually its inverse: *"what must I put in to have
- * 100,000 in fifteen years?"* — the destination is known and the figure is not.
- * A target the plan never reaches is precisely where that question comes up,
- * which is why nothing here has an entry point of its own: it is a verb on a
- * target, offered where the target says it is never met.
- *
- * There is no new model here, and there could not be one. `project()` is pure
- * and cheap, so the whole of this is a loop around it: bracket the answer
- * between the model's own limits, halve the bracket until what is left is
- * smaller than the figure would ever be written to, and hand back what remains.
- * Forty projections is a millisecond or two — the same bargain the range band
- * already strikes several times a keystroke.
- *
- * **The honest part is the refusing.** A search that hands back whichever
- * crossing it stumbles into first is lying in the friendly direction, which is
- * the one this project has refused everywhere else — a loss is never taxed, and
- * it is never handed back as a credit. Bisection is only entitled to an answer
- * where the relationship it is searching is monotone, so:
- *
- * - **Two figures are offered and no others.** An amount and a rate both enter
- *   the model as a scale on something, so more of either moves the answer one
- *   way and keeps going. A sell month does not: moving it changes both what the
- *   holding grew to and what the cash then bought. Nor does a loan's term,
- *   whose level payment is rounded to the cent *before* it is multiplied by the
- *   term, so a month longer can cost a few cents less over the whole run.
- *   Neither is on the list, and the list is the seam.
- * - **Both ends of the bracket are probed before anything is halved.** The
- *   target is not met where the plan stands; if it is met at *both* limits then
- *   the relationship has turned round somewhere between them, and the search
- *   says so rather than picking one of the two crossings.
- * - **The stretch past the answer is sampled**, because monotone is a claim
- *   about the whole of it and the bracket only ever saw its two ends.
- * - **And the figure that comes out goes back through `updateField` and is run
- *   again before it is shown.** That is what makes the answer a fact about the
- *   reader's own plan rather than about the search: the month named is read off
- *   a projection of the plan with that figure in it, by the same `whenMet` the
- *   line above it uses. A figure that does not reproduce the target on the way
- *   back through is not an answer, and is not offered as one.
- *
- * Nothing here writes into a plan. The answer is said and that is all: the
- * reader typed what is in those boxes, and an app that quietly replaced it with
- * something it had worked out would be taking a decision that was never its.
+ * Search for a figure and check it on the complete original plan. A conditional
+ * schedule can be non-monotonic: in that case an answer is a checked example,
+ * never a promise that every larger or smaller figure will also work.
  */
 
 import { updateField } from './fields.js';
 import { MAX_AMOUNT, roundMoney } from './projection.js';
 import { whenMet } from './milestones.js';
+import { waitsOnAnything } from './schedule.js';
 
 /**
  * The figures a plan can be asked backwards about, and the model's own bounds
@@ -178,7 +137,7 @@ function withFigure(fields, id, knob, value) {
  *   be in the same money as the page it is shown on. `read` is the same reader
  *   the projection used, so the figure being searched for is the figure that
  *   was typed.
- * @returns {{answer: number, bound: 'least'|'most', month: number, value: number}
+ * @returns {{answer: number, bound: 'least'|'most'|'checked', month: number, value: number}
  *   | {refusal: 'unmoved'|'unreachable'|'reversal'|'unproven'}
  *   | null} `null` where there is nothing to solve at all — no such field, no
  *   such figure, or a target with nothing readable in it.
@@ -195,7 +154,9 @@ export function solveFor(options) {
   const target = read(milestone.amount);
   if (!Number.isFinite(target)) return null;
 
+  const conditional = waitsOnAnything(list);
   const here = run(list);
+  if (here.schedule && !here.schedule.settled) return { refusal: 'unproven' };
   const first = here.points && here.points[0];
   if (!first || !(milestone.metric in first)) return null;
 
@@ -210,8 +171,11 @@ export function solveFor(options) {
   const rising = first[milestone.metric] < target;
   const met = (far) => (rising ? far >= target : far <= target);
   /** How far towards the target the plan gets with this figure in it. */
+  let unproven = false;
   const reachAt = (value) => {
-    const { points } = run(withFigure(list, fieldId, knob, value));
+    const result = run(withFigure(list, fieldId, knob, value));
+    if (result.schedule && !result.schedule.settled) unproven = true;
+    const { points } = result;
     let far = points[0][milestone.metric];
     for (const point of points) {
       const held = point[milestone.metric];
@@ -222,6 +186,7 @@ export function solveFor(options) {
 
   const atLow = reachAt(spec.low);
   const atHigh = reachAt(spec.high);
+  if (unproven || !Number.isFinite(atLow) || !Number.isFinite(atHigh)) return { refusal: 'unproven' };
   // The target is not met where the plan stands — that is the whole reason this
   // was asked — and the plan stands between these two. So both limits meeting
   // it is a relationship that turned round somewhere in the middle, and there
@@ -231,7 +196,7 @@ export function solveFor(options) {
     // Worth telling apart: "you would need more of this than the app will hold"
     // and "this is not the figure that decides it" send a reader to two very
     // different next moves.
-    return { refusal: atLow === atHigh ? 'unmoved' : 'unreachable' };
+    return { refusal: conditional ? 'unproven' : atLow === atHigh ? 'unmoved' : 'unreachable' };
   }
 
   // Which limit meets it says which end of an answer the reader is being
@@ -282,8 +247,9 @@ export function solveFor(options) {
   // back through is not an answer, and nothing is said in its place.
   const proven = run(withFigure(list, fieldId, knob, answer));
   const reading = whenMet(proven, milestone, read);
-  if (!reading || reading.month === null) return { refusal: 'unproven' };
+  if (unproven || (proven.schedule && !proven.schedule.settled)
+      || !reading || reading.month === null) return { refusal: 'unproven' };
   return {
-    answer, bound, month: reading.month, value: reading.value,
+    answer, bound: conditional ? 'checked' : bound, month: reading.month, value: reading.value,
   };
 }

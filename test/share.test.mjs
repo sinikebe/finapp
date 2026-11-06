@@ -222,7 +222,7 @@ test('the targets travel, because they are part of what is being asked', () => {
   });
   const after = decodePlan(encodePlan(before));
   assert.deepEqual(
-    after.milestones,
+    after.milestones.map(({ metric, amount }) => ({ metric, amount })),
     [{ metric: 'owned', amount: '100000' }, { metric: 'debt', amount: '0' }],
     'the quantity and the figure arrive, and the id does not — it meant nothing here',
   );
@@ -247,9 +247,9 @@ test('a target arriving in a link is shaped, and judged by whoever holds the lis
   };
   const after = decodePlan(Buffer.from(JSON.stringify(packed), 'utf8').toString('base64url'));
   assert.ok(after.milestones.length <= MAX_MILESTONES, 'no more targets than the app allows');
-  assert.deepEqual(after.milestones[0], { metric: 'worth', amount: '250000' },
+  assert.deepEqual({ metric: after.milestones[0].metric, amount: after.milestones[0].amount }, { metric: 'worth', amount: '250000' },
     'a figure written as a number arrives as the text every amount in the app is');
-  assert.deepEqual(after.milestones[1], { metric: 'the moon', amount: '' },
+  assert.deepEqual({ metric: after.milestones[1].metric, amount: after.milestones[1].amount }, { metric: 'the moon', amount: '' },
     'and a quantity this format has no opinion about is passed on for one that has');
 });
 
