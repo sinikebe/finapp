@@ -18,11 +18,14 @@ Switching applications does not transfer project data.
 
 ## Simple or Advanced
 
-The **Workspace theme** dropdown offers three arrangements of the same data:
+The **Presentation** dropdown offers three arrangements of the same data:
 **Horizon** puts results first with editing on demand, **Atelier** lets you edit
 real scenario amounts side by side, and **Parcours** provides three steps with
 a live recap. The choice is remembered separately from Simple/Advanced and
-light/dark appearance. Navigation, accessible controls and all financial rules
+light/dark appearance. The open project's last section and guided step are
+remembered locally. **Appearance** is available in the header; **Tools** groups
+Simple/Advanced, language, currency, backups and exports.
+Navigation, accessible controls and all financial rules
 are shared. In the Peugeot example, annual mileage recalculates the energy
 provisions from the documented catalogue assumptions; manually edited energy
 budgets are labelled as custom usage.

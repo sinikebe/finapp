@@ -3,7 +3,7 @@ import { html } from './dom.js';
 import { bindNumericInput } from './input-validation.js';
 import { formatAmount, formatHorizon, formatTyped } from './format.js';
 import { nameOf } from './strategies.js';
-import { LAYOUT_KEY, layoutOf, stepOf, comparisonReading, annualKmOf, carVariantsOf } from './workspace.js';
+import { LAYOUT_KEY, layoutOf, stepOf, createWorkspaceNavigation, comparisonReading, annualKmOf, carVariantsOf } from './workspace.js';
 
 export function createWorkspaceView(options) {
   const $ = (id) => document.getElementById(id);
@@ -11,16 +11,16 @@ export function createWorkspaceView(options) {
   const main = $('main');
   const selector = $('layout-select');
   let layout = layoutOf(options.read(LAYOUT_KEY, 'horizon'));
-  let section = 'overview';
-  const steps = new Map();
-  let projectId = '';
-  let step = 0;
+  const navigation = createWorkspaceNavigation(options);
+  let projectId = options.state.openProjectId;
+  let { section, step } = navigation.forProject(projectId);
+  const rememberView = () => navigation.remember(projectId, { section, step });
 
   function syncProject() {
     if (projectId === options.state.openProjectId) return;
     projectId = options.state.openProjectId;
-    step = steps.get(projectId) || 0;
-    section = 'overview';
+    ({ section, step } = navigation.forProject(projectId));
+    rememberView();
     kmBinding.clear();
   }
 
@@ -57,7 +57,8 @@ export function createWorkspaceView(options) {
 
   function setStep(next, focus = true) {
     syncProject();
-    step = stepOf(next); steps.set(projectId, step);
+    step = stepOf(next);
+    rememberView();
     apply();
     if (focus) focusHeading();
   }
@@ -67,10 +68,8 @@ export function createWorkspaceView(options) {
     section = ['overview', 'data', 'compare', 'assumptions'].includes(next) ? next : 'overview';
     if (layout === 'parcours') {
       step = section === 'data' || section === 'assumptions' ? 1 : 2;
-      steps.set(projectId, step);
     }
-    if (section === 'data' || section === 'assumptions') options.onData();
-    if (section === 'assumptions') document.querySelector('.assumptions-fold').open = true;
+    rememberView();
     apply();
     if (focus) focusHeading();
   }
@@ -94,7 +93,8 @@ export function createWorkspaceView(options) {
     $('journey-explanation').textContent = t(step === 0 ? 'workspace.usageHelp' : 'workspace.figuresHelp');
     $('workspace-description').textContent = t(`workspace.description.${layout}`);
     $('workspace-sidebar-name').textContent = layout[0].toUpperCase() + layout.slice(1);
-    if (layout === 'parcours' && step === 1) options.onData();
+    if (section === 'data' || section === 'assumptions' || (layout === 'parcours' && step === 1)) options.onData();
+    if (section === 'assumptions') document.querySelector('.assumptions-fold').open = true;
   }
 
   selector.addEventListener('change', () => {

@@ -3,9 +3,11 @@
 This app exists to put several plans side by side and let somebody decide.
 Every rule below serves that or it is decoration.
 
-This is a description of **this** codebase, not of an ideal. The tokens live in
-`:root` in [`assets/css/app.css`](../assets/css/app.css) and the stylesheet is
-the source of truth for their values; this file explains what each one is *for*.
+This is a description of **this** codebase, not of an ideal. The base tokens live
+in `:root` in [`assets/css/app.css`](../assets/css/app.css); the three workspace
+palettes live in [`assets/css/finapps-ui.css`](../assets/css/finapps-ui.css).
+Those stylesheets are the source of truth for their values; this file explains
+what each one is *for*.
 When the two disagree, one of them is a bug — fix the code, or failing that fix
 this file, and never leave them disagreeing.
 
@@ -517,3 +519,36 @@ launcher shares the workspace tokens, keeps a 44px trigger, closes on Escape
 and outside clicks, and updates its labels when the document language changes.
 `assets/js/app-switcher.js` resolves sibling `/dev/` routes together and main
 routes together. It does not read or transfer project storage.
+
+## finapps UI contract v1.0.0
+
+`assets/css/finapps-ui.css` is a small, locally bundled foundation: the three
+light/dark palettes and the 24-unit outline icon convention (`.ui-icon`, 20px,
+1.7-unit stroke, round joins). It consumes the existing type, spacing and radius
+scales. Each application keeps its own business views, deployment and offline
+shell; no asset is fetched from a sibling application at runtime. Coordinated
+changes increment the foundation version in the file rather than silently
+changing a copied palette. Garapp adoption is tracked separately.
+
+| Common control | Contract |
+| --- | --- |
+| Application launcher | Same names, order and descriptions; active app marked; main links to main and dev to dev. |
+| Presentation / Présentation | Horizon, Atelier and Parcours arrange the current app's workspace. Describe their behavior in the current view. |
+| Appearance / Apparence | Auto, Light/Clair and Dark/Sombre; current choice and next action are announced. This is independent of presentation. |
+| Tools / Outils | Labelled disclosure for secondary controls, grouped by purpose, with Escape, outside dismissal and visible focus. |
+| Quick actions / Actions rapides | Searchable commands; both Ctrl K and Command K work. |
+| Outline icons | Same weight and geometry; business-specific symbols retain visible text labels. |
+
+In Finapp, Horizon presents results, Atelier edits scenarios side by side and
+Parcours is a three-step guided workflow. These describe behavior, not just
+colours. Display settings (including Simple/Advanced), backups and exports are
+grouped in Tools; presentation and appearance stay directly available in the
+header. The tools panel scrolls within the viewport without adding scrollports
+to editable business forms. Header disclosures are mutually exclusive.
+
+`finapp.navigation.v1` remembers only the last project's ID, section and guided
+step. It uses the same main/dev preference namespace as layout, with safe
+defaults for invalid or unavailable storage. Project names and financial values
+never enter this record or application-switcher URLs. Other projects start at
+Overview and keep their view in memory while the tab remains open. A return
+does not reopen an editing dialog or move keyboard focus unexpectedly.

@@ -2557,6 +2557,7 @@ function applyTheme(choice) {
   if (ui.themeColor) ui.themeColor.setAttribute('content', dark ? THEME_COLORS.dark : THEME_COLORS.light);
   ui.themeLabel.textContent = t(`theme.${choice}`);
   ui.themeButton.setAttribute('aria-label', t(`theme.aria.${choice}`));
+  ui.themeButton.setAttribute('title', t(`theme.aria.${choice}`));
 }
 
 const savedTheme = readStore(THEME_KEY, 'auto');

@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v72', date: '2026-11-06',
+    version: 'v73', date: '2026-11-06',
+    en: 'Finapp restores the last section and guided step of the open project after a reload or a return from another application. Presentation and light/dark appearance have distinct labels. Appearance stays in the header, while display settings, backups and exports are grouped in Tools. Navigation uses consistent outline icons; header menus close on Escape and outside clicks. Project data and development storage remain separate.',
+    fr: 'Finapp retrouve la dernière rubrique et l’étape guidée du projet ouvert après un rechargement ou un retour depuis une autre application. Présentation et apparence claire/sombre ont des libellés distincts. L’apparence reste dans le bandeau, tandis que les réglages d’affichage, sauvegardes et exports sont regroupés dans Outils. La navigation utilise des icônes au trait homogènes ; les menus du bandeau se ferment avec Échap et au clic extérieur. Les données métier et les espaces de développement restent séparés.',
+  },
+  {
+    version: 'v72', date: '2026-11-06', commit: '8086aef',
     en: 'The logo now opens a small application launcher for Finapp and Garapp. Development previews link to each other, while main versions link to main versions. The menu supports keyboard navigation, Escape and both languages without transferring project data. The offline worker caches only Finapp resources, including when served at the root for local development.',
     fr: 'Le logo ouvre un petit menu permettant de passer de Finapp à Garapp. Les préversions se relient entre elles, comme les versions principales. Le menu fonctionne au clavier, se ferme avec Échap et suit la langue choisie, sans transférer les données des projets. Le cache hors ligne se limite aux ressources de Finapp, y compris lorsque l’application est servie à la racine en développement local.',
   },
