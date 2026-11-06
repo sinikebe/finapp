@@ -2679,7 +2679,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   });
 
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { scope: './' })
+    navigator.serviceWorker.register('./sw.js', { scope: './', updateViaCache: 'none' })
       .then((registration) => {
         registered = registration;
         // Until there is a worker, the button has nobody to ask.

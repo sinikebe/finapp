@@ -9,7 +9,7 @@
  * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v68';
+const CACHE_VERSION = 'v69';
 // Scope-specific and outside the legacy finapp- prefix, so v66 cannot delete /dev/ caches.
 const CACHE_PREFIX = `finapp@${encodeURIComponent(new URL('./', self.location.href).pathname)}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
@@ -63,7 +63,11 @@ const PRECACHE = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)),
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE.map((path) => (
+      // Each release must fetch its own bytes, even while the previous release
+      // is still fresh in the browser's separate HTTP cache.
+      new Request(new URL(path, self.location.href), { cache: 'reload' })
+    )))),
   );
 });
 

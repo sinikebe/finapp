@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v68', date: '2026-11-06',
+    version: 'v69', date: '2026-11-06',
+    en: 'Offline updates fetch fresh deployment assets instead of reusing the browser’s HTTP cache from the previous release. Worker update checks also bypass that HTTP cache.',
+    fr: 'Les mises à jour hors ligne téléchargent les nouveaux fichiers sans réutiliser le cache HTTP de la version précédente. La recherche d’une mise à jour du service worker contourne aussi ce cache HTTP.',
+  },
+  {
+    version: 'v68', date: '2026-11-06', commit: '97636cc',
     en: 'The English welcome screen correctly asks what you would like to plan. The updated wording is included in a new offline cache generation.',
     fr: 'L’accueil en anglais demande correctement ce que vous souhaitez préparer. Le libellé corrigé est inclus dans une nouvelle version du cache hors ligne.',
   },
