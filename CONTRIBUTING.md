@@ -57,6 +57,7 @@ assets/js/app.js              controller and view composition
 tools/generate-icons.mjs     dependency-free icon generation
 tools/serve.mjs              local development server
 tools/stamp-version.mjs      cache/build metadata
+tools/build-pages.mjs        allowlisted main + dev Pages artifact
 test/                       Node tests
 docs/design-system.md       tokens, layout and accessibility conventions
 ```
@@ -152,3 +153,38 @@ changes the displayed net-profit figure, not cash or total worth, even on sale;
 those remain before tax and are labeled accordingly. Housing-template taxes are
 fixed example fields. Changes to these conventions need explicit product copy,
 independent arithmetic tests and updated worked examples.
+
+## Production and development publication
+
+The `Pages` workflow, installed on `main`, reacts to successful push CI on
+`main` and `dev`. It chooses the latest successful push-CI commit of each branch,
+checks out those exact revisions and assembles one static artifact. Production
+is at the existing root URL; development is at `/dev/`. A later failing commit
+is never substituted for the revision CI actually tested. Fork PR workflows
+cannot trigger publication.
+
+GitHub Pages must use **Settings → Pages → Build and deployment → Source:
+GitHub Actions**. If it still uses a branch, the workflow uploads the combined
+artifact and explains the setting in its summary, without changing the existing
+publication. After changing the source, run **Actions → Pages → Run workflow**.
+The `github-pages` environment can keep allowing deployments from `main`:
+`workflow_run` and manual runs of this central workflow run from that branch.
+
+The preview uses `finapp-preview:/finapp/dev/:…` local-storage keys and a separate
+Web Lock. Production retains existing keys. Service-worker cache names include
+their scope and use `finapp@…` rather than the legacy `finapp-` prefix, so an older
+production worker cannot delete preview caches. Relative manifests and assets
+keep installations and offline navigation inside their own scope. These are
+same-origin namespaces, not a security boundary; use a separate origin if dev
+code must be untrusted.
+
+To assemble an artifact locally after preparing both checkouts:
+
+```sh
+node tools/build-pages.mjs /path/to/main /path/to/dev /path/to/new-output
+```
+
+The output directory must not exist and must be outside both source checkouts.
+Only the static shell and assets are copied; Git metadata, tests and workspace
+files are excluded. Symlinks and a preview without the isolation modules are
+rejected.
