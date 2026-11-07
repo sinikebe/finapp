@@ -2,6 +2,7 @@
 import { cp, mkdir, readdir, readFile, writeFile, lstat } from 'node:fs/promises';
 import { resolve, relative, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { deploymentTitle } from '../assets/js/deployment.js';
 
 const FILES = ['index.html', 'sw.js', 'manifest.webmanifest', 'manifest.fr.webmanifest'];
 
@@ -31,6 +32,23 @@ async function copySite(source, target) {
   await cp(join(source, 'assets'), join(target, 'assets'), { recursive: true });
 }
 
+/** Static install metadata must distinguish dev before any page script runs. */
+async function labelPreview(directory) {
+  for (const file of FILES.filter((path) => path.endsWith('.webmanifest'))) {
+    const path = join(directory, file);
+    const manifest = JSON.parse(await readFile(path, 'utf8'));
+    manifest.name = deploymentTitle(manifest.name, true);
+    manifest.short_name = deploymentTitle(manifest.short_name, true);
+    await writeFile(path, JSON.stringify(manifest, null, 2) + '\n');
+  }
+  const path = join(directory, 'index.html');
+  const markup = await readFile(path, 'utf8');
+  await writeFile(path, markup
+    .replace(/(<title>)([^<]*)(<\/title>)/, (_, before, title, after) => before + deploymentTitle(title, true) + after)
+    .replace(/(<meta\b[^>]*\bname="apple-mobile-web-app-title"[^>]*\bcontent=")([^"]*)(")/,
+      (_, before, title, after) => before + deploymentTitle(title, true) + after));
+}
+
 export async function buildPages({ main, dev, out }) {
   const stable = resolve(main); const preview = resolve(dev); const target = resolve(out);
   if (!outside(stable, target) || !outside(preview, target)) throw new Error('The output must be outside both source trees');
@@ -42,6 +60,7 @@ export async function buildPages({ main, dev, out }) {
   await mkdir(target); // Refuse an existing output rather than deleting arbitrary files.
   await copySite(stable, target);
   await copySite(preview, join(target, 'dev'));
+  await labelPreview(join(target, 'dev'));
   await writeFile(join(target, '.nojekyll'), '');
   await writeFile(join(target, 'deployment.json'), JSON.stringify({ main: 'main', dev: 'dev', previewPath: './dev/' }) + '\n');
   return target;

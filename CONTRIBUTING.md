@@ -196,6 +196,13 @@ is at the existing root URL; development is at `/dev/`. A later failing commit
 is never substituted for the revision CI actually tested. Fork PR workflows
 cannot trigger publication.
 
+The assembler labels both development manifests **Finapp dev**, including their
+short names, and writes the same development name into the static page title
+and Apple home-screen metadata. Production files are copied unchanged. Runtime
+language changes keep the development label. Manifest IDs, launch URLs, scopes
+and icon paths remain relative and unchanged, preserving existing installations
+and their data.
+
 GitHub Pages must use **Settings → Pages → Build and deployment → Source:
 GitHub Actions**. If it still uses a branch, the workflow uploads the combined
 artifact and explains the setting in its summary, without changing the existing

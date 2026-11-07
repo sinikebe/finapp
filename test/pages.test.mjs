@@ -11,7 +11,10 @@ async function fixture(work) {
     const main = join(root, 'main'); const dev = join(root, 'dev'); const out = join(root, 'site');
     for (const [directory, text] of [[main, 'stable'], [dev, 'preview']]) {
       await mkdir(join(directory, 'assets/js'), { recursive: true });
-      for (const file of ['index.html', 'manifest.webmanifest', 'manifest.fr.webmanifest']) await writeFile(join(directory, file), text);
+      await writeFile(join(directory, 'index.html'), `<title>Finapp — estimate your financial future</title><meta id="apple-title" name="apple-mobile-web-app-title" content="Finapp"><body>${text}</body>`);
+      for (const file of ['manifest.webmanifest', 'manifest.fr.webmanifest']) {
+        await writeFile(join(directory, file), await readFile(new URL(`../${file}`, import.meta.url), 'utf8'));
+      }
       await writeFile(join(directory, 'sw.js'), 'const prefix = "finapp@";');
       await writeFile(join(directory, 'assets/js/deployment.js'), 'const prefix = "finapp-preview:";');
       await writeFile(join(directory, 'private.txt'), 'must not be published');
@@ -24,11 +27,36 @@ async function fixture(work) {
 test('Pages preserves main at the root and publishes dev beneath /dev/', async () => {
   await fixture(async (args) => {
     await buildPages(args);
-    assert.equal(await readFile(join(args.out, 'index.html'), 'utf8'), 'stable');
-    assert.equal(await readFile(join(args.out, 'dev/index.html'), 'utf8'), 'preview');
+    assert.equal(await readFile(join(args.out, 'index.html'), 'utf8'), await readFile(join(args.main, 'index.html'), 'utf8'));
+    const preview = await readFile(join(args.out, 'dev/index.html'), 'utf8');
+    assert.match(preview, /<body>preview<\/body>/);
+    assert.match(preview, /<title>Finapp dev — estimate your financial future<\/title>/);
+    assert.match(preview, /name="apple-mobile-web-app-title" content="Finapp dev"/);
     const files = await readdir(args.out);
     assert.ok(files.includes('.nojekyll')); assert.ok(!files.includes('.git')); assert.ok(!files.includes('private.txt'));
     assert.ok(!(await readdir(join(args.out, 'dev'))).includes('private.txt'));
+  });
+});
+
+test('both development install manifests have distinct names and preserve existing installation identities', async () => {
+  await fixture(async (args) => {
+    await buildPages(args);
+    for (const file of ['manifest.webmanifest', 'manifest.fr.webmanifest']) {
+      const original = await readFile(join(args.main, file), 'utf8');
+      assert.equal(await readFile(join(args.out, file), 'utf8'), original);
+      const main = JSON.parse(original);
+      const dev = JSON.parse(await readFile(join(args.out, 'dev', file), 'utf8'));
+      assert.equal(main.short_name, 'Finapp');
+      assert.equal(dev.short_name, 'Finapp dev');
+      assert.ok(dev.name.startsWith('Finapp dev — '));
+      assert.deepEqual({ ...dev, name: main.name, short_name: main.short_name }, main);
+      for (const key of ['id', 'start_url', 'scope']) {
+        assert.equal(new URL(main[key], `https://example.org/finapp/${file}`).pathname, '/finapp/');
+        assert.equal(new URL(dev[key], `https://example.org/finapp/dev/${file}`).pathname, '/finapp/dev/');
+      }
+      // Packaging does not rewrite either source checkout.
+      assert.equal(await readFile(join(args.dev, file), 'utf8'), original);
+    }
   });
 });
 

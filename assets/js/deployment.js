@@ -5,6 +5,11 @@ export function deploymentFor(url) {
   return { preview, prefix: preview ? `finapp-preview:${base.pathname}:` : '', base };
 }
 
+/** Label development installs without changing their manifest identity or scope. */
+export function deploymentTitle(title, preview = false) {
+  return preview ? title.replace(/^Finapp(?: dev)?(?=\s|$)/, 'Finapp dev') : title;
+}
+
 export function scopedStorage(getStorage, prefix = '') {
   const physical = (key) => prefix + key;
   const logical = (key) => {

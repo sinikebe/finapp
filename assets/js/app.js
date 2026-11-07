@@ -9,7 +9,7 @@
  */
 
 import { createSaveController } from './save-controller.js';
-import { deploymentFor, scopedStorage } from './deployment.js';
+import { deploymentFor, deploymentTitle, scopedStorage } from './deployment.js';
 import { createInterfaceView } from './interface-view.js';
 import { createWorkspaceView } from './workspace-view.js';
 import { createBrowserTools, saveFile } from './browser-tools.js';
@@ -143,6 +143,7 @@ const ui = {
   themeColor: $('theme-color'),
   description: $('doc-description'),
   manifestLink: $('manifest-link'),
+  appleTitle: $('apple-title'),
   installButton: $('install'),
   aboutDialog: $('about'),
   aboutOpen: $('about-open'),
@@ -2502,7 +2503,8 @@ function applyLanguage(next) {
   setFormatLocale(localeFor(language));
 
   document.documentElement.lang = t('html.lang');
-  document.title = t('doc.title');
+  document.title = deploymentTitle(t('doc.title'), deployment.preview);
+  if (ui.appleTitle) ui.appleTitle.setAttribute('content', deploymentTitle('Finapp', deployment.preview));
   if (ui.description) ui.description.setAttribute('content', t('doc.description'));
   // The manifest names the app in the install prompt, and a manifest has no
   // per-language strings — so point at the one written in this language. Both
