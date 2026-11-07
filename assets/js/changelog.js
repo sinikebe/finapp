@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v74', date: '2026-11-06',
+    version: 'v75', date: '2026-11-07',
+    en: 'The development preview installs as Finapp dev in both languages, including its home-screen name and page title. The main application keeps its existing name. Installation identities, launch URLs, offline scopes and stored projects are unchanged.',
+    fr: 'La préversion de développement s’installe sous le nom Finapp dev dans les deux langues, y compris sur l’écran d’accueil et dans le titre de la page. La version principale conserve son nom. Les identités d’installation, adresses de lancement, périmètres hors ligne et projets enregistrés sont conservés.',
+  },
+  {
+    version: 'v74', date: '2026-11-06', commit: '61687f5',
     en: 'Switching from figures or assumptions to Parcours keeps the guided layout intact. Section-specific editor grids now apply only to Horizon and Atelier, so the guided steps remain visible and usable after restoring a previous view.',
     fr: 'Le passage des chiffres ou des hypothèses à Parcours conserve la mise en page guidée. Les grilles propres aux rubriques d’édition s’appliquent uniquement à Horizon et Atelier, afin que les étapes restent visibles et utilisables après la reprise d’une vue précédente.',
   },

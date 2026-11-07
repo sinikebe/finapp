@@ -192,6 +192,9 @@ saving uses Web Locks in a secure context (HTTPS or localhost). When that is
 unavailable the app shows its saving limitation. Installability depends on the
 browser; Safari uses Add to Home Screen.
 
+The development preview installs as **Finapp dev**; the main application keeps
+the name **Finapp**. Both language variants use the corresponding name.
+
 ## Development
 
 Node 20 or later is enough:

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readNumericInput, bindNumericInput } from '../assets/js/input-validation.js';
 import { viewModeOf, guidedPlan, advancedFields } from '../assets/js/interface.js';
 import { parseBackup, MAX_BACKUP_BYTES } from '../assets/js/backup.js';
-import { deploymentFor, scopedStorage } from '../assets/js/deployment.js';
+import { deploymentFor, deploymentTitle, scopedStorage } from '../assets/js/deployment.js';
 import { createSaveController } from '../assets/js/save-controller.js';
 import { createPlanStore } from '../assets/js/store.js';
 import { loadWorkspace, snapshotOf, METRICS } from '../assets/js/state.js';
@@ -19,6 +19,19 @@ class MemoryStorage {
   setItem(key, value) { this.values.set(key, value); }
   removeItem(key) { this.values.delete(key); }
 }
+
+test('development page and home-screen names remain distinct when the language changes', () => {
+  for (const language of ['en', 'fr']) {
+    const title = makeTranslator(language)('doc.title');
+    const main = deploymentFor('https://example.org/finapp/');
+    const dev = deploymentFor('https://example.org/finapp/dev/');
+    assert.equal(deploymentTitle(title, main.preview), title);
+    assert.ok(deploymentTitle(title, dev.preview).startsWith('Finapp dev — '));
+    assert.equal(deploymentTitle('Finapp', main.preview), 'Finapp');
+    assert.equal(deploymentTitle('Finapp', dev.preview), 'Finapp dev');
+    assert.equal(deploymentTitle(deploymentTitle(title, true), true), deploymentTitle(title, true));
+  }
+});
 
 test('amounts accept currency affixes and grouping, rates keep decimal commas', () => {
   for (const text of ['2 200 €', 'EUR 2 200', '$2,200', '2\u202f200 EUR']) assert.equal(readNumericInput(text).number, 2200);
