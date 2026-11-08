@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v75', date: '2026-11-07',
+    version: 'v76', date: '2026-11-08',
+    en: 'Supporting explanations are available from contextual information buttons beside workspace titles, calculations, charts and templates. Help opens by click, touch or keyboard, stays within the viewport and closes with Escape, its close button or an outside action. Existing text and translations remain available. Financial warnings, validation errors, example labels and replacement confirmations stay visible.',
+    fr: 'Les explications complémentaires sont accessibles par des boutons d’information près des titres, calculs, graphiques et modèles. L’aide s’ouvre au clic, au toucher ou au clavier, reste dans la fenêtre et se ferme avec Échap, son bouton de fermeture ou une action extérieure. Les textes et traductions sont conservés. Les alertes financières, erreurs de saisie, mentions d’exemple et confirmations de remplacement restent visibles.',
+  },
+  {
+    version: 'v75', date: '2026-11-07', commit: '5e21e33',
     en: 'The development preview installs as Finapp dev in both languages, including its home-screen name and page title. The main application keeps its existing name. Installation identities, launch URLs, offline scopes and stored projects are unchanged.',
     fr: 'La préversion de développement s’installe sous le nom Finapp dev dans les deux langues, y compris sur l’écran d’accueil et dans le titre de la page. La version principale conserve son nom. Les identités d’installation, adresses de lancement, périmètres hors ligne et projets enregistrés sont conservés.',
   },

@@ -119,10 +119,9 @@ export function createProjectList(options) {
    * should not have to decline a menu first. The templates are the second line,
    * for the reader who does not yet know which questions the subject *has*.
    *
-   * Each is a button carrying the template's name, with its note underneath in
-   * hint type. The note is not a tooltip: it is where what the template
-   * *contains* is said, and that has to be legible before the button is pressed
-   * rather than after.
+   * Each template has a named action and a separate information control. Its
+   * explanation can be read before choosing it; opening help never applies a
+   * template or modifies the current project.
    *
    * The shelf has a head of its own — a lead that counts the templates and,
    * under it, the one claim that is true of all of them. Both are above every
@@ -145,8 +144,11 @@ export function createProjectList(options) {
     const row = html('li', 'template-row', shelfList);
     const button = html('button', 'ghost-button template-start', row);
     button.type = 'button';
+    button.id = `template-${template.id}`;
     button.addEventListener('click', () => onCommand({ type: 'template', template: template.id }));
     const note = html('p', 'hint template-note', row);
+    note.dataset.help = template.nameKey;
+    note.dataset.helpAnchor = `#${button.id}`;
     return { template, button, note };
   });
 

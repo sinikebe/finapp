@@ -522,6 +522,21 @@ routes together. It does not read or transfer project storage.
 
 ## finapps UI contract v1.0.0
 
+Finapp uses contextual information controls for supporting explanations. A native
+`details` trigger has a translated purpose, an explicit expanded state and an
+associated reading region with a close button. Content nodes retain their IDs
+and translations: updating a calculation never rebuilds a help control or takes
+focus out of a field. The panel is positioned within the visual viewport, scrolls
+when needed and is repositioned after scrolling or resizing. Only one help is
+open at once; Escape restores trigger focus, while an outside action or moving
+focus to another control closes it without stealing that focus. Touch targets
+are at least 44px. The pattern also works inside dialogs and header menus.
+
+Help is for explanations of presentation, formulas, shared fields, graphs and
+templates. Live results, active assumptions, financial warnings, validation and
+save errors, example provenance, sharing disclosures and replacement
+confirmations remain in the page. Printing omits the help controls.
+
 `assets/css/finapps-ui.css` is a small, locally bundled foundation: the three
 light/dark palettes and the 24-unit outline icon convention (`.ui-icon`, 20px,
 1.7-unit stroke, round joins). It consumes the existing type, spacing and radius

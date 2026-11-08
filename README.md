@@ -25,6 +25,8 @@ a live recap. The choice is remembered separately from Simple/Advanced and
 light/dark appearance. The open project's last section and guided step are
 remembered locally. **Appearance** is available in the header; **Tools** groups
 Simple/Advanced, language, currency, backups and exports.
+Information buttons beside headings and settings open supporting explanations.
+They work by click, touch and keyboard, and close with Escape or the Close button.
 Navigation, accessible controls and all financial rules
 are shared. In the Peugeot example, annual mileage recalculates the energy
 provisions from the documented catalogue assumptions; manually edited energy

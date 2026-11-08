@@ -31,7 +31,8 @@ export function createWorkspaceView(options) {
   kmLabel.htmlFor = km.id;
   const kmError = html('p', null, usage);
   const calculation = html('details', 'usage-calculation', usage);
-  const calculationLabel = html('summary', null, calculation);
+  calculation.dataset.help = 'workspace.energyCalculation';
+  html('summary', null, calculation);
   const kmNote = html('p', 'hint', calculation);
   let beganKm = false;
   km.addEventListener('focus', () => { beganKm = false; });
@@ -124,7 +125,6 @@ export function createWorkspaceView(options) {
     document.body.dataset.comparing = String(state.strategies.length > 1);
     syncProject();
     kmLabel.textContent = t('workspace.annualKm');
-    calculationLabel.textContent = t('workspace.energyCalculation');
     kmNote.textContent = t('workspace.kmNote');
     const variants = carVariantsOf(state.strategies);
     usage.hidden = variants.length !== state.strategies.length || !variants.length;
