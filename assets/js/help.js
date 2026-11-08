@@ -87,10 +87,14 @@ export function createHelpTips({ root = document, translator }) {
       if (!heading.classList.contains('help-heading')) { heading = html('div', 'help-heading'); title.before(heading); heading.appendChild(title); }
       heading.appendChild(tip); record.heading = heading; record.headingTitle = title;
     }
-    tip.addEventListener('toggle', () => {
+    const syncOpen = () => {
       if (tip.open) { if (active !== record) close(); active = record; trigger.setAttribute('aria-expanded', 'true'); position(); }
       else { trigger.setAttribute('aria-expanded', 'false'); if (active === record) active = null; }
-    });
+    };
+    // Native toggle events are queued. Update the active help immediately so
+    // a fast Escape closes this panel before a containing menu or dialog.
+    trigger.addEventListener('click', (event) => { event.preventDefault(); tip.open = !tip.open; syncOpen(); });
+    tip.addEventListener('toggle', syncOpen);
     records.push(record);
   }
 
@@ -110,7 +114,7 @@ export function createHelpTips({ root = document, translator }) {
       if ((!event.target.open && event.target.contains(active.tip)) || (event.target.open && !event.target.contains(active.tip))) close();
     }
   }, true);
-  root.addEventListener('close', () => close(), true);
+  root.addEventListener('close', (event) => { if (active && event.target.contains(active.tip)) close(); }, true);
   root.addEventListener('scroll', (event) => { if (active && !active.panel.contains(event.target)) position(); }, true);
   host.addEventListener('resize', position);
   host.visualViewport?.addEventListener('resize', position);

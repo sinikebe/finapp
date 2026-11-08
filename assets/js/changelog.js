@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v76', date: '2026-11-08',
+    version: 'v77', date: '2026-11-08',
+    en: 'Help activation now updates its keyboard state immediately, so Escape closes the explanation before a containing menu or dialog. Closing an unrelated dialog cannot dismiss newly opened help.',
+    fr: 'L’ouverture d’une aide met immédiatement son état clavier à jour : Échap ferme l’explication avant le menu ou la fenêtre qui la contient. La fermeture d’une autre fenêtre ne ferme pas une aide ouverte entre-temps.',
+  },
+  {
+    version: 'v76', date: '2026-11-08', commit: '82053c4',
     en: 'Supporting explanations are available from contextual information buttons beside workspace titles, calculations, charts and templates. Help opens by click, touch or keyboard, stays within the viewport and closes with Escape, its close button or an outside action. Existing text and translations remain available. Financial warnings, validation errors, example labels and replacement confirmations stay visible.',
     fr: 'Les explications complémentaires sont accessibles par des boutons d’information près des titres, calculs, graphiques et modèles. L’aide s’ouvre au clic, au toucher ou au clavier, reste dans la fenêtre et se ferme avec Échap, son bouton de fermeture ou une action extérieure. Les textes et traductions sont conservés. Les alertes financières, erreurs de saisie, mentions d’exemple et confirmations de remplacement restent visibles.',
   },
