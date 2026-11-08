@@ -66,6 +66,8 @@ assets/js/workspace.js        presentation preferences, scenario amount and mile
 assets/js/workspace-view.js   Horizon, Atelier and Parcours navigation and live recap
 assets/js/workspace-cards.js  shared comparison cards and validated inline editing
 assets/js/browser-tools.js    quick actions, native files/sharing, CSV and backup drop
+assets/js/help.js             accessible contextual explanations and bounded panels
+assets/css/help.css           information controls, help panels and touch targets
 assets/css/workspace.css      responsive workspace arrangements, controls and printing
 assets/css/finapps-ui.css     versioned finapps palettes and outline icon primitives
 assets/js/app.js              controller and view composition

@@ -13,6 +13,7 @@ import { deploymentFor, deploymentTitle, scopedStorage } from './deployment.js';
 import { createInterfaceView } from './interface-view.js';
 import { createWorkspaceView } from './workspace-view.js';
 import { createBrowserTools, saveFile } from './browser-tools.js';
+import { createHelpTips } from './help.js';
 import { editScenarioAmount, changeAnnualKm } from './workspace.js';
 import { bindNumericInput } from './input-validation.js';
 import { VIEW_MODE_KEY, INTRO_KEY, viewModeOf, guidedPlan } from './interface.js';
@@ -2939,6 +2940,7 @@ ui.sharedKeep.addEventListener('click', () => ui.sharedDialog.close());
 ui.sharedDialog.addEventListener('close', () => { offered = null; });
 closeOnBackdrop(ui.sharedDialog);
 
+createHelpTips({ translator: () => t });
 applyLanguage(language);
 
 // A link pasted into the address bar of a tab already showing the app changes

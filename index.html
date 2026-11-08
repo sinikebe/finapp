@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="./assets/css/finapps-ui.css">
   <link rel="stylesheet" href="./assets/css/workspace.css">
   <link rel="stylesheet" href="./assets/css/app-switcher.css">
+  <link rel="stylesheet" href="./assets/css/help.css">
   <script type="module" src="./assets/js/app.js"></script>
   <script type="module" src="./assets/js/app-switcher.js"></script>
 </head>
@@ -57,7 +58,7 @@
             <button id="lang" class="ghost-button" type="button" aria-label="Language: English. Switch to French"><span id="lang-label" aria-hidden="true">EN</span></button>
             <label for="currency" data-i18n="ui.currency">Currency label</label>
             <select id="currency"><option value="" data-i18n="ui.currencyNone">No symbol</option><option value="EUR">EUR — €</option><option value="USD">USD — $</option><option value="GBP">GBP — £</option><option value="CHF">CHF</option></select>
-            <p class="hint" data-i18n="ui.currencyNote">Display only. No currency conversion.</p>
+            <p class="hint" data-i18n="ui.currencyNote" data-help="ui.currency" data-help-anchor="label[for=currency]">Display only. No currency conversion.</p>
           </div>
           <div class="tools-group" role="group" data-i18n-aria="ui.backups">
             <p class="tools-heading" data-i18n="ui.backups">Backups</p>
@@ -121,10 +122,10 @@
           </button>
         </div>
         <button id="new-project" class="ghost-button" type="button" data-i18n="ui.newProject">New project</button><div id="strategies"></div>
-        <p id="workspace-description" class="hint"></p>
+        <p id="workspace-description" class="hint" data-help="workspace.presentation" data-help-host=".workspace-head .panel-title"></p>
       </div>
     <nav id="journey-nav" class="journey-nav" data-i18n-aria="workspace.steps" aria-label="Planning steps"><button type="button" data-journey-step="0" aria-current="step"><span>1</span><span data-i18n="workspace.usage">Your horizon</span></button><button type="button" data-journey-step="1"><span>2</span><span data-i18n="workspace.figures">Your figures</span></button><button type="button" data-journey-step="2"><span>3</span><span data-i18n="workspace.result">Your result</span></button></nav>
-    <section class="journey-question" id="journey-question-panel"><p id="journey-progress" class="workspace-eyebrow"></p><h2 id="journey-question"></h2><p class="hint" id="journey-explanation"></p></section>
+    <section class="journey-question" id="journey-question-panel"><p id="journey-progress" class="workspace-eyebrow"></p><h2 id="journey-question"></h2><p class="hint" id="journey-explanation" data-help="workspace.steps" data-help-anchor="#journey-question"></p></section>
     <div class="filter-row panel horizon" id="horizon">
         <div class="filter">
 <h2 data-i18n="filter.label">Projection length</h2><label class="sr-only" for="months" data-i18n="filter.label">Projection length</label>
@@ -196,13 +197,13 @@
             <dt id="worth-label">Total after 24 months</dt>
             <dd id="worth-value">—</dd>
           </div>
-        </dl></details><p class="hint" data-i18n="ui.cashNote">Cash starts at zero. Net worth adds investments and assets, then subtracts outstanding debt.</p><div class="assumptions-summary"><p class="hint" id="active-assumptions"></p><button id="assumptions-edit" type="button" class="ghost-button" data-i18n="ui.editAssumptions">Edit assumptions</button></div>
+        </dl></details><p class="hint" data-i18n="ui.cashNote" data-help="summary.heading" data-help-before="#workspace-period">Cash starts at zero. Net worth adds investments and assets, then subtracts outstanding debt.</p><div class="assumptions-summary"><p class="hint" id="active-assumptions"></p><button id="assumptions-edit" type="button" class="ghost-button" data-i18n="ui.editAssumptions">Edit assumptions</button></div>
         <div class="workspace-result-actions"><button type="button" id="workspace-edit" class="workspace-primary" data-i18n="workspace.editFigures">Adjust my figures</button><button type="button" id="workspace-assumptions" class="ghost-button" data-i18n="workspace.assumptions">Assumptions</button></div>
         <p class="hint" id="tax-scope" data-i18n="summary.taxScope" hidden>Cash and total worth are before investment tax, including after a sale. Only net profit applies the tax rate shown in the assumptions.</p>
     </section>
 <section class="panel charts-section" id="compare" aria-labelledby="compare-heading" hidden>
         <h2 id="compare-heading" data-i18n="compare.heading">Scenarios side by side</h2>
-        <p id="workspace-comparison-note" class="hint"></p>
+        <p id="workspace-comparison-note" class="hint" data-help="ui.compare" data-help-anchor="#compare-heading"></p>
         <div id="simple-comparison" class="simple-comparison"></div><p class="section-note advanced-only" id="compare-note" aria-live="polite"></p>
         <div class="filter-row advanced-only">
           <div class="presets" role="group" id="compare-metrics" data-i18n-aria="compare.metricAria"></div>
@@ -220,11 +221,11 @@
     <section id="inputs" class="panel inputs-panel" aria-labelledby="inputs-heading">
       <h2 class="section-title" data-i18n="ui.data">Data</h2><div class="panel-body" id="inputs-body">
         <div id="fields"></div>
-        <p class="hint" id="sync-hint" data-i18n="inputs.syncHint" hidden>Comparing two scenarios only tells you something if they differ in one place. Use the link button to keep a field the same everywhere — your income does not change because you decided to invest.</p>
         <p class="hint" id="debt-hint" data-i18n="inputs.debtHint" hidden>A loan counts against what you are worth until it is repaid. If it bought something you still have — a flat, a car — add that as “Something you own”, or the total is only half the story.</p>
-        <p class="hint" id="window-note" data-i18n="inputs.windowNote" hidden>Months are counted from today, which is month 0 — so “from month 6” is half a year out. Leave a box empty and the field runs for the whole projection. Anything less frequent than monthly counts its period from where it starts.</p>
-        <details class="panel-notes">
+        <details class="panel-notes" data-help="ui.data" data-help-anchor=".inputs-panel > .section-title">
           <summary data-i18n="inputs.notes">How this works</summary>
+          <p class="hint" id="sync-hint" data-i18n="inputs.syncHint" hidden>Comparing two scenarios only tells you something if they differ in one place. Use the link button to keep a field the same everywhere — your income does not change because you decided to invest.</p>
+          <p class="hint" id="window-note" data-i18n="inputs.windowNote" hidden>Months are counted from today, which is month 0 — so “from month 6” is half a year out. Leave a box empty and the field runs for the whole projection. Anything less frequent than monthly counts its period from where it starts.</p>
           <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.</p>
           <p class="hint" id="period-note" data-i18n="inputs.periodNote" hidden>Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.</p>
           <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency — the app never converts or stores them anywhere but this device.</p>
@@ -232,12 +233,12 @@
       </div>
     </section>
     <section class="panel assumptions-panel" aria-labelledby="assumptions-heading">
-      <section id="advanced-settings" class="simple-only" hidden><h3 data-i18n="ui.advancedRules">Active advanced settings</h3><details class="advanced-settings-fold"><summary id="advanced-settings-count"></summary><p class="hint" data-i18n="ui.advancedNote">These rules still apply in Simple mode. Open an item to edit its dates, conditions or rate.</p><div id="advanced-settings-list"></div></details></section><details class="assumptions-fold">
+      <section id="advanced-settings" class="simple-only" hidden><h3 data-i18n="ui.advancedRules">Active advanced settings</h3><details class="advanced-settings-fold"><summary id="advanced-settings-count"></summary><p class="hint" data-i18n="ui.advancedNote" data-help="ui.advancedRules">These rules still apply in Simple mode. Open an item to edit its dates, conditions or rate.</p><div id="advanced-settings-list"></div></details></section><details class="assumptions-fold">
         <summary>
           <h2 id="assumptions-heading" data-i18n="assumptions.heading">How money behaves</h2>
         </summary>
-        <p class="hint" data-i18n="assumptions.note">These apply to every scenario at once, which is what keeps two scenarios worth comparing.</p>
-        <p class="hint" data-i18n="filter.rateConvention">Rates on balances are nominal annual percentages divided by twelve. The rate on a repeating amount changes it on each anniversary.</p>
+        <div data-help="assumptions.heading"><p class="hint" data-i18n="assumptions.note">These apply to every scenario at once, which is what keeps two scenarios worth comparing.</p>
+        <p class="hint" data-i18n="filter.rateConvention">Rates on balances are nominal annual percentages divided by twelve. The rate on a repeating amount changes it on each anniversary.</p></div>
         <div class="assumption-groups">
           <div class="assumption-group">
             <div class="presets" role="group" data-i18n-aria="filter.moneyAria">
@@ -284,7 +285,7 @@
           <button type="button" class="preset" id="view-monthly" aria-pressed="false" data-i18n="charts.view.monthly">Each month</button>
         </div>
         <div id="simple-chart-metrics" class="presets simple-only" role="group" data-i18n-aria="charts.viewAria"><button id="chart-cash" class="preset" type="button" aria-pressed="true" data-i18n="ui.cash">Available cash</button><button id="chart-worth" class="preset" type="button" aria-pressed="false" data-i18n="ui.worth">Net worth</button></div><div class="chart-grid" id="charts"></div>
-        <details class="section-notes">
+        <details class="section-notes" data-help="charts.heading" data-help-anchor="#charts-heading">
           <summary data-i18n="notes.how">How this works</summary>
           <p class="scale-note" id="charts-scale-note" data-i18n="charts.scaleNote">The flow charts share one vertical scale, so they can be read against each other. Month 0 is today: nothing earned, nothing paid — though what you already own and already owe counts from the start. Money put into an investment counts as paid out; what it is worth is a balance, not a flow, so that card carries its own scale. The total sits back on the shared scale, so the gap between it and the net is everything the balance sheet adds.</p>
         </details>
@@ -292,22 +293,19 @@
       </section>
       <section class="charts-section" id="milestones" aria-labelledby="milestones-heading" hidden>
         <h2 id="milestones-heading" data-i18n="milestone.heading">When does that happen?</h2>
-        <details class="section-notes">
+        <details class="section-notes" data-help="milestone.heading" data-help-anchor="#milestones-heading">
           <summary data-i18n="notes.how">How this works</summary>
           <p class="section-note" data-i18n="milestone.note">A target is a figure to watch for, not a rule the scenario obeys: the projection runs as it always has and the app reads off the first month the scenario you are looking at is there. Switch scenarios and every answer is worked out again.</p>
+          <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
+          <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only an amount or a rate can be solved. Each answer is checked by running the complete scenario again. If events depend on targets, the answer is one checked example: larger or smaller figures can change when those events happen. Nothing is applied to your scenario automatically.</p>
         </details>
         <p class="section-note is-warning" id="milestone-unsettled" data-i18n="milestone.unsettled" hidden>These targets move each other, so there is no month that is its own cause. Give one of them a figure that does not depend on the other, or set its month by hand.</p>
         <p class="hint" id="milestone-invalid" data-i18n="milestone.invalid" role="status" hidden>Some fields refer to a missing target. Their settings show the broken link; choose a month or another target to repair it.</p>
         <div id="milestone-mount"></div>
-        <details class="section-notes">
-          <summary data-i18n="notes.how">How this works</summary>
-          <p class="scale-note" data-i18n="milestone.caveat">A rule marks a month and nothing else. It is drawn in the same place on every card, because a month is a month, and it says nothing about the curve it happens to cross. A total that climbs past its figure and falls back again is marked once, where it first got there — the cards show the rest.</p>
-          <p class="scale-note" id="goal-caveat" data-i18n="goal.caveat" hidden>Only an amount or a rate can be solved. Each answer is checked by running the complete scenario again. If events depend on targets, the answer is one checked example: larger or smaller figures can change when those events happen. Nothing is applied to your scenario automatically.</p>
-        </details>
       </section>
       <section class="charts-section advanced-only" id="sankey" aria-labelledby="sankey-heading" hidden>
         <h2 id="sankey-heading" data-i18n="sankey.heading">Where the money goes</h2>
-        <details class="section-notes">
+        <details class="section-notes" data-help="sankey.heading" data-help-anchor="#sankey-heading">
           <summary data-i18n="notes.how">How this works</summary>
           <p class="section-note" data-i18n="sankey.note">Everything that comes in over the whole projection, pooled, and where it ends up. Only money that actually moves is here — what an investment grows to, or a flat gains, is on the cards above.</p>
         </details>
@@ -318,13 +316,13 @@
         <p class="section-note" id="rank-note"></p>
         <ol class="rank-list" id="rank-list"></ol>
         <p class="hint" id="rank-said" hidden></p>
-        <details class="section-notes">
+        <details class="section-notes" data-help="rank.heading" data-help-anchor="#rank-heading">
           <summary data-i18n="notes.how">How this works</summary>
           <p class="scale-note" data-i18n="rank.caveat.horizon">This is what your scenario is sensitive to over the length you are reading it at, not a general truth about money. Pull the projection out and the order changes: the three scenarios the app opens with swap theirs somewhere between twenty years and forty.</p>
           <p class="scale-note" data-i18n="rank.caveat.parts">The swings do add up. Every amount enters the model on its own, so moving two of them moves the figure by both, to the cent — and that is exactly the limit of the list rather than a flaw in it: it will rank a mortgage and the house it bought one above the other without ever being able to say they were one decision. Profit is the exception, because the tax falls on the gain as a whole rather than on each part of it.</p>
         </details>
       </section></div>
-  <aside class="journey-recap" aria-labelledby="journey-recap-heading"><p class="workspace-eyebrow" id="journey-recap-heading" data-i18n="workspace.liveRecap">Your live summary</p><h3 id="journey-recap-name"></h3><p class="hint" id="journey-recap-duration"></p><p id="journey-recap-label" class="hint"></p><p id="journey-recap-value" class="recap-value"></p><p class="hint" data-i18n="workspace.recapHelp">Adjust your figures. The summary updates as you go.</p></aside>
+  <aside class="journey-recap" aria-labelledby="journey-recap-heading"><p class="workspace-eyebrow" id="journey-recap-heading" data-i18n="workspace.liveRecap">Your live summary</p><h3 id="journey-recap-name"></h3><p class="hint" id="journey-recap-duration"></p><p id="journey-recap-label" class="hint"></p><p id="journey-recap-value" class="recap-value"></p><p class="hint" data-i18n="workspace.recapHelp" data-help="workspace.liveRecap" data-help-anchor="#journey-recap-heading">Adjust your figures. The summary updates as you go.</p></aside>
   <div class="journey-actions"><button id="journey-back" type="button" class="ghost-button" data-i18n="workspace.back">Back</button><button id="journey-next" type="button" class="workspace-primary" data-i18n="workspace.continue">Continue</button></div>
 </main>
   <footer class="app-footer">
@@ -345,7 +343,7 @@
       <div><dt data-i18n="about.commit">Built from</dt><dd id="about-commit">—</dd></div>
       <div><dt data-i18n="about.date">Date</dt><dd id="about-date">—</dd></div>
     </dl>
-    <p class="hint" id="about-note" data-i18n="about.note">The app is served as static files with no build step, so this names the commit the build sits on top of rather than its own. Each release below carries the commit it was merged as.</p>
+    <p class="hint" id="about-note" data-i18n="about.note" data-help="about.heading" data-help-anchor="#about-heading">The app is served as static files with no build step, so this names the commit the build sits on top of rather than its own. Each release below carries the commit it was merged as.</p>
     <div class="about-update" id="about-update-row" hidden>
       <button id="about-update" class="ghost-button" type="button" data-i18n="update.check">Check for updates</button>
       <p class="hint" id="about-update-note" role="status"></p>
@@ -388,7 +386,7 @@
       <h2 id="projects-heading" data-i18n="project.heading">Projects</h2>
       <button type="button" id="projects-close" class="ghost-button" data-i18n="about.close">Close</button>
     </div>
-    <p class="hint" data-i18n="project.note">A project is one question with several answers in it: its own scenarios, its own horizon, its own targets. How money behaves is shared by all of them.</p>
+    <p class="hint" data-i18n="project.note" data-help="project.heading" data-help-anchor="#projects-heading">A project is one question with several answers in it: its own scenarios, its own horizon, its own targets. How money behaves is shared by all of them.</p>
     <div id="project-mount"></div>
   </dialog>
   <dialog id="shared" class="about" aria-labelledby="shared-heading">
@@ -410,7 +408,7 @@
   </div>
 <dialog id="welcome" class="about welcome" aria-labelledby="welcome-heading">
   <div class="about-head"><h2 id="welcome-heading" data-i18n="ui.welcome">What would you like to plan?</h2><button id="welcome-close" class="ghost-button" type="button" data-i18n="ui.close">Close</button></div>
-  <p class="hint" data-i18n="ui.welcomeNote">Start with your own figures, or explore a clearly marked example. Everything stays on this device.</p>
+  <p class="hint" data-i18n="ui.welcomeNote" data-help="ui.welcome" data-help-anchor="#welcome-heading">Start with your own figures, or explore a clearly marked example. Everything stays on this device.</p>
   <div class="welcome-choices"><button type="button" data-start="budget" data-i18n="ui.budget">My monthly budget</button><button type="button" data-start="compare" data-i18n="ui.compareProject">Compare two scenarios</button><button type="button" data-start="savings" data-i18n="ui.savings">A savings goal</button><button type="button" data-start="examples" data-i18n="ui.examples">Explore the examples</button></div>
 </dialog>
 <dialog id="backup-restore" class="about" aria-labelledby="backup-heading">

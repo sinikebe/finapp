@@ -71,7 +71,10 @@ export function createFieldList(options) {
 
   const root = html('div', 'field-list', mount);
   const commonHeading = html('h3', 'field-group-heading', root);
+  commonHeading.id = 'common-fields-heading';
   const commonNote = html('p', 'hint', root);
+  commonNote.dataset.help = 'ui.common';
+  commonNote.dataset.helpAnchor = '#common-fields-heading';
   const common = html('div', 'field-rows common-fields', root);
   common.setAttribute('role', 'list');
   const specificHeading = html('h3', 'field-group-heading', root);

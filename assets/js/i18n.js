@@ -18,6 +18,8 @@ const DEFAULT_LOCALES = { en: 'en-US', fr: 'fr-FR' };
 
 const STRINGS = {
   en: {
+    'help.label': (label) => `Help: ${label}`,
+    'help.close': 'Close help',
     "workspace.saveAs": "Save backup as…",
     "workspace.scenarioActions": "More actions",
     "workspace.energyCalculation": "How energy is calculated",
@@ -761,6 +763,8 @@ const STRINGS = {
   },
 
   fr: {
+    'help.label': (label) => `Aide : ${label}`,
+    'help.close': 'Fermer l’aide',
     "workspace.saveAs": "Enregistrer la sauvegarde sous…",
     "workspace.scenarioActions": "Autres actions",
     "workspace.energyCalculation": "Calcul du budget d’énergie",
