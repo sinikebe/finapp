@@ -60,6 +60,14 @@ assets/js/input-validation.js numeric drafts, currency affixes and inline validi
 assets/js/save-controller.js  debounced saves, reverts and queued-write coordination
 assets/js/deployment.js       production/preview storage and lock namespaces
 assets/js/backup.js           bounded backup validation and restore summaries
+assets/js/backup-merge.js     differences and validated field-level backup merge
+assets/js/finapp-drive-config.js  public OAuth client IDs for main and preview
+assets/js/finapp-drive-auth.js    Google Identity Services authorization
+assets/js/finapp-drive-api.js     private Drive file transport and errors
+assets/js/finapp-drive-format.js  snapshot validation, hashes and revision graph
+assets/js/finapp-drive-sync.js    versioned synchronization and conflict resolution
+assets/js/finapp-drive-panel.js   connection, history and comparison controls
+assets/css/drive.css          responsive Drive backup controls
 assets/js/interface.js        presentation preferences and guided blank projects
 assets/js/interface-view.js   mode controls, summary/comparison and backup preview
 assets/js/workspace.js        presentation preferences, scenario amount and mileage commands
@@ -188,6 +196,32 @@ Backup restoration validates every project before showing a replacement action.
 It creates an independent recovery draft before replacement, checks the current
 saved revision and uses the same atomic store as ordinary edits. Never replace
 anything when validation or recovery storage fails.
+
+Drive synchronization uses the existing version 1 backup workspace. Validate the
+raw remote snapshot and its hash before parsing or normalizing it, and pass any
+replacement or merge through the same local revision check and recovery copy as
+JSON restoration. Keep remote versions immutable. Never resolve concurrent
+changes or project deletions by silently overwriting a device; the reader must
+review the differences and choose what to retain. Tests should exercise two
+devices, a changed local revision during transfer, corrupt remote files, failed
+recovery storage and restoration of a historical JSON backup.
+
+The public web OAuth client ID is shared with Garapp; do not add a client
+secret. Google Identity Services requests
+`https://www.googleapis.com/auth/drive.file` after the reader connects. Its
+authorized JavaScript origin is `https://sinikebe.github.io` for both `/finapp/`
+and `/finapp/dev/`; the paths are not distinct OAuth origins. The same Google
+project may grant access to files created by either app, so app-specific Drive
+markers and publication-path namespaces must prevent cross-app listing or
+restoration. Keep connection tokens in memory only, without local storage,
+IndexedDB, logs or cached assets. Only public app files belong in the service
+worker; private Drive responses and backup JSON must never be cached.
+
+An automatic Drive transfer runs only while the user has connected and selected
+a backup and local changes have been saved. A closed tab loses its access token;
+the next session requires a manual connection. Keep manual JSON export and
+restore available when Google authentication, network access, permissions or
+Drive quotas fail. The reader-facing guide is [Google Drive backups](docs/google-drive.md).
 
 ## Production and development publication
 

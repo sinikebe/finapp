@@ -1,0 +1,46 @@
+/* Finapp Drive backup controls share the existing app surfaces and spacing scale. */
+.drive-dialog { width: min(720px, calc(100vw - 32px)); max-height: min(86dvh, 820px); box-sizing: border-box; }
+.drive-dialog *, .drive-dialog *::before, .drive-dialog *::after { box-sizing: border-box; }
+.drive-dialog [hidden] { display: none !important; }
+.drive-dialog :is(p, li, h2, h3, label, summary) { overflow-wrap: anywhere; }
+.drive-dialog .hint { color: var(--text-secondary); font-size: var(--type-xs); }
+.drive-dialog .drive-status { min-height: 1.5em; color: var(--text-secondary); font-size: var(--type-xs); }
+.drive-dialog .drive-status[data-error="true"] { color: var(--status-critical); }
+.drive-dialog .drive-panel { display: grid; gap: var(--space-md); min-width: 0; }
+.drive-dialog .drive-panel > h3 { margin: var(--space-lg) 0 0; }
+.drive-dialog .drive-folder { margin: 0; font-weight: 600; }
+.drive-dialog .drive-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); min-width: 0; }
+.drive-dialog .drive-actions button { max-width: 100%; white-space: normal; text-align: center; }
+.drive-dialog .drive-auto { display: flex; align-items: flex-start; gap: var(--space-sm); width: fit-content; max-width: 100%; cursor: pointer; }
+.drive-dialog .drive-auto input { flex: none; margin-top: 0.3em; }
+.drive-dialog .drive-auto + .hint { margin: 0; }
+.drive-dialog .drive-review { min-width: 0; padding: var(--space-lg); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--accent-wash); }
+.drive-dialog .drive-review h3 { margin: 0 0 var(--space-sm); color: var(--text-primary); }
+.drive-dialog .drive-details { min-width: 0; padding: var(--space-lg); background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.drive-dialog .drive-details > summary { cursor: pointer; font-weight: 600; }
+.drive-dialog .drive-details[open] > summary { margin-bottom: var(--space-md); }
+.drive-dialog .drive-folder-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-xs); min-width: 0; margin-top: var(--space-lg); }
+.drive-dialog .drive-folder-picker :is(input, select) { width: 100%; max-width: 100%; min-width: 0; min-height: 42px; padding: var(--space-sm); color: var(--text-primary); background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: inherit; }
+.drive-dialog .drive-folder-picker > button { justify-self: start; }
+.drive-dialog .drive-versions { display: grid; gap: var(--space-sm); min-width: 0; margin: 0; padding: 0; list-style: none; }
+.drive-dialog .drive-versions li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-sm); min-width: 0; padding: var(--space-sm); background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.drive-dialog .drive-versions li > :first-child { flex: 1 1 190px; min-width: 0; white-space: pre-line; }
+.drive-dialog .drive-versions li button { flex: none; }
+.drive-dialog .drive-review-summary { margin: 0 0 var(--space-lg); font-weight: 600; }
+.drive-dialog .drive-differences { display: grid; gap: var(--space-sm); min-width: 0; max-height: 40dvh; overflow: auto; overscroll-behavior: contain; }
+.drive-dialog .drive-difference { min-width: 0; padding: var(--space-md); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
+.drive-dialog .drive-difference h3 { margin: 0 0 var(--space-xs); color: var(--text-primary); }
+.drive-dialog .drive-difference p { margin: var(--space-xs) 0; }
+.drive-dialog .drive-difference-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm); }
+.drive-dialog .drive-difference-values > * { min-width: 0; padding: var(--space-sm); background: var(--surface-1); border-radius: var(--radius-sm); }
+.drive-dialog .drive-difference-values :is(strong, span) { display: block; overflow-wrap: anywhere; }
+.drive-dialog .drive-difference-choice { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); }
+.drive-dialog .drive-difference-choice select { min-height: 40px; max-width: 100%; padding: var(--space-xs); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface-1); color: var(--text-primary); }
+.drive-dialog .drive-preview-actions { margin-top: var(--space-lg); }
+.drive-dialog .drive-downloads { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border); }
+@media (max-width: 480px) {
+  .drive-dialog { max-height: calc(100dvh - 24px); padding: var(--space-xl); }
+  .drive-dialog .drive-actions > button { flex: 1 1 100%; }
+  .drive-dialog .drive-difference-values { grid-template-columns: minmax(0, 1fr); }
+  .drive-dialog .drive-versions li button { flex: 1 1 100%; }
+}

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob:; connect-src 'self' https://accounts.google.com/gsi/ https://www.googleapis.com https://content.googleapis.com; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Finapp — estimate your financial future</title>
   <meta id="doc-description" name="description" content="An offline-first calculator that projects cumulative income, expenses and net over the months ahead.">
@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="./assets/css/workspace.css">
   <link rel="stylesheet" href="./assets/css/app-switcher.css">
   <link rel="stylesheet" href="./assets/css/help.css">
+  <link rel="stylesheet" href="./assets/css/drive.css">
   <script type="module" src="./assets/js/app.js"></script>
   <script type="module" src="./assets/js/app-switcher.js"></script>
 </head>
@@ -65,6 +66,7 @@
             <button id="backup-download" type="button" class="ghost-button" data-i18n="save.export">Download a backup</button>
             <button id="backup-save-as" type="button" class="ghost-button" data-i18n="workspace.saveAs" hidden>Save backup as…</button>
             <button id="backup-open" type="button" class="ghost-button" data-i18n="ui.restore">Restore a backup</button>
+            <button id="drive-open" type="button" class="ghost-button" data-i18n="drive.open">Google Drive backup</button>
           </div>
           <div class="tools-group" role="group" data-i18n-aria="ui.results">
             <p class="tools-heading" data-i18n="ui.results">Results</p>
@@ -228,7 +230,7 @@
           <p class="hint" id="window-note" data-i18n="inputs.windowNote" hidden>Months are counted from today, which is month 0 — so “from month 6” is half a year out. Leave a box empty and the field runs for the whole projection. Anything less frequent than monthly counts its period from where it starts.</p>
           <p class="hint" data-i18n="inputs.hint">Name each amount, say whether it comes in or goes out, how often it lands, and how much. A loan works out its own repayments, an investment grows at the rate you give it, and something you own simply holds its value. Give an amount a rate and it climbs by that much every year.</p>
           <p class="hint" id="period-note" data-i18n="inputs.periodNote" hidden>Anything less frequent than monthly lands at the end of each period — a yearly amount at month 12, 24, and so on.</p>
-          <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency — the app never converts or stores them anywhere but this device.</p>
+          <p class="hint currency-note" data-i18n="inputs.currencyNote">Amounts are in your own currency. The app never converts them. A Google Drive backup is made only if you connect.</p>
         </details>
       </div>
     </section>
@@ -326,7 +328,7 @@
   <div class="journey-actions"><button id="journey-back" type="button" class="ghost-button" data-i18n="workspace.back">Back</button><button id="journey-next" type="button" class="workspace-primary" data-i18n="workspace.continue">Continue</button></div>
 </main>
   <footer class="app-footer">
-    <p data-i18n="footer.note">Everything is calculated on your device and saved only in this browser. No account, no network.</p>
+    <p data-i18n="footer.note">Everything is calculated on your device. Your projects stay in this browser unless you choose to back up to your Google Drive.</p>
   </footer>
   <dialog id="about" class="about" aria-labelledby="about-heading">
     <div class="about-head">
@@ -408,7 +410,7 @@
   </div>
 <dialog id="welcome" class="about welcome" aria-labelledby="welcome-heading">
   <div class="about-head"><h2 id="welcome-heading" data-i18n="ui.welcome">What would you like to plan?</h2><button id="welcome-close" class="ghost-button" type="button" data-i18n="ui.close">Close</button></div>
-  <p class="hint" data-i18n="ui.welcomeNote" data-help="ui.welcome" data-help-anchor="#welcome-heading">Start with your own figures, or explore a clearly marked example. Everything stays on this device.</p>
+  <p class="hint" data-i18n="ui.welcomeNote" data-help="ui.welcome" data-help-anchor="#welcome-heading">Start with your own figures or explore a clearly marked example. Your projects stay here unless you choose Google Drive backup.</p>
   <div class="welcome-choices"><button type="button" data-start="budget" data-i18n="ui.budget">My monthly budget</button><button type="button" data-start="compare" data-i18n="ui.compareProject">Compare two scenarios</button><button type="button" data-start="savings" data-i18n="ui.savings">A savings goal</button><button type="button" data-start="examples" data-i18n="ui.examples">Explore the examples</button></div>
 </dialog>
 <dialog id="backup-restore" class="about" aria-labelledby="backup-heading">
@@ -416,6 +418,37 @@
   <label for="backup-file" data-i18n="ui.restoreFile">Choose a JSON backup</label><input id="backup-file" type="file" accept="application/json,.json">
   <div id="backup-preview" hidden><label for="backup-source" data-i18n="ui.restoreSource">Version to restore</label><select id="backup-source"></select><p id="backup-summary"></p><ul id="backup-projects"></ul><p class="hint" data-i18n="ui.restoreWarning">Restoring replaces every project on this device. A recovery copy of the current workspace is kept first.</p><button id="backup-confirm" class="ghost-button is-grave" type="button" data-i18n="ui.restoreConfirm">Replace my projects</button></div>
   <p id="backup-message" role="status"></p>
+</dialog>
+<dialog id="drive-dialog" class="about drive-dialog" aria-labelledby="drive-heading">
+  <div class="about-head"><h2 id="drive-heading" data-i18n="drive.heading">Google Drive backup</h2><button id="drive-close" type="button" class="ghost-button" data-i18n="ui.close">Close</button></div>
+  <p class="hint" data-i18n="drive.intro">Connect your Google account to keep private, versioned copies of your projects in Drive. You choose when to connect.</p>
+  <p id="drive-status" class="drive-status" role="status"></p>
+  <p id="drive-notice" class="hint" role="status" hidden></p>
+  <div class="drive-actions"><button id="drive-connect" type="button" class="workspace-primary" data-i18n="drive.connect">Connect to Google Drive</button><button id="drive-disconnect" type="button" class="ghost-button" data-i18n="drive.disconnect" hidden>Disconnect</button></div>
+  <section id="drive-connected" class="drive-panel" hidden aria-labelledby="drive-folder-heading">
+    <h3 id="drive-folder-heading" data-i18n="drive.folderHeading">Drive backup</h3>
+    <p id="drive-folder" class="drive-folder"></p>
+    <div class="drive-actions"><button id="drive-sync" type="button" class="workspace-primary" data-i18n="drive.sync">Sync now</button><button id="drive-seed" type="button" class="workspace-primary" data-i18n="drive.seed" hidden>Save my projects to Drive</button></div>
+    <label class="drive-auto" for="drive-auto"><input id="drive-auto" type="checkbox"><span data-i18n="drive.auto">Sync when projects change</span></label>
+    <p class="hint" data-i18n="drive.autoHint">Keep this tab connected to sync automatically. Google may ask you to reconnect after closing it.</p>
+    <section id="drive-review" class="drive-review" hidden aria-labelledby="drive-review-heading"><h3 id="drive-review-heading" data-i18n="drive.review">A Drive version is ready to review</h3><ul id="drive-review-list" class="drive-versions"></ul></section>
+    <details id="drive-history" class="drive-details" hidden><summary data-i18n="drive.history">Previous versions</summary><p id="drive-history-note" class="hint"></p><ul id="drive-versions" class="drive-versions"></ul></details>
+    <details id="drive-folder-settings" class="drive-details"><summary data-i18n="drive.settings">Choose a Drive backup</summary>
+      <p class="hint" data-i18n="drive.separation">Finapp development and production keep separate Drive backups. Garapp files remain separate.</p>
+      <div class="drive-folder-picker"><label for="drive-folders" data-i18n="drive.existing">Existing backup</label><select id="drive-folders" aria-describedby="drive-status"></select><div class="drive-actions"><button id="drive-list" type="button" class="ghost-button" data-i18n="drive.refresh">Refresh list</button><button id="drive-use" type="button" class="ghost-button" data-i18n="drive.use">Use this backup</button></div></div>
+      <div class="drive-folder-picker"><label for="drive-name" data-i18n="drive.newName">New backup name</label><input id="drive-name" type="text" maxlength="80" autocomplete="off" placeholder="Finapp - My projects"><button id="drive-create" type="button" class="ghost-button" data-i18n="drive.create">Create a backup</button></div>
+    </details>
+  </section>
+</dialog>
+<dialog id="drive-preview-dialog" class="about drive-dialog drive-preview-dialog" aria-labelledby="drive-preview-heading">
+  <div class="about-head"><h2 id="drive-preview-heading" data-i18n="drive.preview">Review the Drive version</h2><button id="drive-preview-close" type="button" class="ghost-button" data-i18n="ui.close">Close</button></div>
+  <p id="drive-preview-description" class="hint"></p>
+  <p id="drive-review-summary" class="drive-review-summary"></p>
+  <div id="drive-differences" class="drive-differences" aria-live="polite"></div>
+  <p class="hint" data-i18n="drive.recovery">A recovery copy of your current projects is saved before any local replacement. Previous Drive versions stay available.</p>
+  <p id="drive-preview-error" class="drive-status" role="alert" hidden></p>
+  <div class="drive-actions drive-preview-actions"><button id="drive-keep-local" type="button" class="ghost-button" data-i18n="drive.keepLocal">Keep my projects</button><button id="drive-use-remote" type="button" class="ghost-button is-grave" data-i18n="drive.useRemote">Use this Drive version</button><button id="drive-merge" type="button" class="workspace-primary" data-i18n="drive.merge">Combine selected changes</button></div>
+  <div class="drive-actions drive-downloads"><button id="drive-export-local" type="button" class="ghost-button" data-i18n="drive.downloadLocal">Download my projects</button><button id="drive-export-remote" type="button" class="ghost-button" data-i18n="drive.downloadRemote">Download Drive version</button></div>
 </dialog>
   <dialog id="commands" class="about command-dialog" aria-labelledby="commands-heading"><div class="about-head"><h2 id="commands-heading" data-i18n="workspace.actions">Quick actions</h2><button id="commands-close" class="ghost-button" type="button" data-i18n="ui.close">Close</button></div><label for="commands-search" class="sr-only" data-i18n="workspace.searchActions">Find an action</label><input id="commands-search" type="search" autocomplete="off"><div id="commands-list" class="command-list"></div><p id="commands-empty" class="hint" data-i18n="workspace.noAction" hidden>No matching action.</p></dialog>
   <div id="backup-drop" class="backup-drop" hidden><p data-i18n="workspace.dropBackup">Drop a JSON backup to preview it</p></div>

@@ -9,7 +9,7 @@
  * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v77';
+const CACHE_VERSION = 'v78';
 // Scope-specific and outside the legacy finapp- prefix, so v66 cannot delete /dev/ caches.
 const CACHE_PREFIX = `finapp@${encodeURIComponent(new URL('./', self.location.href).pathname)}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
@@ -22,6 +22,7 @@ const PRECACHE = [
   './assets/css/app.css',
   './assets/css/finapps-ui.css',
   './assets/css/help.css',
+  './assets/css/drive.css',
   './assets/js/help.js',
   './assets/css/workspace.css',
   './assets/css/app-switcher.css',
@@ -37,6 +38,13 @@ const PRECACHE = [
   './assets/js/input-validation.js',
   './assets/js/deployment.js',
   './assets/js/backup.js',
+  './assets/js/backup-merge.js',
+  './assets/js/finapp-drive-config.js',
+  './assets/js/finapp-drive-auth.js',
+  './assets/js/finapp-drive-api.js',
+  './assets/js/finapp-drive-format.js',
+  './assets/js/finapp-drive-sync.js',
+  './assets/js/finapp-drive-panel.js',
   './assets/js/field-labels.js',
   './assets/js/store.js',
   './assets/js/state.js',
