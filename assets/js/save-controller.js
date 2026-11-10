@@ -90,5 +90,43 @@ export function createSaveController({ store, snapshot, initial, initialBaseline
     persist();
     return save();
   }
-  return { status, persist, save, receive, stage, loadLatest, replace };
+
+  /** Adopt a Drive copy only after the local store has accepted its complete snapshot. */
+  async function replacePersisted(value, isCurrent = () => true) {
+    if (saving || dirty || pendingRemote || editing()) return { status: 'busy' };
+    const before = JSON.stringify(snapshot());
+    const latest = store.read();
+    if (latest.token !== loaded.token || !isCurrent()) {
+      state = 'conflict'; pendingRemote = true; notify();
+      return { status: 'conflict' };
+    }
+    const frozen = JSON.parse(JSON.stringify(value));
+    clearTimer();
+    state = 'pending';
+    saving = store.save(frozen, loaded.token);
+    notify();
+    let result;
+    try { result = await saving; }
+    catch { result = { status: 'error' }; }
+    saving = null;
+    if (result.status !== 'saved') {
+      state = result.status; pendingRemote = state === 'conflict'; notify();
+      return result;
+    }
+    loaded = result.latest;
+    baseline = JSON.stringify(frozen);
+    if (!isCurrent() || JSON.stringify(snapshot()) !== before || store.read().token !== loaded.token) {
+      dirty = true; pendingRemote = true; state = store.stage(snapshot()) ? 'conflict' : 'error';
+      recoveries = store.drafts(); notify();
+      return { status: state };
+    }
+    adopt(frozen);
+    baseline = JSON.stringify(snapshot());
+    dirty = pendingRemote = false;
+    state = 'saved';
+    recoveries = store.drafts();
+    notify();
+    return result;
+  }
+  return { status, persist, save, receive, stage, loadLatest, replace, replacePersisted };
 }

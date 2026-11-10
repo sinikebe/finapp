@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v77', date: '2026-11-08',
+    version: 'v78', date: '2026-11-10',
+    en: 'Optional Google Drive backups keep private, verified versions of complete projects. Connect explicitly, compare only changes, choose which values to keep when versions diverge, and restore after saving a local recovery copy. Local JSON backups and offline work remain available.',
+    fr: 'Les sauvegardes Google Drive facultatives conservent des versions privées et vérifiées de tous les projets. Connectez-vous volontairement, comparez uniquement les différences, choisissez les valeurs à conserver en cas de divergence et restaurez après une copie locale de récupération. Les sauvegardes JSON locales et le travail hors ligne restent disponibles.',
+  },
+  {
+    version: 'v77', date: '2026-11-08', commit: 'bae1b22',
     en: 'Help activation now updates its keyboard state immediately, so Escape closes the explanation before a containing menu or dialog. Closing an unrelated dialog cannot dismiss newly opened help.',
     fr: 'L’ouverture d’une aide met immédiatement son état clavier à jour : Échap ferme l’explication avant le menu ou la fenêtre qui la contient. La fermeture d’une autre fenêtre ne ferme pas une aide ouverte entre-temps.',
   },

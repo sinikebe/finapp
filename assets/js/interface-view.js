@@ -74,6 +74,7 @@ export function createInterfaceView(options) {
   $('backup-close').addEventListener('click', () => restore.close());
   $('backup-file').addEventListener('change', () => offerBackup($('backup-file').files[0]));
   async function offerBackup(file) {
+    if (file) options.onImport?.();
     selectedFile = file;
     if (!restore.open) restore.showModal();
     offered = source = null; $('backup-preview').hidden = true; $('backup-message').textContent = '';
