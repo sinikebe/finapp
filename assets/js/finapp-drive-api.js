@@ -87,8 +87,11 @@ export class DriveAPI {
       const timeout = new AbortController();
       const timer = setTimeout(() => timeout.abort(), this.timeoutMs);
       try {
-        const token = this.token();
-        if (!token) { this.onExpired(); throw this.error(401); }
+        const token = await this.token();
+        if (!token) {
+          if (await this.onExpired() && attempt < retries) continue;
+          throw this.error(401);
+        }
         response = await this.fetcher(url.href, {
           ...options, headers: { ...options.headers, Authorization: `Bearer ${token}` },
           credentials: 'omit', cache: 'no-store', redirect: 'error',
@@ -102,7 +105,7 @@ export class DriveAPI {
       } finally { clearTimeout(timer); }
       if (response.ok || response.status === 308) return response;
       if ((response.status === 429 || response.status >= 500) && attempt < retries) { await delay(250 * 2 ** attempt); continue; }
-      if (response.status === 401) this.onExpired();
+      if (response.status === 401 && await this.onExpired() && attempt < retries) continue;
       let reason = '';
       try { reason = errorReason(await this.json(response)); } catch { /* Error bodies are never exposed. */ }
       throw this.error(response.status, reason);

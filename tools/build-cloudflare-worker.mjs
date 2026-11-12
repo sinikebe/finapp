@@ -1,4 +1,4 @@
-/** Build a tested main-branch artifact for Git-connected Cloudflare Pages. */
+/** Build a tested main-branch artifact for Git-connected Workers Static Assets. */
 import { execFileSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -31,14 +31,24 @@ export function assertCacheVersion(directory = root) {
   if (changed) assertCacheDiff(changed, git(directory, 'diff', previous, 'HEAD', '--', 'sw.js'));
 }
 
-export async function buildCloudflarePages({ branch = process.env.CF_PAGES_BRANCH } = {}) {
-  if (branch !== 'main') throw new Error('Only main may be deployed; disable Pages preview branches.');
-  if (resolve(git(root, 'rev-parse', '--show-toplevel')) !== resolve(root)) {
-    throw new Error('Run the Pages build from the FinApp repository root.');
+/** Refuse a production Worker build from an unexpected branch or commit. */
+export function assertWorkersRevision({ workersCI = process.env.WORKERS_CI,
+  branch = process.env.WORKERS_CI_BRANCH, revision = process.env.WORKERS_CI_COMMIT_SHA } = {}, directory = root) {
+  if (!workersCI) return;
+  if (branch !== 'main' || revision !== git(directory, 'rev-parse', 'HEAD')) {
+    throw new Error('Workers Builds may publish only the current main revision.');
   }
+}
+
+export async function buildCloudflareWorker({ branch = 'main' } = {}) {
+  if (branch !== 'main') throw new Error('Only main may be deployed by Workers Builds.');
+  if (resolve(git(root, 'rev-parse', '--show-toplevel')) !== resolve(root)) {
+    throw new Error('Run the Workers build from the FinApp repository root.');
+  }
+  assertWorkersRevision();
   assertCacheVersion();
   const target = join(root, 'dist');
-  const staging = await mkdtemp(join(tmpdir(), 'finapp-pages-'));
+  const staging = await mkdtemp(join(tmpdir(), 'finapp-worker-'));
   try {
     const output = join(staging, 'site');
     await buildCloudflare({ source: root, out: output, branch, domain: 'siniverse.cc' });
@@ -51,5 +61,5 @@ export async function buildCloudflarePages({ branch = process.env.CF_PAGES_BRANC
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  console.log(await buildCloudflarePages());
+  console.log(await buildCloudflareWorker());
 }

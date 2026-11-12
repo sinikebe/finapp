@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v82', date: '2026-11-12',
+    version: 'v83', date: '2026-11-12',
+    en: 'Finapp restores active Google Drive sessions on its production site. Temporary access tokens stay in memory; backups still travel directly to Drive. Production assets move to a static Cloudflare Worker without changing the app address.',
+    fr: 'Finapp rétablit les connexions Google Drive actives sur le site de production. Les jetons temporaires restent en mémoire et les sauvegardes vont toujours directement vers Drive. Les fichiers du site sont servis par un Worker Cloudflare à la même adresse.',
+  },
+  {
+    version: 'v82', date: '2026-11-12', commit: '8162eb26fc5ce590923228fa081a41c9d4816319',
     en: 'Finapp uses dedicated Google Drive authorization in production. Local projects and JSON exports are unchanged; copies made with the former OAuth project remain in Drive without automatic import.',
     fr: 'Finapp utilise une autorisation Google Drive dédiée en production. Les projets locaux et les exports JSON restent inchangés ; les copies de l’ancien projet OAuth restent dans Drive, sans importation automatique.',
   },

@@ -25,8 +25,8 @@ class Element {
   getAttribute(name) { return this.attributes.get(name) ?? null; }
 }
 
-async function withPanel(run, initial = {}) {
-  const previous = Object.fromEntries(['document', 'window', 'navigator'].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
+async function withPanel(run, initial = {}, options = {}) {
+  const previous = Object.fromEntries(['document', 'window', 'navigator', 'fetch'].map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   const elements = new Map(), values = new Map(Object.entries(initial));
   const element = (id) => { if (!elements.has(id)) elements.set(id, new Element()); return elements.get(id); };
   let scriptLoads = 0;
@@ -38,17 +38,19 @@ async function withPanel(run, initial = {}) {
     visibilityState: 'visible',
     head: { append(script) { scriptLoads++; queueMicrotask(() => script.onerror()); } },
   };
-  const window = { addEventListener() {}, setInterval: () => 1, setTimeout, clearTimeout };
+  const window = { addEventListener() {}, setInterval: () => 1, setTimeout, clearTimeout,
+    location: options.location ?? { href: 'https://example.org/finapp/' }, history: options.history };
   for (const [name, value] of Object.entries({ document, window, navigator: { onLine: true } })) {
     Object.defineProperty(globalThis, name, { configurable: true, value });
   }
+  if (options.fetcher) Object.defineProperty(globalThis, 'fetch', { configurable: true, value: options.fetcher });
   const storage = () => ({
     getItem: (key) => values.get(key) ?? null,
     setItem: (key, value) => values.set(key, value),
     removeItem: (key) => values.delete(key),
   });
   const panel = new FinappDrivePanel({
-    base: new URL('https://example.org/finapp/'), development: false,
+    base: new URL(options.base ?? 'https://example.org/finapp/'), development: false,
     getWorkspace: () => { throw Error('Unexpected workspace access'); },
     canSync: () => false, canApply: () => false,
     applyWorkspace: async () => { throw Error('Unexpected replace'); },
@@ -91,6 +93,75 @@ test('a previous connection prepares sign-in without storing a token or opening 
     assert.equal(element('drive-profile').dataset.connected, 'false');
     assert.equal(element('drive-profile-mark').textContent, '!');
   }, { 'finapp.drive.connectedBefore': '1' });
+});
+
+test('a production Worker session restores Drive after reopening even without a browser reconnect flag', async () => {
+  const calls = [], app = 'https://finapp.siniverse.cc/';
+  const fetcher = async (url, options) => {
+    calls.push({ url: String(url), options });
+    if (String(url).endsWith('/session')) return Response.json({ connected: true });
+    if (String(url).endsWith('/token')) return Response.json({ access_token: 'short-token', expires_in: 120 });
+    if (String(url).endsWith('/disconnect')) return new Response(null, { status: 204 });
+    if (String(url).includes('/about?')) return Response.json({ user: { displayName: 'Synthetic Name' } });
+    return Response.json({ files: [] });
+  };
+  await withPanel(async ({ panel, element, values, scriptLoads }) => {
+    assert.equal(scriptLoads(), 0, 'restoring an HttpOnly session does not load the popup SDK');
+    assert.equal(panel.connected(), true);
+    assert.equal(element('drive-profile').dataset.connected, 'true');
+    assert.equal(values.get('finapp.drive.connectedBefore'), '1');
+    assert.equal(calls[0].url, 'https://api.siniverse.cc/v1/finapp/session');
+    assert.ok(calls.some(({ url, options }) => url.endsWith('/token') && options.credentials === 'include'));
+    assert.ok(calls.some(({ url, options }) => url.includes('/drive/v3/')
+      && options.credentials === 'omit' && options.headers.Authorization === 'Bearer short-token'));
+    assert.doesNotMatch(JSON.stringify([...values]), /short-token|Synthetic Name/);
+  }, {}, { base: app, location: { href: app }, fetcher });
+});
+
+test('a failed production session probe never starts a Drive transfer or replaces local data', async () => {
+  await withPanel(async ({ panel, element, scriptLoads, values }) => {
+    assert.equal(panel.connected(), false);
+    assert.equal(panel.auth, null);
+    assert.equal(scriptLoads(), 0);
+    assert.equal(values.size, 0);
+    assert.equal(element('drive-connect').disabled, false);
+    element('drive-open').emit('click');
+    await new Promise(setImmediate);
+    assert.equal(scriptLoads(), 1, 'the legacy sign-in remains available after an explicit click');
+  }, {}, { base: 'https://finapp.siniverse.cc/',
+    fetcher: async () => { throw Error('Network is unavailable'); } });
+});
+
+test('a production connection navigates through the API without forwarding the shared plan', async () => {
+  const navigations = [];
+  await withPanel(async ({ panel, element, scriptLoads }) => {
+    assert.equal(panel.auth.isConnected(), false);
+    assert.equal(scriptLoads(), 0);
+    element('drive-connect').emit('click');
+    assert.equal(navigations.length, 1);
+    const navigation = new URL(navigations[0]);
+    assert.equal(navigation.origin, 'https://api.siniverse.cc');
+    assert.equal(navigation.searchParams.get('return_to'), 'https://finapp.siniverse.cc/');
+    assert.doesNotMatch(navigations[0], /private-query|shared-plan/);
+  }, {}, { base: 'https://finapp.siniverse.cc/',
+    location: { href: 'https://finapp.siniverse.cc/?query=private-query#shared-plan',
+      assign: (url) => navigations.push(url) },
+    fetcher: async (url, options) => String(url).endsWith('/disconnect')
+      ? new Response(null, { status: 204 }) : Response.json({ connected: false }) });
+});
+
+test('a denied Google consent shows a neutral error and removes the redirect marker while preserving the plan', async () => {
+  const replacements = [];
+  await withPanel(async ({ panel, element, scriptLoads }) => {
+    assert.equal(panel.problem, makeTranslator('en')('drive.connectionFailed'));
+    assert.equal(element('drive-status').textContent, panel.problem);
+    assert.equal(scriptLoads(), 0);
+    assert.deepEqual(replacements, [['session-state', '/?theme=dark#shared-plan']]);
+  }, {}, { base: 'https://finapp.siniverse.cc/',
+    location: { href: 'https://finapp.siniverse.cc/?theme=dark&drive_auth=failed#shared-plan' },
+    history: { state: 'session-state', replaceState: (_state, _title, path) => replacements.push([_state, path]) },
+    fetcher: async (url, options) => String(url).endsWith('/disconnect')
+      ? new Response(null, { status: 204 }) : Response.json({ connected: false }) });
 });
 
 test('profile button reconnects directly when the SDK is ready; account identity stays in memory', async () => {

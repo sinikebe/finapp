@@ -67,7 +67,11 @@ test('Pages rejects unsafe previews, source-contained outputs, existing outputs 
     await writeFile(join(args.dev, 'sw.js'), 'const prefix = "finapp-";');
     await assert.rejects(buildPages(args), /isolate/);
     await writeFile(join(args.dev, 'sw.js'), 'const prefix = "finapp@";');
-    await symlink(join(args.main, 'private.txt'), join(args.dev, 'assets/leak'));
+    try { await symlink(join(args.main, 'private.txt'), join(args.dev, 'assets/leak')); }
+    catch (error) {
+      if (error.code !== 'EPERM') throw error; // Windows without symlink privileges.
+      return;
+    }
     await assert.rejects(buildPages(args), /symbolic link/);
   });
 });
