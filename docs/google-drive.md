@@ -6,7 +6,8 @@ does not send project data to a Finapp server.
 
 ## Connect and save
 
-1. Open **Tools → Backups → Google Drive** and select **Connect to Google Drive**.
+1. Select the profile icon at the top right. Red means Google Drive is disconnected.
+   Select **Connect to Google Drive** if the account chooser does not open yet.
    Choose your Google account and approve access to files created by the
    shared Google application. Its name on the Google consent screen is set in
    the Google Cloud project, separately from the Finapp interface.
@@ -16,9 +17,16 @@ does not send project data to a Finapp server.
    automatic synchronization for later saved changes while this tab is open,
    connected and online.
 
-After closing or reloading the tab, connect again. Finapp keeps no Google access
-token in browser storage. Your local projects and any existing Drive copies stay
-in place while you are disconnected.
+After closing or reloading the tab, select the profile icon to reconnect. After
+one successful manual connection, Finapp prepares Google sign-in in the
+background so the next profile-icon click can open the account chooser directly.
+Browsers require a click before opening that popup; merely opening the app
+cannot launch it automatically. The connected account name and email address
+appear in the profile controls while the connection is active. Finapp remembers
+only that you connected before, until you explicitly disconnect: it keeps
+neither your identity nor the access token in browser storage. Your local
+projects and any existing Drive copies
+stay in place while you are disconnected.
 
 ## Review and recover
 

@@ -162,7 +162,11 @@ file, previews its projects and drafts, and explicitly replaces the workspace
 after saving a recovery copy of the current projects. Keep a separate copy if the data matters:
 clearing browser storage removes the workspace and its drafts.
 
-**Google Drive** in Tools lets you connect your own Google account and keep
+The profile icon at the top right opens **Google Drive** without looking through
+settings. It is red when disconnected and shows the current Google account while
+connected. After a previous manual connection, click the icon to choose an
+account again on your next visit. Finapp keeps no Google access token or account
+identity in browser storage. Google Drive lets you keep
 versioned copies of the complete workspace. Choose or create a Finapp backup,
 then synchronize manually or enable automatic synchronization while the app is
 open and connected. When another device has different changes, compare only

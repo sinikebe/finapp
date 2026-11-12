@@ -66,6 +66,11 @@ export class DriveAuthorization {
     return this.#accessToken;
   }
 
+  /** Time until the current access token becomes unusable (30s before expiry). */
+  timeUntilExpiration() {
+    return this.token() ? Math.max(0, this.#expiresAt - this.now() - 30000) : 0;
+  }
+
   clearToken() { this.#accessToken = null; this.#expiresAt = 0; }
   disconnect() { this.generation++; this.pending = false; this.clearToken(); }
 }

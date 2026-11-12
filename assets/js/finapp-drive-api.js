@@ -113,6 +113,14 @@ export class DriveAPI {
     return this.json(await this.request(`${API}files/${encodeURIComponent(id)}?${new URLSearchParams({ fields: FIELDS })}`));
   }
 
+  async account() {
+    const { user } = await this.json(await this.request(`${API}about?fields=user(displayName,emailAddress)`, {}, 0));
+    if (!user || typeof user !== 'object') return null;
+    const name = typeof user.displayName === 'string' ? user.displayName.slice(0, 200) : '';
+    const email = typeof user.emailAddress === 'string' ? user.emailAddress.slice(0, 320) : '';
+    return name || email ? { name, email } : null;
+  }
+
   async list(query) {
     const files = [], tokens = new Set(); let pageToken = '';
     do {

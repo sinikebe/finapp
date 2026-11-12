@@ -18,6 +18,7 @@ test('OAuth requests only drive.file, from a gesture, and keeps access tokens in
   auth.connect(); assert.equal(config.scope, DRIVE_SCOPE); assert.equal(config.include_granted_scopes, false); assert.equal(requested.prompt, 'select_account');
   config.callback({ access_token: 'synthetic-memory-token', scope: DRIVE_SCOPE, expires_in: 3600 });
   assert.equal(connected, 1); assert.equal(auth.token(), 'synthetic-memory-token');
+  assert.equal(auth.timeUntilExpiration(), 3570000);
   assert.doesNotMatch(JSON.stringify(auth), /synthetic-memory-token/);
   now += 3571000; assert.equal(auth.token(), null);
   assert.equal(validClientId('a-client-secret'), false); assert.equal(validClientId(clientId), true);
@@ -82,6 +83,20 @@ test('Drive transport attaches authorization only to approved HTTPS endpoints an
   for (const url of ['https://attacker.test/upload', 'http://www.googleapis.com/drive/v3/files', 'https://www.googleapis.com/other', 'https://www.googleapis.com/upload/drive/v3/files/other']) await assert.rejects(api.request(url), /non autorisée/);
   assert.equal(calls.length, 1);
   assert.equal(propertyQuery('namespace', "a'b\\c"), "appProperties has { key='namespace' and value='a\\'b\\\\c' }");
+});
+
+test('Drive account details come from about.get and never include profile-photo requests', async () => {
+  const calls = [];
+  const api = new DriveAPI({ token: () => 'synthetic-token', fetcher: async (url, options) => {
+    calls.push({ url, options });
+    return json({ user: { displayName: 'Synthetic Name', emailAddress: 'synthetic@example.org', photoLink: 'https://example.org/tracker' } });
+  } });
+  assert.deepEqual(await api.account(), { name: 'Synthetic Name', email: 'synthetic@example.org' });
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/drive\/v3\/about\?fields=user\(displayName,emailAddress\)/);
+  assert.equal(calls[0].options.headers.Authorization, 'Bearer synthetic-token');
+  assert.equal(calls[0].options.cache, 'no-store');
+  assert.doesNotMatch(calls[0].url, /tracker/);
 });
 
 test('401 expires the session without retries or automatic popups; quota messages are sanitized', async () => {

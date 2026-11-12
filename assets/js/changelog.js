@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v78', date: '2026-11-10',
+    version: 'v79', date: '2026-11-12',
+    en: 'Google Drive now has a profile button in the header. It shows the connected account, makes reconnection a click away, and keeps access tokens and account identity out of browser storage.',
+    fr: 'Google Drive dispose d’un bouton de profil dans le bandeau. Il affiche le compte connecté, facilite la reconnexion en un clic et ne conserve ni jeton d’accès ni identité du compte dans le stockage du navigateur.',
+  },
+  {
+    version: 'v78', date: '2026-11-10', commit: '682c2c7',
     en: 'Optional Google Drive backups keep private, verified versions of complete projects. Connect explicitly, compare only changes, choose which values to keep when versions diverge, and restore after saving a local recovery copy. Local JSON backups and offline work remain available.',
     fr: 'Les sauvegardes Google Drive facultatives conservent des versions privées et vérifiées de tous les projets. Connectez-vous volontairement, comparez uniquement les différences, choisissez les valeurs à conserver en cas de divergence et restaurez après une copie locale de récupération. Les sauvegardes JSON locales et le travail hors ligne restent disponibles.',
   },

@@ -1,4 +1,13 @@
 /* Finapp Drive backup controls share the existing app surfaces and spacing scale. */
+.app-bar-actions .drive-profile { position: relative; display: inline-flex; flex: 0 1 auto; align-items: center; justify-content: center; gap: var(--space-xs); min-width: 44px; max-width: min(180px, 100%); min-height: 40px; margin-inline-start: auto; }
+.drive-profile .ui-icon { flex: none; }
+.drive-profile-mark { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 18px; height: 18px; border: 2px solid var(--surface-1); border-radius: 50%; background: var(--status-critical); color: #fff; font-size: 11px; font-weight: 700; line-height: 1; }
+.drive-profile[data-connected="true"] .drive-profile-mark { background: var(--status-good); }
+.drive-profile[data-connected="false"] { border-color: var(--status-critical); }
+.drive-profile[data-connected="false"] .ui-icon { color: var(--status-critical); }
+.drive-profile[data-connected="true"] .ui-icon { color: var(--status-good); }
+.drive-profile-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drive-dialog .drive-account { margin: 0 0 var(--space-md); color: var(--text-primary); font-size: var(--type-sm); overflow-wrap: anywhere; }
 .drive-dialog { width: min(720px, calc(100vw - 32px)); max-height: min(86dvh, 820px); box-sizing: border-box; }
 .drive-dialog *, .drive-dialog *::before, .drive-dialog *::after { box-sizing: border-box; }
 .drive-dialog [hidden] { display: none !important; }
@@ -39,6 +48,7 @@
 .drive-dialog .drive-preview-actions { margin-top: var(--space-lg); }
 .drive-dialog .drive-downloads { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border); }
 @media (max-width: 480px) {
+  .drive-profile-label { display: none; }
   .drive-dialog { max-height: calc(100dvh - 24px); padding: var(--space-xl); }
   .drive-dialog .drive-actions > button { flex: 1 1 100%; }
   .drive-dialog .drive-difference-values { grid-template-columns: minmax(0, 1fr); }
