@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v79', date: '2026-11-12',
+    version: 'v80', date: '2026-11-12',
+    en: 'Prepare separate, tested static hosting for Finapp. Production and development keep their existing Google Drive histories while using separate sites and browser storage.',
+    fr: 'Préparation d’un hébergement statique séparé pour Finapp. Les versions principale et de développement conservent leurs historiques Google Drive tout en utilisant des sites et stockages navigateur distincts.',
+  },
+  {
+    version: 'v79', date: '2026-11-12', commit: '08e69c4',
     en: 'Google Drive now has a profile button in the header. It shows the connected account, makes reconnection a click away, and keeps access tokens and account identity out of browser storage.',
     fr: 'Google Drive dispose d’un bouton de profil dans le bandeau. Il affiche le compte connecté, facilite la reconnexion en un clic et ne conserve ni jeton d’accès ni identité du compte dans le stockage du navigateur.',
   },

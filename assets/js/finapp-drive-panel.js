@@ -2,7 +2,7 @@
 import { DRIVE_CLIENT_IDS } from './finapp-drive-config.js';
 import { DriveAuthorization, loadGoogleIdentity } from './finapp-drive-auth.js';
 import { DriveAPI } from './finapp-drive-api.js';
-import { driveNamespace, revisionGraph } from './finapp-drive-format.js';
+import { deploymentDriveNamespace, revisionGraph } from './finapp-drive-format.js';
 import { FinappDriveSync } from './finapp-drive-sync.js';
 
 const $ = (id) => document.getElementById(id);
@@ -103,7 +103,7 @@ export class FinappDrivePanel {
         }));
       },
     };
-    this.engine = new FinappDriveSync({ namespace: await driveNamespace(this.base), settings,
+    this.engine = new FinappDriveSync({ namespace: await deploymentDriveNamespace(this.development), settings,
       development: this.development, language: this.language, getWorkspace: this.getWorkspace, canSync: this.canSync,
       canApply: this.canApply, applyWorkspace: this.applyWorkspace, onChange: () => this.render(),
     });

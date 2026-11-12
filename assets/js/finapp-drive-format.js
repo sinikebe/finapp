@@ -27,6 +27,11 @@ export async function driveNamespace(base) {
   return (await fingerprint(new Blob([new URL('./', base).href]))).slice(0, 32);
 }
 
+/** Keep the original Drive folders and complete history on future domains. */
+export async function deploymentDriveNamespace(development = false) {
+  return driveNamespace(`https://sinikebe.github.io/finapp/${development ? 'dev/' : ''}`);
+}
+
 export function assertPrivate(file) {
   if (!file?.id || file.trashed || file.ownedByMe !== true || file.shared === true || file.driveId || file.capabilities?.canEdit !== true) {
     throw Error('This Drive file must be private, accessible and owned by the connected account.');
