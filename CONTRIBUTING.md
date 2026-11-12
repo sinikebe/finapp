@@ -217,8 +217,8 @@ previous client, authorized for `https://sinikebe.github.io`. Do not add a clien
 secret. Google Identity Services requests
 `https://www.googleapis.com/auth/drive.file` after the reader connects.
 Keep app-specific Drive markers and backup namespaces to prevent cross-app
-listing or restoration. Keep connection tokens in memory only, without local storage,
-IndexedDB, logs or cached assets. Only public app files belong in the service
+listing or restoration. Keep connection tokens in memory only, without local
+storage, IndexedDB, logs or cached assets. Only public app files belong in the service
 worker; private Drive responses and backup JSON must never be cached.
 
 An automatic Drive transfer runs only while the user has connected and selected
