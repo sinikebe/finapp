@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { loadWorkspace, snapshotOf } from '../assets/js/state.js';
 import { parseBackup, validateWorkspace } from '../assets/js/backup.js';
-import { DRIVE_FOLDER, assertFolder, driveNamespace, makeSnapshot, readSnapshot, revisionGraph, snapshotInfo, workspaceHash } from '../assets/js/finapp-drive-format.js';
+import { DRIVE_FOLDER, assertFolder, deploymentDriveNamespace, driveNamespace, makeSnapshot, readSnapshot, revisionGraph, snapshotInfo, workspaceHash } from '../assets/js/finapp-drive-format.js';
 
 const original = () => snapshotOf(loadWorkspace());
 const metadata = (snapshot, id = 'snapshot-1') => ({
@@ -23,6 +23,17 @@ test('Finapp prod and dev have distinct namespaces; Garapp folders cannot be reu
   assert.throws(() => assertFolder({ ...folder, appProperties: { garapp: 'workspace-v1', namespace: prod } }, prod));
   assert.throws(() => assertFolder(folder, dev));
   assert.throws(() => assertFolder({ ...folder, shared: true }, prod));
+});
+
+test('moving to separate hosts keeps existing production and development Drive folders', async () => {
+  const oldProd = await driveNamespace('https://sinikebe.github.io/finapp/');
+  const oldDev = await driveNamespace('https://sinikebe.github.io/finapp/dev/');
+  assert.equal(await deploymentDriveNamespace(false), oldProd);
+  assert.equal(await deploymentDriveNamespace(true), oldDev);
+  assert.equal(oldProd, 'e9d1fe459ddd28ec91c5c490834d81d4');
+  assert.equal(oldDev, '71f01d1ab44f7fbb8b562709e8545e4d');
+  assert.notEqual(await driveNamespace('https://finapp.example.fr/'), oldProd);
+  assert.notEqual(await driveNamespace('https://dev.finapp.example.fr/'), oldDev);
 });
 
 test('a Drive snapshot is a downloadable version 1 backup and verifies the original bytes first', async () => {

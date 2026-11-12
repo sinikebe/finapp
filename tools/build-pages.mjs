@@ -20,7 +20,7 @@ function outside(source, target) {
   return path.startsWith('..') || isAbsolute(path);
 }
 
-async function copySite(source, target) {
+export async function copySite(source, target) {
   for (const file of FILES) {
     const path = join(source, file);
     if (!(await lstat(path)).isFile()) throw new Error(`Missing regular file: ${path}`);
@@ -33,7 +33,7 @@ async function copySite(source, target) {
 }
 
 /** Static install metadata must distinguish dev before any page script runs. */
-async function labelPreview(directory) {
+export async function labelPreview(directory) {
   for (const file of FILES.filter((path) => path.endsWith('.webmanifest'))) {
     const path = join(directory, file);
     const manifest = JSON.parse(await readFile(path, 'utf8'));

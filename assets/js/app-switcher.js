@@ -1,11 +1,19 @@
 /** The small app launcher shared by Finapp and Garapp. No user data is transferred. */
+import { DEPLOYMENT } from './deployment-config.js';
 export const SUITE_APPS = Object.freeze([
   { id: 'finapp', name: 'Finapp', directory: 'finapp', mark: 'f.', fr: 'Planifier et comparer', en: 'Plan and compare' },
   { id: 'garapp', name: 'Garapp', directory: 'Garapp', mark: 'g.', fr: 'Prendre soin de son véhicule', en: 'Look after your vehicle' },
 ]);
 
 /** Keep development links in /dev/ and support sibling apps in a local preview. */
-export function suiteLinks(address) {
+export function suiteLinks(address, target = DEPLOYMENT) {
+  if (target.environment !== 'legacy') {
+    if (!['main', 'dev'].includes(target.environment) || !target.suite) throw new Error('Unknown FinApps deployment.');
+    const preview = target.environment === 'dev';
+    return { preview, apps: SUITE_APPS.map((app) => ({ ...app,
+      href: new URL(target.suite[preview ? `dev${app.id === 'finapp' ? 'Finapp' : 'Garapp'}` : app.id]).href,
+    })) };
+  }
   const base = new URL('./', address);
   const match = base.pathname.match(/^(.*\/)(?:finapp|Garapp)\/(dev\/)?$/i);
   const preview = Boolean(match?.[2]);

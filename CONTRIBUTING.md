@@ -59,6 +59,7 @@ assets/js/version.js          generated build stamp
 assets/js/input-validation.js numeric drafts, currency affixes and inline validity
 assets/js/save-controller.js  debounced saves, reverts and queued-write coordination
 assets/js/deployment.js       production/preview storage and lock namespaces
+assets/js/deployment-config.js  legacy path defaults and generated hosting environment
 assets/js/backup.js           bounded backup validation and restore summaries
 assets/js/backup-merge.js     differences and validated field-level backup merge
 assets/js/finapp-drive-config.js  public OAuth client IDs for main and preview
@@ -84,6 +85,7 @@ tools/generate-icons.mjs     dependency-free icon generation
 tools/serve.mjs              local development server
 tools/stamp-version.mjs      cache/build metadata
 tools/build-pages.mjs        allowlisted main + dev Pages artifact
+tools/build-cloudflare.mjs   allowlisted standalone production or dev artifact
 test/                       Node tests
 docs/design-system.md       tokens, layout and accessibility conventions
 ```
@@ -264,3 +266,28 @@ The output directory must not exist and must be outside both source checkouts.
 Only the static shell and assets are copied; Git metadata, tests and workspace
 files are excluded. Symlinks and a preview without the isolation modules are
 rejected.
+
+## Separate application hosts
+
+On Cloudflare Pages, build `main` and `dev` separately, with each branch at the
+root of its own HTTPS host. Package a tested checkout with a domain chosen by
+the owner:
+
+```sh
+node tools/build-cloudflare.mjs --branch dev --domain example.fr --out /tmp/finapp-dev-site
+```
+
+The output must be a new directory outside the checkout. The build copies only
+the static shell and assets, labels the development installation, retargets
+the HTML launcher links, and writes a public `assets/js/deployment-config.js` listing the environment and companion
+Finapp/Garapp origins. No secrets belong in that file. The committed config
+keeps the legacy GitHub Pages `/dev/` detection until the move is complete.
+
+Production keeps the original unprefixed local workspace key. A new development
+host has its own origin and still uses preview-prefixed keys; it cannot silently
+read the production workspace when served at `/`. Drive keeps the original
+production and development namespace IDs so the existing folders and immutable
+versions are discoverable on the new hosts. Browser storage cannot cross
+origins: each device must export/import its JSON data, or use a tested recovery
+bridge on the old origin, before the old site is unpublished. Never erase an old
+Drive folder or local recovery copy as part of the deployment.
