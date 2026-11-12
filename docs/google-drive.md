@@ -9,7 +9,7 @@ does not send project data to a Finapp server.
 1. Select the profile icon at the top right. Red means Google Drive is disconnected.
    Select **Connect to Google Drive** if the account chooser does not open yet.
    Choose your Google account and approve access to files created by the
-   Finapp Google application. Its name on the Google consent screen is set in
+   Finapp application. Its name on the Google consent screen is set in
    the Google Cloud project, separately from the Finapp interface.
 2. Create a Finapp backup space or select one you created earlier. An existing
    Drive copy is compared before it replaces any local projects.
