@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob:; connect-src 'self' https://accounts.google.com/gsi/ https://www.googleapis.com https://content.googleapis.com; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; img-src 'self' data: blob:; connect-src 'self' https://api.siniverse.cc https://accounts.google.com/gsi/ https://www.googleapis.com https://content.googleapis.com; frame-src https://accounts.google.com/gsi/; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Finapp — estimate your financial future</title>
   <meta id="doc-description" name="description" content="An offline-first calculator that projects cumulative income, expenses and net over the months ahead.">
@@ -427,6 +427,7 @@
 <dialog id="drive-dialog" class="about drive-dialog" aria-labelledby="drive-heading">
   <div class="about-head"><h2 id="drive-heading" data-i18n="drive.heading">Google Drive backup</h2><button id="drive-close" type="button" class="ghost-button" data-i18n="ui.close">Close</button></div>
   <p class="hint" data-i18n="drive.intro">Connect your Google account to keep private, versioned copies of your projects in Drive. You choose when to connect.</p>
+  <p class="hint"><a href="https://siniverse.cc/confidentialite.html" target="_blank" rel="noopener noreferrer" data-i18n="drive.privacy">Privacy policy</a></p>
   <p id="drive-status" class="drive-status" role="status"></p>
   <p id="drive-account" class="drive-account" hidden></p>
   <p id="drive-notice" class="hint" role="status" hidden></p>
@@ -436,7 +437,7 @@
     <p id="drive-folder" class="drive-folder"></p>
     <div class="drive-actions"><button id="drive-sync" type="button" class="workspace-primary" data-i18n="drive.sync">Sync now</button><button id="drive-seed" type="button" class="workspace-primary" data-i18n="drive.seed" hidden>Save my projects to Drive</button></div>
     <label class="drive-auto" for="drive-auto"><input id="drive-auto" type="checkbox"><span data-i18n="drive.auto">Sync when projects change</span></label>
-    <p class="hint" data-i18n="drive.autoHint">Keep this tab connected to sync automatically. Google may ask you to reconnect after closing it.</p>
+    <p class="hint" data-i18n="drive.autoHint">Saved changes sync automatically while this tab is open and connected.</p>
     <section id="drive-review" class="drive-review" hidden aria-labelledby="drive-review-heading"><h3 id="drive-review-heading" data-i18n="drive.review">A Drive version is ready to review</h3><ul id="drive-review-list" class="drive-versions"></ul></section>
     <details id="drive-history" class="drive-details" hidden><summary data-i18n="drive.history">Previous versions</summary><p id="drive-history-note" class="hint"></p><ul id="drive-versions" class="drive-versions"></ul></details>
     <details id="drive-folder-settings" class="drive-details"><summary data-i18n="drive.settings">Choose a Drive backup</summary>

@@ -1,17 +1,82 @@
-# Cloudflare Pages deployment
+# Cloudflare Workers hosting
 
-The source repository can be private; the static files served to browsers remain public. Keep user data, OAuth client secrets, and Cloudflare credentials out of the site and source tree.
+Finapp publishes static assets through a **Workers Builds** project connected to
+GitHub. The site Worker and the Google Drive session API are separate projects.
+Project files go directly from the browser to Google Drive; the session API
+does not receive backups. The production site remains at
+`https://finapp.siniverse.cc/`, preserving its browser storage and PWA origin.
 
-The `Cloudflare Pages` workflow builds a **non-published** preview in pull requests and on pushes to `main` or `dev` without a Cloudflare account, credentials, or purchased domain; it uses the reserved `example.test` domain. Deployment is disabled until the repository variable `CLOUDFLARE_DEPLOY_ENABLED` is set to `true`. Once enabled, it deploys only the current tip of `main` or `dev` after a successful CI push run for the exact commit. Manual redeploys follow the same CI gate. The older GitHub Pages workflow continues to run during migration.
+## Production setup
 
-GitHub runs `workflow_run` and `workflow_dispatch` workflows only when their file exists on the **default branch (`main`)**. First merge the builder and this dormant workflow into `dev`, verify its pull request and push build checks, then promote the tested changes to `main` while `CLOUDFLARE_DEPLOY_ENABLED` is unset. Verify the `main` build check. Merely leaving the workflow in `dev` does not enable deployment, even after adding Cloudflare credentials.
+1. Connect the Finapp repository to **Workers Builds** in the Cloudflare
+   dashboard. Use `main` as the production branch and name the Worker
+   `siniverse-finapp-site`, matching `wrangler.jsonc`.
+2. Set the build command to `npm run build:cloudflare` and the deploy command to
+   `npx wrangler deploy`. Use Node.js 22. The build tests the complete codebase,
+   checks reproducible icons and the service worker cache generation, and
+   creates `dist/`. `wrangler.jsonc` serves that directory at the site root;
+   the first deploy exposes a `workers.dev` preview for checking the bundle.
+   No GitHub Cloudflare deployment token or GitHub Actions publisher is needed.
+   The build also checks Cloudflare's `WORKERS_CI_BRANCH` and commit SHA so a
+   preview branch or different revision cannot publish this production Worker.
+3. Configure the separate session Worker at `https://api.siniverse.cc` before
+   switching the site. Its production CORS origin must be exactly
+   `https://finapp.siniverse.cc`, with credentials allowed. The API owns the
+   HttpOnly session cookie and Google OAuth credentials. The site never stores
+   an access or refresh token. The API must validate OAuth `return_to` against
+   the exact production origin; Finapp sends only the origin and pathname.
+4. Check the `workers.dev` preview with synthetic plans, then remove the
+   existing Pages mapping for `finapp.siniverse.cc` and add that custom domain
+   to the Worker in the Cloudflare dashboard. Replace the old Pages DNS record
+   as required by Cloudflare; a custom domain cannot point to both deployments.
+   Keep the old Pages project available for rollback while checking the new
+   site, without leaving two active production publishers.
+5. **Before the next Workers Builds deployment**, update `wrangler.jsonc` in
+   the repository to declare the new custom domain and disable the temporary
+   `workers.dev` preview, then publish that config change:
 
-## One-time setup
+   ```diff
+   - "workers_dev": true,
+   + "workers_dev": false,
+   + "routes": [{ "pattern": "finapp.siniverse.cc", "custom_domain": true }],
+   ```
 
-1. Obtain a domain and set up its DNS zone in Cloudflare. Create one Cloudflare Pages **Direct Upload** project for Finapp, with `main` as its production branch.
-2. In GitHub repository Settings, configure variables `SUITE_DOMAIN` (for example, `example.fr`) and `CLOUDFLARE_PROJECT` (the exact Pages project name). Add secrets `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. Give that token **Account → Cloudflare Pages → Edit** permissions for the correct Cloudflare account, with no unrelated product permissions.
-3. Add `finapp.example.fr` to the production project and, after deploying `dev`, route `dev.finapp.example.fr` to the stable `dev.<project>.pages.dev` branch alias using a proxied DNS record. Replace `example.fr` with your domain.
-4. After the workflow and branch-specific build scripts are tested on **both** branches, enable `CLOUDFLARE_DEPLOY_ENABLED=true`, then manually dispatch the Cloudflare workflow once for `dev` and once for `main`. Verify both websites, service workers, manifests, import/export, and the Google Drive account chooser. Register the exact new HTTPS JavaScript origins with Google's OAuth client before testing Drive.
-5. Migrate browser-local workspaces and previous Drive namespaces while the old GitHub Pages addresses remain available. Only then consider making the source repository private. Keep a public export path on the old origin for later recovery.
+   Keep these entries at the top level beside `assets`, and update the
+   corresponding routing assertions in `test/cloudflare-worker-build.test.mjs`.
+   Wrangler reconciles dashboard routes on deployment; leaving the initial
+   preview-only config in Git can remove the dashboard domain on a later
+   publish. The transition is complete only after this config has deployed.
+6. Check the live page, offline reload, manifest, local projects, JSON export
+   and restore, and Drive account connection, compare, and disconnect. The
+   Worker uses SPA navigation fallback when there is no matching static file,
+   retaining the old Pages behavior. The app's service worker precaches only
+   public assets; neither session responses nor Drive data enter that cache.
 
-Cloudflare's `pages.dev` aliases and preview deployments are publicly accessible by default. Keep dev fixtures synthetic, and restrict previews if necessary. Creating a Direct Upload project is an intentional choice: changing a Pages project later from Direct Upload to Git integration requires recreating it.
+Workers Builds repeats the test and cache guards on the published revision.
+GitHub Actions runs an additional, non-publishing build check for pull requests
+and pushes. If the repository history is too shallow to compare a changed
+precached asset with the previous commit, the production build stops instead
+of publishing a release with an unverified cache version.
+
+## Existing data and development
+
+The production host keeps its exact origin, so its current browser projects,
+recovery drafts and PWA installation remain available. The existing Drive
+backup namespace remains the same. Before switching origins or removing any
+older site, download a JSON backup on each device and retain the old export
+path for recovery. OAuth clients from an older Google Cloud project cannot
+automatically discover Drive files created by another OAuth project.
+
+The `dev` environment in `wrangler.jsonc` reserves the name
+`siniverse-finapp-site-dev` for a future, separately authorized rollout; it
+does not have a deployment route. Workers Builds currently publishes `main` only.
+The current GitHub Pages `/dev/` preview keeps its separate storage and Google
+Identity Services sign-in; neither it nor a local build uses the production
+session API. To inspect a non-published preview bundle locally:
+
+```sh
+node tools/build-cloudflare.mjs --branch dev --domain example.test --out /tmp/finapp-preview
+```
+
+The output directory must be new and outside the source checkout. Generated
+`deployment-config.js` contains only public origins, never credentials.

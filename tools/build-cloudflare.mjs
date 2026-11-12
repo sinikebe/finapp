@@ -1,4 +1,4 @@
-/** Package a single tested branch at the root of its own Cloudflare Pages host. */
+/** Package a single tested branch at the root of its own Cloudflare Worker host. */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, relative, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,7 +50,7 @@ export async function buildCloudflare({ source, out, branch, domain }) {
   if (branch === 'dev') await labelPreview(target);
   await retargetSuiteLinks(target, suite, branch);
   await writeFile(join(target, 'assets/js/deployment-config.js'),
-    `/** Generated for this tested Cloudflare Pages deployment. */\nexport const DEPLOYMENT = Object.freeze(${JSON.stringify({ environment: branch, suite })});\n`);
+    `/** Generated for this tested Cloudflare Worker deployment. */\nexport const DEPLOYMENT = Object.freeze(${JSON.stringify({ environment: branch, suite })});\n`);
   await writeFile(join(target, 'deployment.json'), JSON.stringify({ app: 'finapp', branch, suite }) + '\n');
   return target;
 }

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Estimate your financial future in the browser: cumulative income, expenses, net and net worth over the months ahead, with several plans side by side.",
-  "homepage": "https://sinikebe.github.io/finapp/",
+  "homepage": "https://finapp.siniverse.cc/",
   "repository": {
     "type": "git",
     "url": "https://github.com/sinikebe/finapp.git"
@@ -30,7 +30,7 @@
   ],
   "type": "module",
   "scripts": {
-    "build:cloudflare": "npm test && npm run icons && git diff --exit-code -- assets/icons && node tools/build-cloudflare-pages.mjs",
+    "build:cloudflare": "npm test && npm run icons && git diff --exit-code -- assets/icons && node tools/build-cloudflare-worker.mjs",
     "dev": "node tools/serve.mjs",
     "start": "node tools/serve.mjs",
     "test": "node --test test/*.test.mjs",

@@ -1,6 +1,7 @@
 /** Opt-in Drive controls. Google tokens live only in DriveAuthorization memory. */
 import { DRIVE_CLIENT_IDS } from './finapp-drive-config.js';
 import { DriveAuthorization, loadGoogleIdentity } from './finapp-drive-auth.js';
+import { WorkerSessionAuthorization, supportsWorkerSession } from './finapp-worker-session.js';
 import { DriveAPI } from './finapp-drive-api.js';
 import { deploymentDriveNamespace, revisionGraph } from './finapp-drive-format.js';
 import { FinappDriveSync } from './finapp-drive-sync.js';
@@ -76,7 +77,7 @@ export class FinappDrivePanel {
 
   lang() { return this.language(); }
   word(key, ...args) { return this.t()(key, ...args); }
-  connected() { return Boolean(this.auth?.token() && this.engine?.api); }
+  connected() { return Boolean((this.auth?.isConnected?.() ?? this.auth?.token()) && this.engine?.api); }
   busy() { return this.loading || this.listing || Boolean(this.auth?.pending || this.engine?.busy); }
 
   openDrive(reconnect = false) {
@@ -114,20 +115,41 @@ export class FinappDrivePanel {
     let previouslyConnected = false;
     try { previouslyConnected = this.storage().getItem('finapp.drive.connectedBefore') === '1'; }
     catch { /* Storage can be disabled; the manual connect button still works. */ }
-    if (previouslyConnected || $('drive-dialog').open) await this.prepare();
+    if (supportsWorkerSession(this.base, this.development)) {
+      // Check the HttpOnly server session on every production opening.
+      await this.prepare(previouslyConnected || $('drive-dialog').open);
+    } else if (previouslyConnected || $('drive-dialog').open) await this.prepare();
+    this.consumeOAuthFailure();
   }
 
-  async prepare() {
+  consumeOAuthFailure() {
+    const url = new URL(window.location.href);
+    if (url.origin !== 'https://finapp.siniverse.cc' || url.searchParams.get('drive_auth') !== 'failed') return;
+    url.searchParams.delete('drive_auth');
+    window.history?.replaceState?.(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+    this.problem = this.word('drive.connectionFailed');
+    this.render();
+  }
+
+  async prepare(allowGoogleFallback = true) {
     if (this.auth || this.loading || !this.engine) return;
     this.loading = true; this.problem = ''; this.render();
     try {
-      const oauth = await loadGoogleIdentity(document, this.lang());
-      this.auth = new DriveAuthorization({ clientId: this.clientId, oauth, language: this.lang(),
-        onToken: () => { void this.onConnected(); },
-        onError: (message) => { this.problem = message; this.render(); },
-      });
+      if (supportsWorkerSession(this.base, this.development)) {
+        const session = new WorkerSessionAuthorization({ location: window.location,
+          onError: (message) => { this.problem = message; this.render(); } });
+        if (await session.restore()) this.auth = session;
+      }
+      if (!this.auth && allowGoogleFallback) {
+        const oauth = await loadGoogleIdentity(document, this.lang());
+        this.auth = new DriveAuthorization({ clientId: this.clientId, oauth, language: this.lang(),
+          onToken: () => { void this.onConnected(); },
+          onError: (message) => { this.problem = message; this.render(); },
+        });
+      }
     } catch (error) { this.problem = error.message; }
     finally { this.loading = false; this.render(); }
+    if (this.auth?.isConnected?.()) await this.onConnected();
   }
 
   async onConnected() {
@@ -135,8 +157,15 @@ export class FinappDrivePanel {
     this.account = null;
     this.engine.api?.close?.();
     this.engine.graph = revisionGraph([]);
-    const api = new DriveAPI({ token: () => this.auth?.token(), language: this.lang(),
-      onExpired: () => { this.auth?.clearToken(); this.account = null; this.problem = this.word('drive.connectionExpired'); this.render(); },
+    const api = new DriveAPI({ token: () => this.auth?.accessToken?.() ?? this.auth?.token(), language: this.lang(),
+      onExpired: async () => {
+        this.auth?.clearToken();
+        if (this.auth?.isConnected?.()) {
+          try { if (await this.auth.accessToken()) return true; } catch { /* The session can be retried. */ }
+        }
+        this.account = null; this.problem = this.word('drive.connectionExpired'); this.render();
+        return false;
+      },
     });
     this.engine.api = api;
     try { this.storage().setItem('finapp.drive.connectedBefore', '1'); }
@@ -155,12 +184,24 @@ export class FinappDrivePanel {
   }
 
   disconnect() {
+    const result = this.auth?.disconnect();
+    if (result && typeof result.then === 'function') {
+      this.render();
+      void result.then(() => this.finishDisconnect()).catch(() => {
+        this.problem = this.word('drive.disconnectFailed');
+        this.render();
+      });
+      return;
+    }
+    this.finishDisconnect();
+  }
+
+  finishDisconnect() {
     window.clearTimeout(this.timer);
     window.clearTimeout(this.profileTimer);
     this.profileTimer = null;
     try { this.storage().removeItem('finapp.drive.connectedBefore'); }
     catch { /* Disconnect works even when browser storage is unavailable. */ }
-    this.auth?.disconnect();
     this.engine?.disconnect();
     this.account = null;
     this.folders = [];
@@ -251,8 +292,8 @@ export class FinappDrivePanel {
     $('drive-connect').disabled = !engine || busy;
     $('drive-connect').textContent = this.problem && !this.auth ? this.word('drive.retry') : this.word('drive.connect');
     $('drive-disconnect').hidden = !connected && !this.auth?.pending;
-    $('drive-disconnect').disabled = engine?.busy;
-    $('drive-close').disabled = Boolean(engine?.busy);
+    $('drive-disconnect').disabled = busy;
+    $('drive-close').disabled = busy;
     $('drive-status').textContent = this.status();
     $('drive-status').dataset.error = String(Boolean(this.problem || engine?.error));
     $('drive-connected').hidden = !connected;

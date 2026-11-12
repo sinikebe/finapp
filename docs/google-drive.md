@@ -6,27 +6,25 @@ does not send project data to a Finapp server.
 
 ## Connect and save
 
-1. Select the profile icon at the top right. Red means Google Drive is disconnected.
-   Select **Connect to Google Drive** if the account chooser does not open yet.
-   Choose your Google account and approve access to files created by the
-   Finapp application. Its name on the Google consent screen is set in
-   the Google Cloud project, separately from the Finapp interface.
+1. Select the profile icon at the top right. Red means Google Drive is
+   disconnected. Select **Connect to Google Drive**, choose your Google account
+   and approve access to files created by Finapp. In production, sign-in opens
+   a Google page and returns to Finapp. The consent screen's app name is set
+   in Google Cloud separately from the Finapp interface.
 2. Create a Finapp backup space or select one you created earlier. An existing
    Drive copy is compared before it replaces any local projects.
 3. Select **Synchronize** to save or check for new versions. You can enable
    automatic synchronization for later saved changes while this tab is open,
    connected and online.
 
-After closing or reloading the tab, select the profile icon to reconnect. After
-one successful manual connection, Finapp prepares Google sign-in in the
-background so the next profile-icon click can open the account chooser directly.
-Browsers require a click before opening that popup; merely opening the app
-cannot launch it automatically. The connected account name and email address
-appear in the profile controls while the connection is active. Finapp remembers
-only that you connected before, until you explicitly disconnect: it keeps
-neither your identity nor the access token in browser storage. Your local
-projects and any existing Drive copies
-stay in place while you are disconnected.
+On `finapp.siniverse.cc`, an active session reconnects when you reopen the
+application. Finapp obtains short-lived Google access tokens when needed and
+keeps them only in memory; the separate session service holds a secure,
+HttpOnly cookie and the refresh credentials. Use **Disconnect** to end that
+session. Outside the production site, Google sign-in still requires a click
+after reopening a tab. Finapp stores no access token, refresh token or account
+identity in the browser's local storage. Your local projects and existing Drive
+copies stay in place while disconnected.
 
 ## Review and recover
 
@@ -49,15 +47,20 @@ restored local workspace.
 
 The Drive copy is private to the connected Google account unless you share it
 using Google Drive. Finapp does not encrypt backup contents itself. Google
-authorization uses the `drive.file` scope and a public web OAuth client ID;
-there is no client secret in the page. Tokens stay in memory while the tab is
-open. Sign in again when a new session starts.
+authorization uses the `drive.file` scope. On the production site, the session
+service holds the client secret and refresh credential; it never receives the
+backup contents. Browser requests go directly to Google Drive with a temporary
+access token. On previews and local development, the legacy Google Identity
+Services flow uses a public web OAuth client ID and memory-only access token.
+Read the [privacy policy](https://siniverse.cc/confidentialite.html).
 
 Finapp production uses its own Google OAuth project, separate from Garapp.
 The `/dev/` preview uses a separate backup space and may use a different OAuth
 client. Switching between applications does not copy projects. Backups created
 with an earlier Google OAuth project remain in Drive but are not imported
-automatically.
+automatically. If the production session service is temporarily unavailable,
+Finapp can offer its previous Google sign-in flow on request; no remote backup
+can replace local data during a failed connection.
 
 If sign-in, permission, quota or connectivity prevents Drive access, the local
 workspace and JSON export continue to work. Check the account and popup

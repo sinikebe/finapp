@@ -6,13 +6,13 @@ Work on `dev` or a topic branch; publishing the default branch is a separate ste
 
 ## Run it
 
-Node 20 or later; no build step and no runtime dependencies.
+Node 22 for the Workers build; no runtime dependencies.
 
 ```sh
 npm start          # http://127.0.0.1:4173
 npm run dev        # same development server; also used by preview tooling
 npm test           # all Node tests, including review regressions and storage failures
-npm run build:cloudflare # tested production artifact for Git-connected Pages
+npm run build:cloudflare # tested production artifact for Workers Builds
 npm run icons      # regenerate the icon set
 npm run stamp      # update the version stamp after changing the cache version
 ```
@@ -66,6 +66,7 @@ assets/js/legacy-rescue.js    read-only migration of old-origin rescue files
 assets/js/backup-merge.js     differences and validated field-level backup merge
 assets/js/finapp-drive-config.js  public OAuth client IDs for main and preview
 assets/js/finapp-drive-auth.js    Google Identity Services authorization
+assets/js/finapp-worker-session.js  production session probe and short-lived token client
 assets/js/finapp-drive-api.js     private Drive file transport and errors
 assets/js/finapp-drive-format.js  snapshot validation, hashes and revision graph
 assets/js/finapp-drive-sync.js    versioned synchronization and conflict resolution
@@ -88,7 +89,8 @@ tools/serve.mjs              local development server
 tools/stamp-version.mjs      cache/build metadata
 tools/build-pages.mjs        allowlisted main + dev Pages artifact
 tools/build-cloudflare.mjs   allowlisted standalone production or dev artifact
-tools/build-cloudflare-pages.mjs  gated production artifact for Git-connected Pages
+tools/build-cloudflare-worker.mjs  gated production artifact for Workers Builds
+wrangler.jsonc               static Workers asset configuration
 test/                       Node tests
 docs/design-system.md       tokens, layout and accessibility conventions
 ```
@@ -211,10 +213,10 @@ review the differences and choose what to retain. Tests should exercise two
 devices, a changed local revision during transfer, corrupt remote files, failed
 recovery storage and restoration of a historical JSON backup.
 
-Finapp production uses a dedicated Google OAuth project and a public Web client
-ID authorized for `https://finapp.siniverse.cc`. The `/dev/` preview retains its
-previous client, authorized for `https://sinikebe.github.io`. Do not add a client
-secret. Google Identity Services requests
+Finapp production uses a dedicated Google OAuth project, whose secret and
+refresh credentials belong only to the separate session Worker. The `/dev/`
+preview retains its public Web client ID and Google Identity Services, authorized
+for `https://sinikebe.github.io`. The browser requests
 `https://www.googleapis.com/auth/drive.file` after the reader connects.
 Keep app-specific Drive markers and backup namespaces to prevent cross-app
 listing or restoration. Keep connection tokens in memory only, without local
@@ -222,8 +224,9 @@ storage, IndexedDB, logs or cached assets. Only public app files belong in the s
 worker; private Drive responses and backup JSON must never be cached.
 
 An automatic Drive transfer runs only while the user has connected and selected
-a backup and local changes have been saved. A closed tab loses its access token;
-the next session requires a manual connection. Keep manual JSON export and
+a backup and local changes have been saved. Production restores the HttpOnly
+server session after reopening; only short-lived access tokens live in the
+browser's memory. Preview sign-in still requires a click. Keep manual JSON export and
 restore available when Google authentication, network access, permissions or
 Drive quotas fail. The reader-facing guide is [Google Drive backups](docs/google-drive.md).
 
@@ -271,36 +274,28 @@ rejected.
 
 ## Separate application hosts
 
-On Cloudflare Pages, build `main` and `dev` separately, with each branch at the
-root of its own HTTPS host. Package a tested checkout with a domain chosen by
-the owner:
+Finapp production uses Git-connected Workers Builds from `main` with the
+`siniverse-finapp-site` Worker. Set the build command to
+`npm run build:cloudflare`, deploy command to `npx wrangler deploy`, and Node
+version to 22. The build tests the site, checks icons and refuses a precached
+asset change without a cache version bump; `wrangler.jsonc` publishes `dist/`.
+GitHub Actions validates changes but does not deploy to Cloudflare or hold its
+credentials. The existing Pages custom domain is moved to the Worker only
+after a `workers.dev` preview has been inspected; see
+[Cloudflare Workers hosting](docs/cloudflare-hosting.md).
+
+The standalone builder remains available for non-published `main` and `dev`
+bundles using a new output directory outside the checkout:
 
 ```sh
-node tools/build-cloudflare.mjs --branch dev --domain example.fr --out /tmp/finapp-dev-site
+node tools/build-cloudflare.mjs --branch dev --domain example.test --out /tmp/finapp-dev-site
 ```
 
-For the Git-connected production project, grant Cloudflare Pages access to this
-repository and use `main` as its production branch. Set the framework preset to
-None, the build command to `npm run build:cloudflare`, the output directory to
-`dist`, and `NODE_VERSION=22`. Set preview branch deployments to None: this
-project intentionally publishes only production. The build runs the test suite,
-checks icon reproducibility and the service-worker cache version, then prepares
-the static artifact for `finapp.siniverse.cc`. It stops if it cannot inspect
-the previous revision. Leave `CLOUDFLARE_DEPLOY_ENABLED` unset so the older
-Direct Upload job cannot publish a second deployment.
-
-The standalone command above requires a new output directory outside the checkout.
-Both build paths copy only
-the static shell and assets, labels the development installation, retargets
-the HTML launcher links, and writes a public `assets/js/deployment-config.js` listing the environment and companion
-Finapp/Garapp origins. No secrets belong in that file. The committed config
-keeps the legacy GitHub Pages `/dev/` detection until the move is complete.
-
-Production keeps the original unprefixed local workspace key. A new development
-host has its own origin and still uses preview-prefixed keys; it cannot silently
-read the production workspace when served at `/`. Drive keeps the original
-production and development namespace IDs so the existing folders and immutable
-versions are discoverable on the new hosts. Browser storage cannot cross
-origins: each device must export/import its JSON data, or use a tested recovery
-bridge on the old origin, before the old site is unpublished. Never erase an old
-Drive folder or local recovery copy as part of the deployment.
+It copies only the static shell and assets, labels a development installation,
+retargets suite launcher links, and writes public deployment origins. Never put
+secrets in the generated config. The production host retains its original
+unprefixed workspace keys and Drive namespace. A future development host has
+its own browser origin and preview-prefixed keys; the current GitHub Pages
+`/dev/` preview is still isolated. Browser storage cannot cross origins: each
+device must export/import its JSON data before an old site is removed. Never
+erase a Drive folder or recovery copy as part of a deployment.

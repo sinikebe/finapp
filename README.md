@@ -2,13 +2,13 @@
 
 Project income, expenses, cash and total worth over the next 1–600 months.
 Compare up to four scenarios for each of six projects. Everything is calculated
-in the browser, with no application account or backend. Connecting a Google
-account for optional Drive backups is a separate choice.
+in the browser. Connecting a Google account for optional Drive backups is a
+separate choice; a session service holds only authentication credentials.
 
 [![CI](https://github.com/sinikebe/finapp/actions/workflows/ci.yml/badge.svg)](https://github.com/sinikebe/finapp/actions/workflows/ci.yml)
-[![Open Finapp](https://img.shields.io/badge/open-Finapp-blue)](https://sinikebe.github.io/finapp/)
+[![Open Finapp](https://img.shields.io/badge/open-Finapp-blue)](https://finapp.siniverse.cc/)
 
-**[Open Finapp](https://sinikebe.github.io/finapp/)** · [Development preview](https://sinikebe.github.io/finapp/dev/) · English and French ·
+**[Open Finapp](https://finapp.siniverse.cc/)** · [Development preview](https://sinikebe.github.io/finapp/dev/) · English and French ·
 light and dark themes · installable PWA
 
 The logo opens the finapps application menu, with links to Finapp and Garapp.
@@ -174,9 +174,9 @@ files are limited to 64 MiB and never write old storage keys into the new app.
 
 The profile icon at the top right opens **Google Drive** without looking through
 settings. It is red when disconnected and shows the current Google account while
-connected. After a previous manual connection, click the icon to choose an
-account again on your next visit. Finapp keeps no Google access token or account
-identity in browser storage. Google Drive lets you keep
+connected. Production can restore an active session when the app reopens.
+Finapp keeps no Google access token or account identity in browser storage.
+Google Drive lets you keep
 versioned copies of the complete workspace. Choose or create a Finapp backup,
 then synchronize manually or enable automatic synchronization while the app is
 open and connected. When another device has different changes, compare only
@@ -207,8 +207,9 @@ other scripts with the same origin and to browser extensions with sufficient
 permissions; browser storage is not an encrypted vault.
 
 Finapp sends a backup to Google Drive only after you connect and choose a
-backup there. The access token stays in memory, so closing the tab requires
-connecting again. Drive copies are stored in the connected Google account,
+backup there. The temporary access token stays in memory; production restores
+an active session through a separate credential service after the tab closes.
+The service never receives backup contents. Drive copies stay in the connected Google account,
 not encrypted by Finapp; protect access to that account as you would any
 financial records. The production and development apps use separate backup
 spaces, and Finapp does not show Garapp backups.
