@@ -1,7 +1,7 @@
 {
   "name": "Finapp — estimate your financial future",
   "short_name": "Finapp",
-  "description": "Project cumulative income, expenses and net over the months ahead. Works offline; nothing leaves your device.",
+  "description": "Project cumulative income, expenses and net over the months ahead. Works offline; optional private Google Drive backups.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

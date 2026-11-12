@@ -2,7 +2,8 @@
 
 Project income, expenses, cash and total worth over the next 1–600 months.
 Compare up to four scenarios for each of six projects. Everything is calculated
-in the browser; there is no account, backend or runtime dependency.
+in the browser, with no application account or backend. Connecting a Google
+account for optional Drive backups is a separate choice.
 
 [![CI](https://github.com/sinikebe/finapp/actions/workflows/ci.yml/badge.svg)](https://github.com/sinikebe/finapp/actions/workflows/ci.yml)
 [![Open Finapp](https://img.shields.io/badge/open-Finapp-blue)](https://sinikebe.github.io/finapp/)
@@ -161,6 +162,29 @@ file, previews its projects and drafts, and explicitly replaces the workspace
 after saving a recovery copy of the current projects. Keep a separate copy if the data matters:
 clearing browser storage removes the workspace and its drafts.
 
+When moving from the original `sinikebe.github.io` address, download the
+Finapp **raw rescue** JSON on each device before clearing its browser data.
+The same **Restore a backup** action accepts that file, lists the original
+production or development environment, and offers each recoverable copy for
+preview: reconciled projects, older snapshots, historical v2/v1 inputs and
+unsaved drafts. Choose the desired copy, inspect its projects, and confirm the
+replacement. Keep the downloaded raw file afterward: its other copies may
+hold different edits. Regular backups are limited to 20 MiB; legacy rescue
+files are limited to 64 MiB and never write old storage keys into the new app.
+
+The profile icon at the top right opens **Google Drive** without looking through
+settings. It is red when disconnected and shows the current Google account while
+connected. After a previous manual connection, click the icon to choose an
+account again on your next visit. Finapp keeps no Google access token or account
+identity in browser storage. Google Drive lets you keep
+versioned copies of the complete workspace. Choose or create a Finapp backup,
+then synchronize manually or enable automatic synchronization while the app is
+open and connected. When another device has different changes, compare only
+the differences before choosing the local copy, the Drive copy or a merge.
+Previous Drive versions remain available; JSON downloads and restoration still
+work independently. A local recovery copy is kept before replacing the open
+workspace. [How Drive backup and recovery work](docs/google-drive.md).
+
 If saving fails, a visible message says so. Without safe storage/coordination,
 the app remains editable and exportable but does not claim changes were saved.
 Older stores are migrated without deleting their only copy first. Compatibility
@@ -181,6 +205,13 @@ A link is encoded, **not encrypted**: anyone with it can read the plan. The
 fragment is not sent in the document's HTTP request. Plans remain accessible to
 other scripts with the same origin and to browser extensions with sufficient
 permissions; browser storage is not an encrypted vault.
+
+Finapp sends a backup to Google Drive only after you connect and choose a
+backup there. The access token stays in memory, so closing the tab requires
+connecting again. Drive copies are stored in the connected Google account,
+not encrypted by Finapp; protect access to that account as you would any
+financial records. The production and development apps use separate backup
+spaces, and Finapp does not show Garapp backups.
 
 ## Offline support and browser support
 

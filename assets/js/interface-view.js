@@ -6,7 +6,8 @@ import { loadWorkspace, snapshotOf } from './state.js';
 import { labelOf } from './fields.js';
 import { advancedFields } from './interface.js';
 import { readNumericInput } from './input-validation.js';
-import { parseBackup, backupSummary, MAX_BACKUP_BYTES } from './backup.js';
+import { backupSummary } from './backup.js';
+import { parseRestoreText, MAX_LEGACY_RESCUE_BYTES } from './legacy-rescue.js';
 import { formatAmount, formatRate } from './format.js';
 import { hasAmounts } from './projection.js';
 import { createWorkspaceCards } from './workspace-cards.js';
@@ -74,23 +75,27 @@ export function createInterfaceView(options) {
   $('backup-close').addEventListener('click', () => restore.close());
   $('backup-file').addEventListener('change', () => offerBackup($('backup-file').files[0]));
   async function offerBackup(file) {
+    if (file) options.onImport?.();
     selectedFile = file;
     if (!restore.open) restore.showModal();
     offered = source = null; $('backup-preview').hidden = true; $('backup-message').textContent = '';
     if (!file) return;
     try {
-      if (file.size > MAX_BACKUP_BYTES) throw { code: 'tooLarge' };
+      if (file.size > MAX_LEGACY_RESCUE_BYTES) throw { code: 'tooLarge' };
       const text = await file.text();
       // A slow previous file read must not replace the current selection.
       if (selectedFile !== file) return;
-      offered = parseBackup(text); fileName = file.name;
+      offered = parseRestoreText(text);
+      fileName = file.name;
       $('backup-source').textContent = '';
-      const main = html('option', null, $('backup-source')); main.value = '0'; main.textContent = t('ui.restoreSaved');
+      const main = html('option', null, $('backup-source')); main.value = '0'; main.textContent = t(offered.labelKey || 'ui.restoreSaved');
       offered.drafts.forEach((draft, index) => {
         const option = html('option', null, $('backup-source')); option.value = String(index + 1);
-        option.textContent = `${index + 1} · ${draft.updatedAt ? new Date(draft.updatedAt).toLocaleString(document.documentElement.lang) : t('save.recover')}`;
+        option.textContent = draft.labelKey ? t(draft.labelKey, draft.index)
+          : `${index + 1} · ${draft.updatedAt ? new Date(draft.updatedAt).toLocaleString(document.documentElement.lang) : t('save.recover')}`;
       });
       previewBackup();
+      if (offered.legacyEnvironment) $('backup-message').textContent = t('ui.restoreLegacyNotice');
     } catch (error) {
       if (selectedFile !== file) return;
       $('backup-message').textContent = t(error.code === 'tooLarge' ? 'ui.restoreLarge' : error.code === 'references' ? 'ui.restoreReferences' : 'ui.restoreInvalid');
@@ -103,7 +108,10 @@ export function createInterfaceView(options) {
     if (!source) return;
     const summary = backupSummary(source);
     const workspace = loadWorkspace(source);
-    $('backup-summary').textContent = [fileName, offered.exportedAt ? new Date(offered.exportedAt).toLocaleString(document.documentElement.lang) : '', t('ui.backupCount', summary.projects, summary.strategies)].filter(Boolean).join(' · ');
+    $('backup-summary').textContent = [fileName,
+      offered.legacyEnvironment ? t(offered.legacyEnvironment === 'development' ? 'ui.restoreLegacyDevelopment' : 'ui.restoreLegacyProduction') : '',
+      offered.exportedAt ? new Date(offered.exportedAt).toLocaleString(document.documentElement.lang) : '',
+      t('ui.backupCount', summary.projects, summary.strategies)].filter(Boolean).join(' · ');
     $('backup-projects').textContent = '';
     workspace.projects.forEach((project, index) => { html('li', null, $('backup-projects')).textContent = projectNameOf(project, index, workspace.projects.length, t); });
     $('backup-preview').hidden = false;
@@ -119,7 +127,11 @@ export function createInterfaceView(options) {
     $('backup-confirm').disabled = true;
     try {
       const result = await saver.replace(source);
-      if (result.status === 'saved') { source = offered = null; $('backup-preview').hidden = true; $('backup-message').textContent = t('ui.restoreSuccess'); }
+      if (result.status === 'saved') {
+        const wasLegacy = Boolean(offered?.legacyEnvironment);
+        source = offered = null; $('backup-preview').hidden = true;
+        $('backup-message').textContent = t(wasLegacy ? 'ui.restoreLegacySuccess' : 'ui.restoreSuccess');
+      }
       else $('backup-message').textContent = t('ui.restoreBusy');
     } finally { $('backup-confirm').disabled = false; }
   });

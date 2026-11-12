@@ -18,3 +18,15 @@ test('a sibling-app preview retains its own origin and prefix, without copying a
   assert.deepEqual(links.apps.map((app) => app.href), ['http://localhost:4173/preview/finapp/dev/', 'http://localhost:4173/preview/Garapp/dev/']);
   assert.ok(links.apps.every((app) => !app.href.includes('private')));
 });
+
+test('separate application hosts keep production and development links apart', () => {
+  const suite = { finapp: 'https://finapp.example.fr/', garapp: 'https://garapp.example.fr/',
+    devFinapp: 'https://dev.finapp.example.fr/', devGarapp: 'https://dev.garapp.example.fr/' };
+  for (const environment of ['main', 'dev']) {
+    const links = suiteLinks('https://any.example.fr/?private=1', { environment, suite });
+    assert.equal(links.preview, environment === 'dev');
+    assert.deepEqual(links.apps.map((app) => app.href), environment === 'dev'
+      ? [suite.devFinapp, suite.devGarapp] : [suite.finapp, suite.garapp]);
+  }
+  assert.throws(() => suiteLinks('https://any.example.fr/', { environment: 'main', suite: null }));
+});

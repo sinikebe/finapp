@@ -9,6 +9,8 @@
  */
 
 import { createSaveController } from './save-controller.js';
+import { FinappDrivePanel } from './finapp-drive-panel.js';
+import { validateWorkspace } from './backup.js';
 import { deploymentFor, deploymentTitle, scopedStorage } from './deployment.js';
 import { createInterfaceView } from './interface-view.js';
 import { createWorkspaceView } from './workspace-view.js';
@@ -209,6 +211,8 @@ const planStore = createPlanStore(storage, {
   withLock: navigator.locks ? (work) => navigator.locks.request(scoped.physical('finapp.workspace'), work) : null,
 });
 const loaded = planStore.read();
+let lastDriveSavedToken = loaded.token;
+let drivePanel = null;
 const freshWorkspace = !loaded.data.flat && !loaded.data.shelf && !loaded.data.legacyFields && !loaded.data.legacyInputs;
 const state = loadWorkspace(loaded.data, resolveLanguage());
 let viewMode = viewModeOf(readStore(VIEW_MODE_KEY, 'simple'));
@@ -225,7 +229,7 @@ const saver = createSaveController({
   initialBaseline: freshWorkspace ? '' : JSON.stringify(snapshotOf(state)),
   adopt: adoptWorkspace,
   editing: () => document.activeElement instanceof Element && Boolean(document.activeElement.closest('.field-list, .strategy-bar, .filter-row, .milestone-list, .project-list, .horizon, .quick-fields')),
-  notify: paintSaveStatus,
+  notify: () => paintSaveStatus(true),
 });
 
 /** The open project's record. */
@@ -258,8 +262,8 @@ function inputValidity(key, invalid) {
   $('input-warning').hidden = invalidInputs.size === 0;
 }
 
-function paintSaveStatus() {
-  const { state: saveState, recoveries, saving } = saver.status();
+function paintSaveStatus(fromSaver = false) {
+  const { state: saveState, recoveries, saving, dirty, pendingRemote } = saver.status();
   const problem = !['saved', 'pending'].includes(saveState);
   ui.saveStatus.hidden = !problem && !recoveries.length;
   const message = t(problem ? `save.${saveState}` : 'save.recovery', recoveries.length);
@@ -271,6 +275,10 @@ function paintSaveStatus() {
   ui.saveLatest.disabled = saving;
   ui.saveRecover.disabled = saving;
   ui.saveRecover.hidden = !recoveries.length;
+  if (fromSaver && saveState === 'saved' && !saving && !dirty && !pendingRemote) {
+    const token = planStore.read().token;
+    if (token !== lastDriveSavedToken) { lastDriveSavedToken = token; drivePanel?.changed(); }
+  }
 }
 
 const stageChanges = () => saver.stage();
@@ -2454,6 +2462,7 @@ const milestoneList = createMilestoneList({
 
 const interfaceView = createInterfaceView({
   state, store: planStore, saver,
+  onImport: () => drivePanel?.pauseForImport(),
   translator: () => t, mode: () => viewMode, metric: () => simpleMetric,
   fresh: () => introPending && freshWorkspace,
   onMode: changeMode, onStart: startGuided, onValidity: inputValidity,
@@ -2496,6 +2505,40 @@ createBrowserTools({
   onBackup: exportBackup, onRestore: (file) => interfaceView.offerBackup(file),
   onMode: () => changeMode(viewMode === 'simple' ? 'advanced' : 'simple'),
 });
+const driveDialogs = () => [...document.querySelectorAll('dialog[open]')].every((dialog) =>
+  ['drive-dialog', 'drive-preview-dialog'].includes(dialog.id));
+function canDriveApply(explicit = false) {
+  const status = saver.status();
+  return !status.dirty && !status.saving && !status.pendingRemote && status.state === 'saved'
+    && !invalidInputs.size && driveDialogs()
+    && (explicit || !$('drive-preview-dialog').open);
+}
+function canDriveSync() {
+  const status = saver.status();
+  return !status.dirty && !status.saving && !status.pendingRemote && status.state === 'saved'
+    && !invalidInputs.size && driveDialogs() && document.visibilityState === 'visible'
+    && navigator.onLine !== false;
+}
+async function applyDriveWorkspace(incoming, expected, explicit) {
+  const expectedRaw = JSON.stringify(expected);
+  if (!canDriveApply(explicit) || JSON.stringify(snapshotOf(state)) !== expectedRaw) throw Error(t('drive.changed'));
+  const next = validateWorkspace(incoming);
+  if ((await saver.save()).status !== 'saved' || JSON.stringify(snapshotOf(state)) !== expectedRaw) throw Error(t('ui.restoreBusy'));
+  if (JSON.stringify(next) === expectedRaw) return;
+  if (!planStore.keepRecovery(snapshotOf(state))) throw Error(t('ui.restoreSafety'));
+  const result = await saver.replacePersisted(next, () =>
+    !saver.status().pendingRemote && !invalidInputs.size && driveDialogs()
+    && JSON.stringify(snapshotOf(state)) === expectedRaw);
+  if (result.status !== 'saved') throw Error(t('ui.restoreBusy'));
+}
+drivePanel = new FinappDrivePanel({
+  base: deployment.base, development: deployment.preview, storage,
+  getWorkspace: () => snapshotOf(state), canSync: canDriveSync,
+  canApply: canDriveApply, applyWorkspace: applyDriveWorkspace,
+  t: () => t, language: () => language,
+  download: (contents, filename) => saveFile(contents, filename, 'application/json', window),
+});
+void drivePanel.restore();
 $('welcome').addEventListener('close', () => { if (introPending) { introPending = false; writeStore(INTRO_KEY, true); persist(); } });
 
 function applyLanguage(next) {
@@ -2518,6 +2561,7 @@ function applyLanguage(next) {
   for (const node of document.querySelectorAll('[data-i18n-aria]')) {
     node.setAttribute('aria-label', t(node.dataset.i18nAria));
   }
+  drivePanel?.refreshLanguage();
   for (const button of ui.presets) {
     button.textContent = t('filter.preset', Number(button.dataset.months) / 12);
   }

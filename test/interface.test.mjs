@@ -105,6 +105,24 @@ test('main and dev storage, drafts, preference enumeration and events are isolat
   assert.equal(deploymentFor('https://example.org/finapp/dev/').preview, true);
 });
 
+test('an explicit dev host at its root keeps all writes out of the production namespace', () => {
+  const prod = deploymentFor('https://finapp.example.fr/', { environment: 'main' });
+  const dev = deploymentFor('https://dev.finapp.example.fr/', { environment: 'dev' });
+  assert.equal(prod.preview, false);
+  assert.equal(dev.preview, true);
+  assert.equal(prod.prefix, '');
+  assert.equal(dev.prefix, 'finapp-preview:/:');
+  const db = new MemoryStorage();
+  const main = scopedStorage(() => db, prod.prefix).storage();
+  const preview = scopedStorage(() => db, dev.prefix).storage();
+  main.setItem('finapp.workspace.v1', 'production');
+  preview.setItem('finapp.workspace.v1', 'development');
+  assert.equal(main.getItem('finapp.workspace.v1'), 'production');
+  assert.equal(preview.getItem('finapp.workspace.v1'), 'development');
+  assert.equal(deploymentFor('https://example.org/finapp/dev/').prefix, 'finapp-preview:/finapp/dev/:');
+  assert.throws(() => deploymentFor('https://dev.finapp.example.fr/', { environment: 'unknown' }));
+});
+
 function fixture({ delayed = false } = {}) {
   const db = new MemoryStorage();
   let release;

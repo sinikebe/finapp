@@ -15,7 +15,27 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v77', date: '2026-11-08',
+    version: 'v81', date: '2026-11-12',
+    en: 'Old-origin raw rescue files can now be reviewed and restored. Historical inputs, reconciled project edits and prior copies remain separate choices; the original download stays untouched.',
+    fr: 'Les fichiers de secours bruts de l’ancienne adresse peuvent être vérifiés puis restaurés. Les anciennes saisies, les modifications de projets réconciliées et les copies précédentes restent des choix distincts ; le fichier téléchargé reste intact.',
+  },
+  {
+    version: 'v80', date: '2026-11-12', commit: 'f717681456f1fef6c7bf94b8d1f40490955a2580',
+    en: 'Prepare separate, tested static hosting for Finapp. Production and development keep their existing Google Drive histories while using separate sites and browser storage.',
+    fr: 'Préparation d’un hébergement statique séparé pour Finapp. Les versions principale et de développement conservent leurs historiques Google Drive tout en utilisant des sites et stockages navigateur distincts.',
+  },
+  {
+    version: 'v79', date: '2026-11-12', commit: '08e69c4',
+    en: 'Google Drive now has a profile button in the header. It shows the connected account, makes reconnection a click away, and keeps access tokens and account identity out of browser storage.',
+    fr: 'Google Drive dispose d’un bouton de profil dans le bandeau. Il affiche le compte connecté, facilite la reconnexion en un clic et ne conserve ni jeton d’accès ni identité du compte dans le stockage du navigateur.',
+  },
+  {
+    version: 'v78', date: '2026-11-10', commit: '682c2c7',
+    en: 'Optional Google Drive backups keep private, verified versions of complete projects. Connect explicitly, compare only changes, choose which values to keep when versions diverge, and restore after saving a local recovery copy. Local JSON backups and offline work remain available.',
+    fr: 'Les sauvegardes Google Drive facultatives conservent des versions privées et vérifiées de tous les projets. Connectez-vous volontairement, comparez uniquement les différences, choisissez les valeurs à conserver en cas de divergence et restaurez après une copie locale de récupération. Les sauvegardes JSON locales et le travail hors ligne restent disponibles.',
+  },
+  {
+    version: 'v77', date: '2026-11-08', commit: 'bae1b22',
     en: 'Help activation now updates its keyboard state immediately, so Escape closes the explanation before a containing menu or dialog. Closing an unrelated dialog cannot dismiss newly opened help.',
     fr: 'L’ouverture d’une aide met immédiatement son état clavier à jour : Échap ferme l’explication avant le menu ou la fenêtre qui la contient. La fermeture d’une autre fenêtre ne ferme pas une aide ouverte entre-temps.',
   },

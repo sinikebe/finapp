@@ -68,6 +68,7 @@ export function createBrowserTools(options) {
     ['save.export', options.onBackup],
     ['workspace.saveAs', () => options.onBackup({ native: true }), () => typeof window.showSaveFilePicker === 'function'],
     ['ui.restore', () => $('backup-open').click()],
+    ['drive.open', () => $('drive-open').click()],
     ['workspace.exportResults', exportResults],
     ['workspace.print', () => window.print()],
     ['action.share', () => $('share-open').click()],

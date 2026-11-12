@@ -1,7 +1,10 @@
-/** Isolate a /dev/ preview while keeping existing production storage readable. */
-export function deploymentFor(url) {
+/** Isolate preview storage, including when dev lives at the root of its own host. */
+import { DEPLOYMENT } from './deployment-config.js';
+
+export function deploymentFor(url, target = DEPLOYMENT) {
   const base = new URL('./', url);
-  const preview = /\/dev\/$/.test(base.pathname);
+  if (!['legacy', 'main', 'dev'].includes(target.environment)) throw new Error('Unknown Finapp deployment environment.');
+  const preview = target.environment === 'legacy' ? /\/dev\/$/.test(base.pathname) : target.environment === 'dev';
   return { preview, prefix: preview ? `finapp-preview:${base.pathname}:` : '', base };
 }
 
