@@ -55,7 +55,9 @@ open. Sign in again when a new session starts.
 
 Finapp production uses its own Google OAuth project, separate from Garapp.
 The `/dev/` preview uses a separate backup space and may use a different OAuth
-client. Switching between applications does not copy projects.
+client. Switching between applications does not copy projects. Backups created
+with an earlier Google OAuth project remain in Drive but are not imported
+automatically.
 
 If sign-in, permission, quota or connectivity prevents Drive access, the local
 workspace and JSON export continue to work. Check the account and popup
