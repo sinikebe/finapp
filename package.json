@@ -30,6 +30,7 @@
   ],
   "type": "module",
   "scripts": {
+    "build:cloudflare": "npm test && npm run icons && git diff --exit-code -- assets/icons && node tools/build-cloudflare-pages.mjs",
     "dev": "node tools/serve.mjs",
     "start": "node tools/serve.mjs",
     "test": "node --test test/*.test.mjs",
