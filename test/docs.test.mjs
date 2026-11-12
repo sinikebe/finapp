@@ -12,7 +12,7 @@ import { readFile, readdir } from 'node:fs/promises';
  * the app.
  */
 
-const contributing = await readFile(new URL('../CONTRIBUTING.md', import.meta.url), 'utf8');
+const contributing = (await readFile(new URL('../CONTRIBUTING.md', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
 
 /** The contents of the fenced block under a heading. */
 function blockUnder(heading) {

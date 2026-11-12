@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v80', date: '2026-11-12',
+    version: 'v81', date: '2026-11-12',
+    en: 'Old-origin raw rescue files can now be reviewed and restored. Historical inputs, reconciled project edits and prior copies remain separate choices; the original download stays untouched.',
+    fr: 'Les fichiers de secours bruts de l’ancienne adresse peuvent être vérifiés puis restaurés. Les anciennes saisies, les modifications de projets réconciliées et les copies précédentes restent des choix distincts ; le fichier téléchargé reste intact.',
+  },
+  {
+    version: 'v80', date: '2026-11-12', commit: 'f717681456f1fef6c7bf94b8d1f40490955a2580',
     en: 'Prepare separate, tested static hosting for Finapp. Production and development keep their existing Google Drive histories while using separate sites and browser storage.',
     fr: 'Préparation d’un hébergement statique séparé pour Finapp. Les versions principale et de développement conservent leurs historiques Google Drive tout en utilisant des sites et stockages navigateur distincts.',
   },

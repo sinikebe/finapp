@@ -162,6 +162,16 @@ file, previews its projects and drafts, and explicitly replaces the workspace
 after saving a recovery copy of the current projects. Keep a separate copy if the data matters:
 clearing browser storage removes the workspace and its drafts.
 
+When moving from the original `sinikebe.github.io` address, download the
+Finapp **raw rescue** JSON on each device before clearing its browser data.
+The same **Restore a backup** action accepts that file, lists the original
+production or development environment, and offers each recoverable copy for
+preview: reconciled projects, older snapshots, historical v2/v1 inputs and
+unsaved drafts. Choose the desired copy, inspect its projects, and confirm the
+replacement. Keep the downloaded raw file afterward: its other copies may
+hold different edits. Regular backups are limited to 20 MiB; legacy rescue
+files are limited to 64 MiB and never write old storage keys into the new app.
+
 The profile icon at the top right opens **Google Drive** without looking through
 settings. It is red when disconnected and shows the current Google account while
 connected. After a previous manual connection, click the icon to choose an

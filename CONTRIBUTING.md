@@ -61,6 +61,7 @@ assets/js/save-controller.js  debounced saves, reverts and queued-write coordina
 assets/js/deployment.js       production/preview storage and lock namespaces
 assets/js/deployment-config.js  legacy path defaults and generated hosting environment
 assets/js/backup.js           bounded backup validation and restore summaries
+assets/js/legacy-rescue.js    read-only migration of old-origin rescue files
 assets/js/backup-merge.js     differences and validated field-level backup merge
 assets/js/finapp-drive-config.js  public OAuth client IDs for main and preview
 assets/js/finapp-drive-auth.js    Google Identity Services authorization
