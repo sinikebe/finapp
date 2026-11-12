@@ -82,6 +82,11 @@
       </details>
       <button id="undo" class="ghost-button" type="button" data-i18n="undo.label" hidden>Undo</button>
       <button id="install" class="ghost-button" type="button" data-i18n="action.install" hidden>Install app</button>
+      <button id="drive-profile" class="ghost-button drive-profile" type="button" aria-label="Connect to Google Drive" data-connected="false">
+        <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="8" r="3.5"/><path d="M5 20v-2a7 7 0 0 1 14 0v2"/></svg>
+        <span id="drive-profile-label" class="drive-profile-label" aria-hidden="true">Google Drive</span>
+        <span id="drive-profile-mark" class="drive-profile-mark" aria-hidden="true">!</span>
+      </button>
     </div>
     <p class="hint undo-said" id="undo-said" role="status" tabindex="-1" hidden></p>
   <p id="save-indicator" class="hint save-indicator" role="status"></p>
@@ -423,6 +428,7 @@
   <div class="about-head"><h2 id="drive-heading" data-i18n="drive.heading">Google Drive backup</h2><button id="drive-close" type="button" class="ghost-button" data-i18n="ui.close">Close</button></div>
   <p class="hint" data-i18n="drive.intro">Connect your Google account to keep private, versioned copies of your projects in Drive. You choose when to connect.</p>
   <p id="drive-status" class="drive-status" role="status"></p>
+  <p id="drive-account" class="drive-account" hidden></p>
   <p id="drive-notice" class="hint" role="status" hidden></p>
   <div class="drive-actions"><button id="drive-connect" type="button" class="workspace-primary" data-i18n="drive.connect">Connect to Google Drive</button><button id="drive-disconnect" type="button" class="ghost-button" data-i18n="drive.disconnect" hidden>Disconnect</button></div>
   <section id="drive-connected" class="drive-panel" hidden aria-labelledby="drive-folder-heading">

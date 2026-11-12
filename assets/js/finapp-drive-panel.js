@@ -21,15 +21,13 @@ export class FinappDrivePanel {
     this.listing = false;
     this.problem = '';
     this.timer = null;
+    this.profileTimer = null;
     this.poll = null;
     this.folderId = null;
+    this.account = null;
 
-    $('drive-open').addEventListener('click', () => {
-      document.querySelector('.tools-menu').open = false;
-      $('drive-dialog').showModal();
-      void this.prepare();
-      this.render();
-    });
+    $('drive-open').addEventListener('click', () => this.openDrive());
+    $('drive-profile').addEventListener('click', () => this.openDrive(true));
     $('drive-close').addEventListener('click', () => $('drive-dialog').close());
     $('drive-dialog').addEventListener('cancel', (event) => { if (this.busy()) event.preventDefault(); });
     $('drive-dialog').addEventListener('close', () => { if (this.engine?.state.auto) this.changed(false); });
@@ -81,6 +79,17 @@ export class FinappDrivePanel {
   connected() { return Boolean(this.auth?.token() && this.engine?.api); }
   busy() { return this.loading || this.listing || Boolean(this.auth?.pending || this.engine?.busy); }
 
+  openDrive(reconnect = false) {
+    document.querySelector('.tools-menu').open = false;
+    if (!$('drive-dialog').open) $('drive-dialog').showModal();
+    if (!this.auth) void this.prepare();
+    else if (reconnect && !this.connected() && !this.auth.pending) {
+      this.problem = '';
+      this.auth.connect(); // Synchronous in the profile-button click gesture.
+    }
+    this.render();
+  }
+
   async restore() {
     const settings = {
       load: async () => {
@@ -101,7 +110,11 @@ export class FinappDrivePanel {
     await this.engine.restore();
     this.poll = window.setInterval(() => this.wake(), 5 * 60 * 1000);
     this.render();
-    if ($('drive-dialog').open) await this.prepare();
+    // Remember only that the user connected before, never their identity or token.
+    let previouslyConnected = false;
+    try { previouslyConnected = this.storage().getItem('finapp.drive.connectedBefore') === '1'; }
+    catch { /* Storage can be disabled; the manual connect button still works. */ }
+    if (previouslyConnected || $('drive-dialog').open) await this.prepare();
   }
 
   async prepare() {
@@ -119,12 +132,21 @@ export class FinappDrivePanel {
 
   async onConnected() {
     this.problem = '';
+    this.account = null;
     this.engine.api?.close?.();
     this.engine.graph = revisionGraph([]);
-    this.engine.api = new DriveAPI({ token: () => this.auth?.token(), language: this.lang(),
-      onExpired: () => { this.auth?.clearToken(); this.problem = this.word('drive.connectionExpired'); this.render(); },
+    const api = new DriveAPI({ token: () => this.auth?.token(), language: this.lang(),
+      onExpired: () => { this.auth?.clearToken(); this.account = null; this.problem = this.word('drive.connectionExpired'); this.render(); },
     });
+    this.engine.api = api;
+    try { this.storage().setItem('finapp.drive.connectedBefore', '1'); }
+    catch { /* Connection and backup never depend on remembering this preference. */ }
     this.render();
+    void api.account().then((account) => {
+      if (this.engine.api !== api || !this.connected()) return;
+      this.account = account;
+      this.render();
+    }).catch(() => { /* Account details are optional; Drive backup still works. */ });
     await this.listFolders();
     if (this.engine.state.binding) {
       await this.run(() => this.engine.state.auto && this.canSync() ? this.engine.sync() : this.engine.refresh());
@@ -134,8 +156,13 @@ export class FinappDrivePanel {
 
   disconnect() {
     window.clearTimeout(this.timer);
+    window.clearTimeout(this.profileTimer);
+    this.profileTimer = null;
+    try { this.storage().removeItem('finapp.drive.connectedBefore'); }
+    catch { /* Disconnect works even when browser storage is unavailable. */ }
     this.auth?.disconnect();
     this.engine?.disconnect();
+    this.account = null;
     this.folders = [];
     this.problem = '';
     this.render();
@@ -157,7 +184,8 @@ export class FinappDrivePanel {
   }
 
   wake() {
-    if (!this.connected() || !this.engine?.state.auto || this.engine.busy || this.engine.preview
+    if (!this.connected()) { this.render(); return; }
+    if (!this.engine?.state.auto || this.engine.busy || this.engine.preview
         || document.visibilityState !== 'visible' || navigator.onLine === false || !this.canSync()) return;
     void this.engine.sync();
   }
@@ -203,6 +231,22 @@ export class FinappDrivePanel {
 
   render() {
     const engine = this.engine, connected = this.connected(), busy = this.busy();
+    window.clearTimeout(this.profileTimer);
+    const refreshIn = connected ? this.auth?.timeUntilExpiration?.() : null;
+    this.profileTimer = connected && Number.isFinite(refreshIn)
+      ? window.setTimeout(() => this.render(), Math.max(1, Math.min(refreshIn + 1, 2_147_483_647)))
+      : null;
+    if (!connected) this.account = null;
+    const profile = $('drive-profile');
+    const accountName = this.account?.name || this.account?.email || this.word('drive.profileGeneric');
+    const accountDetail = [this.account?.name, this.account?.email].filter(Boolean).join(' · ');
+    profile.dataset.connected = String(connected);
+    $('drive-profile-mark').textContent = connected ? '✓' : '!';
+    profile.setAttribute('aria-label', connected ? this.word('drive.profileConnected', accountDetail || accountName) : this.word('drive.profileConnect'));
+    profile.title = connected ? this.word('drive.profileConnected', accountDetail || accountName) : this.word('drive.profileConnect');
+    $('drive-profile-label').textContent = connected ? accountName : this.word('drive.profileGeneric');
+    $('drive-account').hidden = !connected || !this.account;
+    $('drive-account').textContent = connected ? accountDetail : '';
     $('drive-connect').hidden = connected;
     $('drive-connect').disabled = !engine || busy;
     $('drive-connect').textContent = this.problem && !this.auth ? this.word('drive.retry') : this.word('drive.connect');
