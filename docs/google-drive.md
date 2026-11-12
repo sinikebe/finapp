@@ -9,7 +9,7 @@ does not send project data to a Finapp server.
 1. Select the profile icon at the top right. Red means Google Drive is disconnected.
    Select **Connect to Google Drive** if the account chooser does not open yet.
    Choose your Google account and approve access to files created by the
-   shared Google application. Its name on the Google consent screen is set in
+   Finapp application. Its name on the Google consent screen is set in
    the Google Cloud project, separately from the Finapp interface.
 2. Create a Finapp backup space or select one you created earlier. An existing
    Drive copy is compared before it replaces any local projects.
@@ -53,11 +53,11 @@ authorization uses the `drive.file` scope and a public web OAuth client ID;
 there is no client secret in the page. Tokens stay in memory while the tab is
 open. Sign in again when a new session starts.
 
-Finapp and Garapp use the same Google OAuth client, but their backup
-folders and file markers are different. Finapp's production and `/dev/` preview
-also use separate backup spaces. These are application namespaces, not a Google
-permission boundary: the shared Google application is authorized for files it
-created under either app. Switching between applications does not copy projects.
+Finapp production uses its own Google OAuth project, separate from Garapp.
+The `/dev/` preview uses a separate backup space and may use a different OAuth
+client. Switching between applications does not copy projects. Backups created
+with an earlier Google OAuth project remain in Drive but are not imported
+automatically.
 
 If sign-in, permission, quota or connectivity prevents Drive access, the local
 workspace and JSON export continue to work. Check the account and popup

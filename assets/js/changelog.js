@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v81', date: '2026-11-12',
+    version: 'v82', date: '2026-11-12',
+    en: 'Finapp uses dedicated Google Drive authorization in production. Local projects and JSON exports are unchanged; copies made with the former OAuth project remain in Drive without automatic import.',
+    fr: 'Finapp utilise une autorisation Google Drive dédiée en production. Les projets locaux et les exports JSON restent inchangés ; les copies de l’ancien projet OAuth restent dans Drive, sans importation automatique.',
+  },
+  {
+    version: 'v81', date: '2026-11-12', commit: '98861ff7ccde0e948f159eaee66e866a10b71e5f',
     en: 'Old-origin raw rescue files can now be reviewed and restored. Historical inputs, reconciled project edits and prior copies remain separate choices; the original download stays untouched.',
     fr: 'Les fichiers de secours bruts de l’ancienne adresse peuvent être vérifiés puis restaurés. Les anciennes saisies, les modifications de projets réconciliées et les copies précédentes restent des choix distincts ; le fichier téléchargé reste intact.',
   },

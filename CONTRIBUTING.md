@@ -211,15 +211,14 @@ review the differences and choose what to retain. Tests should exercise two
 devices, a changed local revision during transfer, corrupt remote files, failed
 recovery storage and restoration of a historical JSON backup.
 
-The public web OAuth client ID is shared with Garapp; do not add a client
+Finapp production uses a dedicated Google OAuth project and a public Web client
+ID authorized for `https://finapp.siniverse.cc`. The `/dev/` preview retains its
+previous client, authorized for `https://sinikebe.github.io`. Do not add a client
 secret. Google Identity Services requests
-`https://www.googleapis.com/auth/drive.file` after the reader connects. Its
-authorized JavaScript origin is `https://sinikebe.github.io` for both `/finapp/`
-and `/finapp/dev/`; the paths are not distinct OAuth origins. The same Google
-project may grant access to files created by either app, so app-specific Drive
-markers and publication-path namespaces must prevent cross-app listing or
-restoration. Keep connection tokens in memory only, without local storage,
-IndexedDB, logs or cached assets. Only public app files belong in the service
+`https://www.googleapis.com/auth/drive.file` after the reader connects.
+Keep app-specific Drive markers and backup namespaces to prevent cross-app
+listing or restoration. Keep connection tokens in memory only, without local
+storage, IndexedDB, logs or cached assets. Only public app files belong in the service
 worker; private Drive responses and backup JSON must never be cached.
 
 An automatic Drive transfer runs only while the user has connected and selected
