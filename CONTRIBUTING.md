@@ -12,6 +12,7 @@ Node 20 or later; no build step and no runtime dependencies.
 npm start          # http://127.0.0.1:4173
 npm run dev        # same development server; also used by preview tooling
 npm test           # all Node tests, including review regressions and storage failures
+npm run build:cloudflare # tested production artifact for Git-connected Pages
 npm run icons      # regenerate the icon set
 npm run stamp      # update the version stamp after changing the cache version
 ```
@@ -87,6 +88,7 @@ tools/serve.mjs              local development server
 tools/stamp-version.mjs      cache/build metadata
 tools/build-pages.mjs        allowlisted main + dev Pages artifact
 tools/build-cloudflare.mjs   allowlisted standalone production or dev artifact
+tools/build-cloudflare-pages.mjs  gated production artifact for Git-connected Pages
 test/                       Node tests
 docs/design-system.md       tokens, layout and accessibility conventions
 ```
@@ -278,7 +280,18 @@ the owner:
 node tools/build-cloudflare.mjs --branch dev --domain example.fr --out /tmp/finapp-dev-site
 ```
 
-The output must be a new directory outside the checkout. The build copies only
+For the Git-connected production project, grant Cloudflare Pages access to this
+repository and use `main` as its production branch. Set the framework preset to
+None, the build command to `npm run build:cloudflare`, the output directory to
+`dist`, and `NODE_VERSION=22`. Set preview branch deployments to None: this
+project intentionally publishes only production. The build runs the test suite,
+checks icon reproducibility and the service-worker cache version, then prepares
+the static artifact for `finapp.siniverse.cc`. It stops if it cannot inspect
+the previous revision. Leave `CLOUDFLARE_DEPLOY_ENABLED` unset so the older
+Direct Upload job cannot publish a second deployment.
+
+The standalone command above requires a new output directory outside the checkout.
+Both build paths copy only
 the static shell and assets, labels the development installation, retargets
 the HTML launcher links, and writes a public `assets/js/deployment-config.js` listing the environment and companion
 Finapp/Garapp origins. No secrets belong in that file. The committed config
