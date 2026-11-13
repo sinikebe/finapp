@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v83', date: '2026-11-12',
+    version: 'v84', date: '2026-11-13',
+    en: 'Normal and offline reloads now accept the cached page when hosting redirects index.html to the app root. Projects, recovery copies and Google Drive sessions are preserved.',
+    fr: 'Le rechargement normal ou hors ligne accepte désormais la page en cache lorsque l’hébergement redirige index.html vers la racine de l’application. Les projets, copies de secours et sessions Google Drive sont conservés.',
+  },
+  {
+    version: 'v83', date: '2026-11-12', commit: '78b645aeb31e4972d7e7e478d0ec8d8524005506',
     en: 'Finapp restores active Google Drive sessions on its production site. Temporary access tokens stay in memory; backups still travel directly to Drive. Production assets move to a static Cloudflare Worker without changing the app address.',
     fr: 'Finapp rétablit les connexions Google Drive actives sur le site de production. Les jetons temporaires restent en mémoire et les sauvegardes vont toujours directement vers Drive. Les fichiers du site sont servis par un Worker Cloudflare à la même adresse.',
   },
