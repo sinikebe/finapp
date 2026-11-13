@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { buildLegacyPages } from '../tools/build-legacy-pages.mjs';
 import { buildCloudflare } from '../tools/build-cloudflare.mjs';
+import { copySite } from '../tools/build-pages.mjs';
 
 const source = fileURLToPath(new URL('../', import.meta.url));
 const redirect = await readFile(new URL('../tools/legacy-pages/redirect.js', import.meta.url), 'utf8');
@@ -30,6 +31,22 @@ async function follow(href, serviceWorker) {
   await vm.runInContext(redirect, context);
   return { destination, elements };
 }
+
+test('the common Pages adapter preserves each selected source and refuses unsafe recovery output', async () => {
+  await artifact(async ({ root, out }) => {
+    const devSource = join(root, 'selected-dev');
+    await copySite(source, devSource);
+    const marker = '<!-- selected development recovery -->';
+    await writeFile(join(devSource, 'index.html'), (await readFile(join(devSource, 'index.html'), 'utf8')) + marker);
+    await buildLegacyPages({ source, devSource, out });
+    assert.ok(!(await readFile(join(out, 'recovery.html'), 'utf8')).includes(marker));
+    assert.ok((await readFile(join(out, 'dev/recovery.html'), 'utf8')).includes(marker));
+    assert.equal(await readFile(join(out, 'dev/sw.js'), 'utf8'), worker);
+    await assert.rejects(buildLegacyPages({ source, devSource, out: join(devSource, 'inside') }), /outside both source trees/);
+    await writeFile(join(devSource, 'assets/js/deployment.js'), '// unsafe former namespace');
+    await assert.rejects(buildLegacyPages({ source, devSource, out: join(root, 'unsafe') }), /must isolate/);
+  });
+});
 
 test('legacy production, dev and historical paths keep shared fragments on a fixed HTTPS destination', async () => {
   for (const path of ['/finapp/', '/finapp/index.html', '/finapp/dev/', '/finapp/dev/index.html', '/finapp/old-link']) {
