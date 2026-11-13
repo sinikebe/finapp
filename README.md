@@ -240,7 +240,8 @@ The committed package and lockfile version is **0.0.1**, a local fallback.
 The deployed version is allocated by the shared CI and recorded in immutable
 annotated tags per channel:
 `siniverse-version/main/vX.Y.Z` and
-`siniverse-version/dev/vX.Y.Z`. The first release in each channel is 0.0.1.
+`siniverse-version/dev/vX.Y.Z`. Dev starts at 0.0.1; the first main release
+reuses the version actually tested and approved on dev.
 Use `feat:` PR titles for features, `fix:` for fixes, and
 `!` / `BREAKING CHANGE` for breaking changes. Other merges default to patch.
 A single `semver:major`, `semver:minor` or `semver:patch` label may override that classification.
