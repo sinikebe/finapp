@@ -46,7 +46,7 @@ the normal validation path; avoid redundant manual runs.
 
 | Command | App-specific work |
 | --- | --- |
-| `npm run ci:check` | Business/storage/Drive tests, reproducible icons, and the release-wide PWA cache check |
+| `npm run ci:check` | Business/storage/Drive tests, automatic offline-generation regressions and reproducible icons |
 | `npm run ci:build` | Allowlisted static assets in a new `dist/`, with the requested application identity |
 | `npm run ci:pages` | Existing legacy redirect/recovery artifact from the selected main and dev checkouts |
 
@@ -62,12 +62,26 @@ The common controller alone creates `dist/deployment.json`, using its shared
 schema and toolchain/artifact metadata. The Finapp adapter does not write a
 competing manifest or embed secrets in the browser configuration.
 
-The cache check uses the PR base for a PR, and the release merge-base with `main`
-for a development branch, preserving the rule that the cache bump and asset edit
-may be separate commits on one branch. On `main`, it uses the common
-`SINIVERSE_BASE_SHA` (push-before SHA or tested parent). A change to a precached
-file still requires a `CACHE_VERSION` bump, bilingual changelog and stamp.
-Infrastructure-only changes do not change the application PWA generation.
+The package and lockfile version 0.0.1 is a local fallback. Actual versions are
+allocated centrally with annotated immutable tags per main/dev channel; the
+builder receives strict `SINIVERSE_VERSION` without a v prefix.
+It stamps the footer, About module and both install manifests from this value.
+The technical baseline v85 remains independent of public SemVer.
+
+The offline worker's cache identifier combines the same public version with
+SHA256 of the static content and normalized worker. Changing a public asset or
+worker logic therefore invalidates the cache even when the source SHA and
+technical counter stay the same. The builder verifies the version bindings and
+fingerprint and rejects mixed old/new artifacts. No manual cache/version bump is
+needed. The later deployment metadata and hosting controls do not participate in
+the offline fingerprint. Cache prefixes, scopes, persistent workspace keys,
+backup schemas and Drive namespaces remain unchanged.
+
+The common Pages workflow supplies `SINIVERSE_PAGES_MAIN_VERSION` and
+`SINIVERSE_PAGES_DEV_VERSION` for the exact selected heads.
+Each recovery app gets its corresponding module/footer/manifest version. The
+legacy retirement worker stays byte-identical: version injection must not turn
+it back into an application worker or erase any old-origin storage.
 
 ## Domains
 
