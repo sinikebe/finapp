@@ -79,13 +79,14 @@ test('Pages rejects unsafe previews, source-contained outputs, existing outputs 
 test('Pages only runs after same-repository successful push CI and deploys without checkout credentials', async () => {
   const workflow = await readFile(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8');
   assert.match(workflow, /workflows: \[CI\]/);
-  assert.match(workflow, /branches: \[main, dev\]/);
+  assert.match(workflow, /branches: \[main\]/);
   assert.match(workflow, /workflow_run\.event == 'push'/);
   assert.match(workflow, /workflow_run\.head_repository\.full_name == github\.repository/);
   assert.match(workflow, /event: 'push', status: 'success'/);
   assert.match(workflow, /ref: \$\{\{ steps.refs.outputs.main \}\}/);
-  assert.match(workflow, /ref: \$\{\{ steps.refs.outputs.dev \}\}/);
-  assert.equal((workflow.match(/persist-credentials: false/g) || []).length, 2);
+  assert.doesNotMatch(workflow, /steps.refs.outputs.dev/);
+  assert.equal((workflow.match(/persist-credentials: false/g) || []).length, 1);
+  assert.match(workflow, /node stable\/tools\/build-legacy-pages.mjs stable pages-site/);
   assert.match(workflow, /data\.build_type === 'workflow'/);
   assert.match(workflow, /if: needs.build.outputs.deploy == 'true'/);
 });

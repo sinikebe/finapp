@@ -88,6 +88,8 @@ tools/generate-icons.mjs     dependency-free icon generation
 tools/serve.mjs              local development server
 tools/stamp-version.mjs      cache/build metadata
 tools/build-pages.mjs        allowlisted main + dev Pages artifact
+tools/build-legacy-pages.mjs legacy Pages redirects and local recovery application
+tools/legacy-pages/          redirect HTML/script and scope-limited retirement worker
 tools/build-cloudflare.mjs   allowlisted standalone production or dev artifact
 tools/build-cloudflare-worker.mjs  gated production artifact for Workers Builds
 wrangler.jsonc               static Workers asset configuration
@@ -230,47 +232,50 @@ browser's memory. Preview sign-in still requires a click. Keep manual JSON expor
 restore available when Google authentication, network access, permissions or
 Drive quotas fail. The reader-facing guide is [Google Drive backups](docs/google-drive.md).
 
-## Production and development publication
+## Legacy GitHub Pages publication
 
-The `Pages` workflow, installed on `main`, reacts to successful push CI on
-`main` and `dev`. It chooses the latest successful push-CI commit of each branch,
-checks out those exact revisions and assembles one static artifact. Production
-is at the existing root URL; development is at `/dev/`. A later failing commit
-is never substituted for the revision CI actually tested. Fork PR workflows
-cannot trigger publication.
+The `Pages` workflow publishes a compatibility artifact after successful push CI
+on `main`, or when run manually. It checks out the latest tested `main` revision;
+it no longer requires a `dev` branch or publishes a second full application at
+the old entry points. Fork PR workflows cannot trigger publication.
 
-The assembler labels both development manifests **Finapp dev**, including their
-short names, and writes the same development name into the static page title
-and Apple home-screen metadata. Production files are copied unchanged. Runtime
-language changes keep the development label. Manifest IDs, launch URLs, scopes
-and icon paths remain relative and unchanged, preserving existing installations
-and their data.
+Both `https://sinikebe.github.io/finapp/` and its `/dev/` entry point redirect to
+`https://finapp.siniverse.cc/`. Shared-plan fragments are retained; unrelated
+query parameters are discarded. The destination is fixed HTTPS and the script
+only runs on Finapp paths. HTML links remain usable without JavaScript.
+
+The artifact replaces only the old Pages `sw.js` files with retirement workers.
+They activate immediately, claim their own scope and unregister themselves,
+without deleting caches, localStorage or IndexedDB, or forcing open windows
+to navigate. An already installed PWA can show its cached application until
+it has received this worker online; a forced refresh may be needed once.
+Subsequent navigation goes to the new site. Sibling applications sharing
+`sinikebe.github.io` are not changed.
+
+The existing application and assets remain at
+`/finapp/recovery.html` and `/finapp/dev/recovery.html` for local recovery.
+Each uses the same production or preview storage namespace as before. Open the
+corresponding recovery page, download a backup through Tools, and restore it
+on the new host. No project data is read by the redirect or sent in a URL.
+The new origin cannot read the old origin's local data automatically.
+Keep downloaded copies and the old browser data until recovery is complete.
 
 GitHub Pages must use **Settings → Pages → Build and deployment → Source:
-GitHub Actions**. If it still uses a branch, the workflow uploads the combined
-artifact and explains the setting in its summary, without changing the existing
-publication. After changing the source, run **Actions → Pages → Run workflow**.
-The `github-pages` environment can keep allowing deployments from `main`:
-`workflow_run` and manual runs of this central workflow run from that branch.
-
-The preview uses `finapp-preview:/finapp/dev/:…` local-storage keys and a separate
-Web Lock. Production retains existing keys. Service-worker cache names include
-their scope and use `finapp@…` rather than the legacy `finapp-` prefix, so an older
-production worker cannot delete preview caches. Relative manifests and assets
-keep installations and offline navigation inside their own scope. These are
-same-origin namespaces, not a security boundary; use a separate origin if dev
-code must be untrusted.
-
-To assemble an artifact locally after preparing both checkouts:
+GitHub Actions** and keep `https://sinikebe.github.io/finapp/` as its address,
+without a custom domain pointing back to Siniverse. The `github-pages`
+environment must allow deployments from `main`. After merging and successful
+CI, run **Actions → Pages → Run workflow** if a first publication is needed.
+The artifact is assembled independently of the Workers build:
 
 ```sh
-node tools/build-pages.mjs /path/to/main /path/to/dev /path/to/new-output
+node tools/build-legacy-pages.mjs /path/to/checkout /path/to/new-output
 ```
 
-The output directory must not exist and must be outside both source checkouts.
-Only the static shell and assets are copied; Git metadata, tests and workspace
-files are excluded. Symlinks and a preview without the isolation modules are
-rejected.
+The output must be new and outside the source checkout. Only allowlisted app
+assets and recovery shells are copied. The source `index.html`, `sw.js` and
+Workers bundle are unchanged, so this infrastructure change does not bump the
+application's PWA generation. `build-pages.mjs` retains its reusable static
+copy/preview helpers for Workers and archived bundles.
 
 ## Separate application hosts
 
@@ -295,7 +300,7 @@ It copies only the static shell and assets, labels a development installation,
 retargets suite launcher links, and writes public deployment origins. Never put
 secrets in the generated config. The production host retains its original
 unprefixed workspace keys and Drive namespace. A future development host has
-its own browser origin and preview-prefixed keys; the current GitHub Pages
-`/dev/` preview is still isolated. Browser storage cannot cross origins: each
+its own browser origin and preview-prefixed keys; the old Pages recovery
+application keeps its original preview namespace. Browser storage cannot cross origins: each
 device must export/import its JSON data before an old site is removed. Never
 erase a Drive folder or recovery copy as part of a deployment.

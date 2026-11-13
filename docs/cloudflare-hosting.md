@@ -70,9 +70,12 @@ automatically discover Drive files created by another OAuth project.
 The `dev` environment in `wrangler.jsonc` reserves the name
 `siniverse-finapp-site-dev` for a future, separately authorized rollout; it
 does not have a deployment route. Workers Builds currently publishes `main` only.
-The current GitHub Pages `/dev/` preview keeps its separate storage and Google
-Identity Services sign-in; neither it nor a local build uses the production
-session API. To inspect a non-published preview bundle locally:
+The old GitHub Pages `/dev/` entry point redirects to production until a new
+development host is activated. Its application remains at
+`https://sinikebe.github.io/finapp/dev/recovery.html` for local JSON export,
+using its separate storage namespace and Google Identity Services sign-in.
+Neither that recovery page nor a local build uses the production session API.
+To inspect a non-published preview bundle locally:
 
 ```sh
 node tools/build-cloudflare.mjs --branch dev --domain example.test --out /tmp/finapp-preview

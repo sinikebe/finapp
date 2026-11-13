@@ -8,7 +8,7 @@ separate choice; a session service holds only authentication credentials.
 [![CI](https://github.com/sinikebe/finapp/actions/workflows/ci.yml/badge.svg)](https://github.com/sinikebe/finapp/actions/workflows/ci.yml)
 [![Open Finapp](https://img.shields.io/badge/open-Finapp-blue)](https://finapp.siniverse.cc/)
 
-**[Open Finapp](https://finapp.siniverse.cc/)** · [Development preview](https://sinikebe.github.io/finapp/dev/) · English and French ·
+**[Open Finapp](https://finapp.siniverse.cc/)** · [Legacy development address](https://sinikebe.github.io/finapp/dev/) · English and French ·
 light and dark themes · installable PWA
 
 The logo opens the finapps application menu, with links to Finapp and Garapp.
@@ -162,15 +162,20 @@ file, previews its projects and drafts, and explicitly replaces the workspace
 after saving a recovery copy of the current projects. Keep a separate copy if the data matters:
 clearing browser storage removes the workspace and its drafts.
 
-When moving from the original `sinikebe.github.io` address, download the
-Finapp **raw rescue** JSON on each device before clearing its browser data.
-The same **Restore a backup** action accepts that file, lists the original
-production or development environment, and offers each recoverable copy for
-preview: reconciled projects, older snapshots, historical v2/v1 inputs and
-unsaved drafts. Choose the desired copy, inspect its projects, and confirm the
-replacement. Keep the downloaded raw file afterward: its other copies may
-hold different edits. Regular backups are limited to 20 MiB; legacy rescue
-files are limited to 64 MiB and never write old storage keys into the new app.
+The old `sinikebe.github.io` entry points redirect to Finapp's new address.
+Browser storage stays on its original origin. To recover projects on each
+device, open the [old production recovery page](https://sinikebe.github.io/finapp/recovery.html)
+or [old development recovery page](https://sinikebe.github.io/finapp/dev/recovery.html),
+use **Download a backup** in Tools, then **Restore a backup** on the new site.
+The recovery app uses the existing local workspace and export controls; no
+project data is transferred automatically. Keep the downloaded JSON and the old
+browser data until the projects have been checked.
+
+Previously downloaded **raw rescue** JSON files remain readable by the same
+**Restore a backup** action. It lists the original environment and offers
+reconciled projects, older snapshots, historical v2/v1 inputs and unsaved drafts
+for preview before replacement. Regular backups are limited to 20 MiB; legacy
+rescue files are limited to 64 MiB and never write old storage keys into the new app.
 
 The profile icon at the top right opens **Google Drive** without looking through
 settings. It is red when disconnected and shows the current Google account while
