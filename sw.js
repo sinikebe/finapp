@@ -9,7 +9,7 @@
  * CACHE_VERSION must be bumped whenever a precached file changes.
  */
 
-const CACHE_VERSION = 'v83';
+const CACHE_VERSION = 'v84';
 // Scope-specific and outside the legacy finapp- prefix, so v66 cannot delete /dev/ caches.
 const CACHE_PREFIX = `finapp@${encodeURIComponent(new URL('./', self.location.href).pathname)}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
@@ -120,6 +120,17 @@ async function cachedResponse(cache, request) {
   try { return await cache?.match(request); } catch { return undefined; }
 }
 
+/** A followed /index.html redirect is still redirected after CacheStorage.
+ * Navigations use redirect: 'manual' and reject that response with a network
+ * error. Keep the shell's body, status and headers without its redirect history.
+ */
+function navigationResponse(response) {
+  if (!response.redirected) return response;
+  return new Response(response.body, {
+    status: response.status, statusText: response.statusText, headers: response.headers,
+  });
+}
+
 /** True for the app's own pages, and only those — a sibling app sharing this
  * origin keeps its own navigations. */
 function isAppPage(url) {
@@ -135,14 +146,14 @@ function isAppPage(url) {
 async function serveShell(event) {
   const cache = await caches.open(CACHE_NAME).catch(() => null);
   const shell = await cachedResponse(cache, SHELL);
-  if (shell) return shell;
+  if (shell) return navigationResponse(shell);
 
   try {
     const response = await fetch(event.request);
     await cacheIfSound(cache, SHELL, response);
-    return response;
+    return navigationResponse(response);
   } catch {
-    return (await cachedResponse(cache, event.request)) || Response.error();
+    return navigationResponse((await cachedResponse(cache, event.request)) || Response.error());
   }
 }
 
