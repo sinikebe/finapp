@@ -268,7 +268,7 @@ npm run ci:build
 The application has no runtime dependencies. The development dependency is a pinned
 Wrangler for production and [Worker Previews](docs/cloudflare-previews.md). See [CONTRIBUTING.md](CONTRIBUTING.md)
 for the module map, release steps, storage contract and validation workflow.
-All feature and correction PRs target `dev`. Production promotion uses only a
+All change PRs, including docs and infrastructure, target `dev`. Production promotion uses only a
 `dev` → `main` PR after the user has tested dev and explicitly approved it.
 
 The same pinned `CI` caller as the other Siniverse apps delegates validation and
