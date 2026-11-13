@@ -6,13 +6,16 @@ Work on `dev` or a topic branch; publishing the default branch is a separate ste
 
 ## Run it
 
-Node 22 for the Workers build; no runtime dependencies.
+Node 22.12 or later for pinned Workers tooling; no application runtime dependencies.
 
 ```sh
+npm ci             # install the pinned Wrangler development dependency
 npm start          # http://127.0.0.1:4173
 npm run dev        # same development server; also used by preview tooling
 npm test           # all Node tests, including review regressions and storage failures
-npm run build:cloudflare # tested production artifact for Workers Builds
+npm run build:cloudflare # tested production or Preview assets for Workers Builds
+npm run deploy:cloudflare # guarded main-only production deployment
+npm run preview:cloudflare # guarded non-main Worker Preview deployment
 npm run icons      # regenerate the icon set
 npm run stamp      # update the version stamp after changing the cache version
 ```
@@ -91,10 +94,13 @@ tools/build-pages.mjs        allowlisted main + dev Pages artifact
 tools/build-legacy-pages.mjs legacy Pages redirects and local recovery application
 tools/legacy-pages/          redirect HTML/script and scope-limited retirement worker
 tools/build-cloudflare.mjs   allowlisted standalone production or dev artifact
-tools/build-cloudflare-worker.mjs  gated production artifact for Workers Builds
+tools/build-cloudflare-worker.mjs  production/Preview bundle and checkout metadata
+tools/check-cloudflare-publish.mjs branch, SHA, artifact and Wrangler publication guards
 wrangler.jsonc               static Workers asset configuration
+package-lock.json            pinned deployment-tool dependency graph
 test/                       Node tests
 docs/design-system.md       tokens, layout and accessibility conventions
+docs/cloudflare-previews.md production and isolated Worker Preview setup
 ```
 
 ## Model and view boundaries
@@ -280,9 +286,12 @@ copy/preview helpers for Workers and archived bundles.
 ## Separate application hosts
 
 Finapp production uses Git-connected Workers Builds from `main` with the
-`siniverse-finapp-site` Worker. Set the build command to
-`npm run build:cloudflare`, deploy command to `npx wrangler deploy`, and Node
-version to 22. The build tests the site, checks icons and refuses a precached
+`siniverse-finapp-site` Worker. Other branches use Worker Previews on that Worker.
+Follow [Production and Worker Previews](docs/cloudflare-previews.md) for current
+activation, domains and Google origins. Set the build command to
+`npm run build:cloudflare`, production command to `npm run deploy:cloudflare`,
+Preview command to `npm run preview:cloudflare`, and use Node 22.12 or later.
+The build tests the site, checks icons and refuses a precached
 asset change without a cache version bump; `wrangler.jsonc` publishes `dist/`.
 GitHub Actions validates changes but does not deploy to Cloudflare or hold its
 credentials. The existing Pages custom domain is moved to the Worker only

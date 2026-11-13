@@ -21,6 +21,8 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+      - name: Install pinned deployment tooling
+        run: npm ci
       - name: Assemble a non-published, branch-specific preview
         env:
           BRANCH: ${{ github.base_ref || github.ref_name }}
@@ -28,3 +30,7 @@ jobs:
           node tools/build-cloudflare.mjs --branch "$BRANCH" --domain example.test --out "$RUNNER_TEMP/cloudflare-check"
           test -s "$RUNNER_TEMP/cloudflare-check/index.html"
           test -s "$RUNNER_TEMP/cloudflare-check/sw.js"
+      - name: Validate Wrangler configuration without publishing
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+        run: npx wrangler deploy --dry-run --assets "$RUNNER_TEMP/cloudflare-check" --outdir "$RUNNER_TEMP/wrangler-check"
