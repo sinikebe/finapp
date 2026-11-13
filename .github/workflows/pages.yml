@@ -3,7 +3,7 @@ name: Pages
 on:
   workflow_run:
     workflows: [CI]
-    branches: [main, dev]
+    branches: [main]
     types: [completed]
   workflow_dispatch:
 
@@ -21,7 +21,7 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' &&
        github.event.workflow_run.head_repository.full_name == github.repository &&
-       contains(fromJSON('["main", "dev"]'), github.event.workflow_run.head_branch))
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -30,24 +30,22 @@ jobs:
     outputs:
       deploy: ${{ steps.refs.outputs.deploy }}
     steps:
-      - name: Choose tested revisions and check Pages configuration
+      - name: Choose tested main revision and check Pages configuration
         id: refs
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const { owner, repo } = context.repo;
-            for (const branch of ['main', 'dev']) {
-              const { data } = await github.rest.actions.listWorkflowRuns({
-                owner, repo, workflow_id: 'ci.yml', branch,
-                event: 'push', status: 'success', per_page: 1,
-              });
-              const run = data.workflow_runs[0];
-              if (!run || run.head_repository?.full_name !== `${owner}/${repo}` || !/^[a-f0-9]{40}$/.test(run.head_sha)) {
-                throw new Error(`No successful push CI for ${branch}. Push and test that branch first.`);
-              }
-              core.setOutput(branch, run.head_sha);
-              await core.summary.addRaw(`${branch}: ${run.head_sha}\n`, true).write();
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: 'ci.yml', branch: 'main',
+              event: 'push', status: 'success', per_page: 1,
+            });
+            const run = data.workflow_runs[0];
+            if (!run || run.head_repository?.full_name !== `${owner}/${repo}` || !/^[a-f0-9]{40}$/.test(run.head_sha)) {
+              throw new Error('No successful push CI for main. Push and test that branch first.');
             }
+            core.setOutput('main', run.head_sha);
+            await core.summary.addRaw(`main: ${run.head_sha}\n`, true).write();
             let configured = false;
             try {
               const { data } = await github.rest.repos.getPages({ owner, repo });
@@ -57,7 +55,7 @@ jobs:
             }
             core.setOutput('deploy', String(configured));
             if (!configured) {
-              const note = 'The artifact contains main at / and dev at /dev/. In Settings → Pages → Build and deployment, choose Source: GitHub Actions, then run this Pages workflow again.';
+              const note = 'The artifact redirects the legacy production and /dev/ URLs to finapp.siniverse.cc, with recovery.html retained for local exports. In Settings → Pages → Build and deployment, choose Source: GitHub Actions, then run this Pages workflow again.';
               core.notice(note);
               await core.summary.addRaw(note, true).write();
             }
@@ -66,20 +64,13 @@ jobs:
           ref: ${{ steps.refs.outputs.main }}
           path: stable
           persist-credentials: false
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: ${{ steps.refs.outputs.dev }}
-          path: preview
-          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
-      - name: Verify both selected versions
-        run: |
-          npm --prefix stable test
-          npm --prefix preview test
-      - name: Assemble production and preview
-        run: node stable/tools/build-pages.mjs stable preview pages-site
+      - name: Verify the selected revision
+        run: npm --prefix stable test
+      - name: Assemble legacy redirects and local recovery pages
+        run: node stable/tools/build-legacy-pages.mjs stable pages-site
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: pages-site
@@ -95,6 +86,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy both branches
+      - name: Deploy legacy Pages redirects
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

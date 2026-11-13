@@ -1,0 +1,36 @@
+/** Publish old Pages entry points without changing the Workers application. */
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { resolve, relative, isAbsolute, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { copySite, labelPreview } from './build-pages.mjs';
+
+export async function buildLegacyPages({ source, out }) {
+  const origin = resolve(source), target = resolve(out);
+  const child = relative(origin, target);
+  if (!child || (!child.startsWith('..') && !isAbsolute(child))) throw new Error('Output must be outside the source tree.');
+  const [template, redirect, worker] = await Promise.all(
+    ['index.html', 'redirect.js', 'retire-sw.js'].map((name) => readFile(new URL(`legacy-pages/${name}`, import.meta.url), 'utf8')),
+  );
+  await mkdir(target); // Refuse an existing output; never erase a caller's files.
+  for (const preview of [false, true]) {
+    const directory = preview ? join(target, 'dev') : target;
+    const scope = preview ? '/finapp/dev/' : '/finapp/';
+    await copySite(origin, directory);
+    if (preview) await labelPreview(directory);
+    await writeFile(join(directory, 'recovery.html'), await readFile(join(directory, 'index.html')));
+    const page = template.replace('@@SCRIPT@@', `${scope}redirect.js`).replace('@@RECOVERY@@', `${scope}recovery.html`);
+    await Promise.all([
+      writeFile(join(directory, 'index.html'), page),
+      writeFile(join(directory, '404.html'), page),
+      writeFile(join(directory, 'redirect.js'), redirect),
+      writeFile(join(directory, 'sw.js'), worker),
+    ]);
+  }
+  await writeFile(join(target, '.nojekyll'), '');
+  return target;
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv.length !== 4) throw new Error('Usage: node tools/build-legacy-pages.mjs SOURCE NEW_OUTPUT');
+  console.log(await buildLegacyPages({ source: process.argv[2], out: process.argv[3] }));
+}
