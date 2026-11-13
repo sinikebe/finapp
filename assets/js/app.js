@@ -152,6 +152,7 @@ const ui = {
   aboutOpen: $('about-open'),
   aboutClose: $('about-close'),
   aboutVersion: $('about-version'),
+  footerVersion: $('footer-version'),
   aboutBranch: $('about-branch'),
   aboutCommit: $('about-commit'),
   aboutDate: $('about-date'),
@@ -183,6 +184,9 @@ const ui = {
   updateToast: $('update-toast'),
   updateReload: $('update-reload'),
 };
+
+const versionLabel = `v${BUILD.version}`;
+ui.footerVersion.textContent = versionLabel;
 
 const STATUS_ICONS = {
   // Both status cues ship as icon + label, never colour alone.
@@ -785,7 +789,7 @@ function renderCompareTable(projections) {
   state.strategies.forEach((strategy, index) => {
     const row = html('tr', null, ui.compareBody);
     // A tint of 1.1:1 is not a cue, and colour alone is not one either. The
-    // jump tabs and the changelog both mark where you are with aria-current and
+    // jump tabs mark where you are with aria-current and
     // something visible; this table marked it with the tint and nothing else.
     if (strategy.id === state.activeId) {
       row.classList.add('is-active');
@@ -2221,7 +2225,7 @@ document.addEventListener('pointerdown', (event) => {
 /* -------------------------------------------------------------------- about */
 
 function renderAbout() {
-  ui.aboutVersion.textContent = BUILD.version;
+  ui.aboutVersion.textContent = versionLabel;
   ui.aboutBranch.textContent = BUILD.branch;
   ui.aboutCommit.textContent = BUILD.commit;
   ui.aboutDate.textContent = BUILD.date;
@@ -2241,13 +2245,10 @@ function renderAbout() {
     // rather than being localised into a shape git would not recognise. The
     // newest release has none until the merge that publishes it creates one —
     // so the line says its hash is not recorded, which is what is missing.
-    // Saying "not yet released" would call every deployed build unreleased,
-    // three lines above marking that same entry as the one you are running.
+    // Saying "not yet released" would call the deployed archive entry unreleased.
     if (release.commit) html('code', 'about-commit-ref', head).textContent = release.commit;
     else html('span', 'about-when', head).textContent = t('about.unreleased');
     html('p', 'about-what', item).textContent = release[language] || release.en;
-    // The one the reader is running, marked where they are looking for it.
-    if (release.version === BUILD.version) item.setAttribute('aria-current', 'true');
   }
   ui.aboutLog.appendChild(fragment);
 }
