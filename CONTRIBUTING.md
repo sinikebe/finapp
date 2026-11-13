@@ -2,7 +2,8 @@
 
 Issues and proposed changes belong in [GitHub](https://github.com/sinikebe/finapp).
 Keep financial behavior, migrations and presentation changes independently testable.
-Work on a topic branch and open every feature or correction PR against `dev`.
+Work on a topic branch and open every change PR against `dev`, including docs
+and infrastructure.
 After review and green CI, agents may merge into `dev` without another user
 approval and must verify its deployment. `main` accepts only a PR from this
 repository’s `dev`, after the user has tested dev and explicitly approved
