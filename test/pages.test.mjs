@@ -76,17 +76,12 @@ test('Pages rejects unsafe previews, source-contained outputs, existing outputs 
   });
 });
 
-test('Pages only runs after same-repository successful push CI and deploys without checkout credentials', async () => {
+test('Pages delegates publication to the immutable common implementation after CI', async () => {
   const workflow = await readFile(new URL('../.github/workflows/pages.yml', import.meta.url), 'utf8');
   assert.match(workflow, /workflows: \[CI\]/);
-  assert.match(workflow, /branches: \[main\]/);
-  assert.match(workflow, /workflow_run\.event == 'push'/);
-  assert.match(workflow, /workflow_run\.head_repository\.full_name == github\.repository/);
-  assert.match(workflow, /event: 'push', status: 'success'/);
-  assert.match(workflow, /ref: \$\{\{ steps.refs.outputs.main \}\}/);
-  assert.doesNotMatch(workflow, /steps.refs.outputs.dev/);
-  assert.equal((workflow.match(/persist-credentials: false/g) || []).length, 1);
-  assert.match(workflow, /node stable\/tools\/build-legacy-pages.mjs stable pages-site/);
-  assert.match(workflow, /data\.build_type === 'workflow'/);
-  assert.match(workflow, /if: needs.build.outputs.deploy == 'true'/);
+  assert.match(workflow, /branches: \[main, dev\]/);
+  const reference = workflow.match(/uses: sinikebe\/siniverse\/\.github\/workflows\/reusable-pages\.yml@([a-f0-9]{40})/);
+  assert.ok(reference);
+  assert.ok(workflow.includes(`automation_ref: ${reference[1]}`));
+  assert.doesNotMatch(workflow, /runs-on:|checkout@|CLOUDFLARE|secrets: inherit/);
 });
