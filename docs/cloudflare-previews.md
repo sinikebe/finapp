@@ -48,7 +48,7 @@ and does not use `versions upload`.
 ## Stable custom address
 
 Domains remain managed in the Cloudflare dashboard. `routes` is deliberately
-omitted: the repository has no authenticated inventory of all manual domains.
+omitted so deployment does not replace manually managed domains.
 In pinned Wrangler 4.161.0, the standard deploy path does not invoke Custom Domain
 replacement when it has no Custom Domains to publish. Do not add a partial
 declarative domain list: publishing it can remove other manually configured
@@ -60,13 +60,21 @@ In the existing Worker's **Domains → Custom Domains and Routes**, edit
 subdomains. `workers_dev: true` and `preview_urls: true` keep `workers.dev` URLs
 available as a fallback.
 
-The account also already has the separate Preview-only base domain
-`dev.finapp.siniverse.cc`. Preserve that manual domain: its current Preview URLs
-are `<preview-name>.dev.finapp.siniverse.cc`, for example
-`dev.dev.finapp.siniverse.cc`. The generated dev identity accepts those hosts too.
-Enable Preview traffic on the existing parent domain only when the requested
-shorter `dev.finapp.siniverse.cc` address is being activated; do not rename or
-remove the existing base to obtain it.
+The initial account configuration also had a separate Preview-only base domain
+`dev.finapp.siniverse.cc`, producing URLs such as `dev.dev.finapp.siniverse.cc`.
+That exact base hostname reserves the address needed by the parent's Preview
+named `dev`: keeping both bases produced HTTP 522 on `dev.finapp.siniverse.cc`
+even after the parent had Preview traffic enabled. Its wildcard must not be
+treated as a compatible second base for the requested short address.
+
+Before activating the short address, inventory the existing domains and Previews
+and save their configuration. Detach only the obsolete Preview-only
+`dev.finapp.siniverse.cc` base after confirming which Preview URLs it serves.
+Keep `finapp.siniverse.cc` enabled for Production and Preview and preserve all
+other apps' domains. On initial activation, `dev` was the only Finapp Preview;
+no additional build or paid certificate option was needed. The generated dev
+identity still accepts the former deeper hostnames, but they are not the stable
+address to share.
 
 Cloudflare provisions wildcard DNS and a certificate for Preview hostnames.
 Check existing subdomain conflicts and wait for DNS/certificate activation;
