@@ -14,11 +14,11 @@ npm ci             # install the pinned Wrangler development dependency
 npm start          # http://127.0.0.1:4173
 npm run dev        # same development server; also used by preview tooling
 npm test           # all Node tests, including review regressions and storage failures
-npm run ci:check    # tests, reproducible icons and the release-wide PWA cache check
+npm run ci:check    # tests, offline-generation regressions and reproducible icons
 npm run ci:build    # static dist/ for the shared pipeline; no publication
 npm run ci:pages    # legacy artifact using the three shared Pages source/output variables
 npm run icons      # regenerate the icon set
-npm run stamp      # update the version stamp after changing the cache version
+npm run stamp      # refresh the local fallback stamp and source provenance
 ```
 
 Use HTTPS or localhost for the browser APIs used by saving and the PWA. A
@@ -90,13 +90,13 @@ assets/js/app.js              controller and view composition
 assets/js/app-switcher.js    Shared Finapp/Garapp launcher and environment-aware links
 tools/generate-icons.mjs     dependency-free icon generation
 tools/serve.mjs              local development server
-tools/stamp-version.mjs      cache/build metadata
+tools/stamp-version.mjs      public version injection and source provenance
 tools/build-pages.mjs        allowlisted main + dev Pages artifact
 tools/build-legacy-pages.mjs legacy Pages redirects and local recovery application
 tools/legacy-pages/          redirect HTML/script and scope-limited retirement worker
 tools/build-cloudflare.mjs   allowlisted standalone production or dev artifact
 tools/build-cloudflare-worker.mjs  production/Preview bundle and checkout metadata
-tools/check-cache-version.mjs release-wide PWA cache guard used by ci:check
+tools/check-cache-version.mjs automatic version/content proof for the offline cache
 tools/ci-pages.mjs           shared Pages source/output adapter for legacy recovery
 wrangler.jsonc               static Workers asset configuration
 package-lock.json            pinned deployment-tool dependency graph
@@ -176,17 +176,44 @@ a solved figure back to the original plan; background-tab updates; closing durin
 a pending save; retry/recovery/export; both locales; mobile layout; and service
 worker installation, updates and offline loading.
 
-## Release
+## Releases and public versioning
 
-1. Bump `CACHE_VERSION` in `sw.js` when a precached asset changes.
-2. Add every new runtime module to `PRECACHE`.
-3. Update both languages in `changelog.js`, then run `npm run stamp`.
-4. Run `npm test`, regenerate icons and verify there is no icon diff.
-5. Complete browser checks for the changed flows before publishing.
+The shared CI allocates the actual public version from immutable annotated tags
+`siniverse-version/main/vX.Y.Z` and
+`siniverse-version/dev/vX.Y.Z`. Each channel starts at 0.0.1.
+Package/lock 0.0.1 is the local fallback, not a declaration of the deployed release.
+Never create a competing app-specific bump workflow or edit version tags.
 
-CI also checks the cache bump and icon reproducibility. Actions are pinned to
-commit hashes and run with read-only repository permissions. Configure required
-checks/branch protection in repository settings; a workflow cannot require its
+Use Conventional Commit-style PR titles: `feat:` for a feature,
+`fix:` for a fix, and `!` or `BREAKING CHANGE` for a breaking change.
+Default merges increment patch; features increment minor; breaking changes
+increment major. Exactly one `semver:major`, `semver:minor` or
+`semver:patch` label can override classification. Idempotent reruns and
+promotion between main/dev are handled centrally.
+
+1. Add new runtime modules to `PRECACHE`.
+2. Keep user-facing release notes in both languages and preserve the old cache-label archive.
+3. Run `npm run ci:check` for business/storage tests and reproducible icons.
+4. Build with `npm run ci:build` and the common environment for integration checks.
+5. Verify changed user flows before publication.
+
+The technical source cache baseline v85 is stable. Do not manually increment it
+or the public package version for each asset edit. The static build stamps the
+same `SINIVERSE_VERSION` into its module, footer and install manifests,
+then seals the worker cache with that version and SHA256 of the public content.
+The worker identifier is normalized before hashing to avoid a cycle; the
+controller's later `deployment.json` and hosting control files are excluded.
+The adapter verifies version bindings and the actual worker/content identity
+before handing the directory to the common publisher. Regression fixtures reject
+stale modules, footers and workers, and require a new cache for changes to either
+version or content, including worker logic.
+
+`npm run stamp` only regenerates the committed local fallback stamp from
+package.json and source provenance. It never derives the public version from the
+cache counter or allocates a new release.
+
+Actions are pinned and CI uses the shared implementation. Configure required
+checks and branch protection in GitHub settings; a workflow cannot require its
 own success before merging.
 
 ## Financial scope
@@ -297,8 +324,8 @@ to current `main` or `dev` through the same shared guards.
 Follow [Production and Worker Previews](docs/cloudflare-previews.md) for current
 activation, repository secret names, domains and Google origins. The workflow
 uses `npm ci`, then the app's `ci:check` and `ci:build` adapters. Keep old Workers
-Builds automation disabled. The check retains release-wide cache generation,
-business/storage tests and icon reproducibility. The adapter emits `dist/` from
+Builds automation disabled. The check retains business/storage tests, offline-generation regressions and
+icon reproducibility; the builder verifies its sealed version/content cache. The adapter emits `dist/` from
 the common environment; only the shared controller writes `deployment.json` and
 publishes/probes that same artifact. No local publish controller is kept.
 Use ordinary PR/merge runs for validation. If manual publication is needed, open
