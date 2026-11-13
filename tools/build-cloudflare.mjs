@@ -33,7 +33,7 @@ async function retargetSuiteLinks(directory, suite, branch) {
   await writeFile(page, html);
 }
 
-export async function buildCloudflare({ source, out, branch, domain, previewGarappOrigin }) {
+export async function buildCloudflare({ source, out, branch, domain, previewGarappOrigin, includeDeploymentMetadata = true }) {
   if (!['main', 'dev'].includes(branch)) throw new Error('Cloudflare builds only the main or dev branch.');
   const suite = suiteDomains(domain);
   if (branch === 'dev' && previewGarappOrigin) {
@@ -58,7 +58,9 @@ export async function buildCloudflare({ source, out, branch, domain, previewGara
   await retargetSuiteLinks(target, suite, branch);
   await writeFile(join(target, 'assets/js/deployment-config.js'),
     `/** Generated for this tested Cloudflare Worker deployment. */\nexport const DEPLOYMENT = Object.freeze(${JSON.stringify({ environment: branch, suite })});\n`);
-  await writeFile(join(target, 'deployment.json'), JSON.stringify({ app: 'finapp', branch, suite }) + '\n');
+  if (includeDeploymentMetadata) {
+    await writeFile(join(target, 'deployment.json'), JSON.stringify({ app: 'finapp', branch, suite }) + '\n');
+  }
   return target;
 }
 

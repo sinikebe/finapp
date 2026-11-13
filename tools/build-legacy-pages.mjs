@@ -4,10 +4,17 @@ import { resolve, relative, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { copySite, labelPreview } from './build-pages.mjs';
 
-export async function buildLegacyPages({ source, out }) {
-  const origin = resolve(source), target = resolve(out);
-  const child = relative(origin, target);
-  if (!child || (!child.startsWith('..') && !isAbsolute(child))) throw new Error('Output must be outside the source tree.');
+export async function buildLegacyPages({ source, devSource = source, out }) {
+  const origin = resolve(source), development = resolve(devSource), target = resolve(out);
+  for (const directory of [origin, development]) {
+    const child = relative(directory, target);
+    if (!child || (!child.startsWith('..') && !isAbsolute(child))) throw new Error('Output must be outside both source trees.');
+  }
+  const isolation = await readFile(join(development, 'assets/js/deployment.js'), 'utf8');
+  const previousWorker = await readFile(join(development, 'sw.js'), 'utf8');
+  if (!isolation.includes('finapp-preview:') || !previousWorker.includes('finapp@')) {
+    throw new Error('The development recovery application must isolate its storage and caches.');
+  }
   const [template, redirect, worker] = await Promise.all(
     ['index.html', 'redirect.js', 'retire-sw.js'].map((name) => readFile(new URL(`legacy-pages/${name}`, import.meta.url), 'utf8')),
   );
@@ -15,7 +22,7 @@ export async function buildLegacyPages({ source, out }) {
   for (const preview of [false, true]) {
     const directory = preview ? join(target, 'dev') : target;
     const scope = preview ? '/finapp/dev/' : '/finapp/';
-    await copySite(origin, directory);
+    await copySite(preview ? development : origin, directory);
     if (preview) await labelPreview(directory);
     await writeFile(join(directory, 'recovery.html'), await readFile(join(directory, 'index.html')));
     const page = template.replace('@@SCRIPT@@', `${scope}redirect.js`).replace('@@RECOVERY@@', `${scope}recovery.html`);

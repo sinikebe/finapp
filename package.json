@@ -30,9 +30,9 @@
   ],
   "type": "module",
   "scripts": {
-    "build:cloudflare": "npm test && npm run icons && git diff --exit-code -- assets/icons && node tools/build-cloudflare-worker.mjs",
-    "deploy:cloudflare": "node tools/check-cloudflare-publish.mjs production && npx wrangler deploy",
-    "preview:cloudflare": "node tools/check-cloudflare-publish.mjs preview && npx wrangler preview",
+    "ci:check": "npm test && npm run icons && git diff --exit-code -- assets/icons && node tools/check-cache-version.mjs",
+    "ci:build": "node tools/build-cloudflare-worker.mjs",
+    "ci:pages": "node tools/ci-pages.mjs",
     "dev": "node tools/serve.mjs",
     "start": "node tools/serve.mjs",
     "test": "node --test test/*.test.mjs",
@@ -40,8 +40,9 @@
     "stamp": "node tools/stamp-version.mjs"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24"
   },
+  "packageManager": "npm@11.19.1",
   "devDependencies": {
     "wrangler": "4.161.0"
   },
