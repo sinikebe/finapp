@@ -186,7 +186,9 @@ worker installation, updates and offline loading.
 
 The shared CI allocates the actual public version from immutable annotated tags
 `siniverse-version/main/vX.Y.Z` and
-`siniverse-version/dev/vX.Y.Z`. Each channel starts at 0.0.1.
+`siniverse-version/dev/vX.Y.Z`. Dev starts at 0.0.1. The first main release
+reuses the version actually tested and approved on dev, including a later
+patch if a correction was tested before the first production promotion.
 Package/lock 0.0.1 is the local fallback, not a declaration of the deployed release.
 Never create a competing app-specific bump workflow or edit version tags.
 
