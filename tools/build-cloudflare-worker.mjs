@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildCloudflare } from './build-cloudflare.mjs';
+import { stampSiteVersion } from './stamp-version.mjs';
+import { sealOfflineVersion } from './check-cache-version.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 
@@ -32,7 +34,8 @@ export function buildContext({ branch = process.env.SINIVERSE_BRANCH,
     environment: sourceBranch === 'main' ? 'main' : 'dev' };
 }
 
-export async function buildCloudflareWorker({ branch, revision, environment, out = join(root, 'dist') } = {}) {
+export async function buildCloudflareWorker({ branch, revision, environment,
+  version = process.env.SINIVERSE_VERSION, out = join(root, 'dist') } = {}) {
   if (resolve(git(root, 'rev-parse', '--show-toplevel')) !== resolve(root)) {
     throw new Error('Run the Workers build from the FinApp repository root.');
   }
@@ -46,6 +49,9 @@ export async function buildCloudflareWorker({ branch, revision, environment, out
     if (context.environment === 'dev') {
       await writeFile(join(output, '_headers'), '/*\n  X-Robots-Tag: noindex, nofollow\n');
     }
+    const build = await stampSiteVersion({ source: root, target: output, version,
+      branch: context.sourceBranch, revision: context.revision });
+    await sealOfflineVersion(output, build.version);
     await mkdir(target); // Never overwrite a previous or caller-provided output.
     await cp(output, target, { recursive: true, errorOnExist: false, force: false });
   } finally {
