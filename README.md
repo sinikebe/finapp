@@ -247,6 +247,12 @@ npm test
 The application has no runtime dependencies. The development dependency is a pinned
 Wrangler for production and [Worker Previews](docs/cloudflare-previews.md). See [CONTRIBUTING.md](CONTRIBUTING.md)
 for the module map, release steps, storage contract and validation workflow.
+GitHub-hosted Actions publishes production on a push to `main` and the stable
+`dev` Preview on a push to `dev`, after validation. PRs and default manual runs
+validate without Cloudflare credentials or publication; the manual `deploy`
+checkbox can publish the current `main` or `dev`. The deployment guide
+lists the two repository secret names and the remaining setup steps; old
+Cloudflare Workers Builds triggers stay disabled.
 The design system is documented in [docs/design-system.md](docs/design-system.md).
 The [review correction log](docs/review-fixes.md) maps the reviewed defects to
 their fixes, checks and migration limits.

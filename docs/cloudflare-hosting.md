@@ -4,6 +4,8 @@ For current production and Worker Preview commands, dashboard domain management
 and `dev.finapp.siniverse.cc` activation, follow
 [Production and Worker Previews](cloudflare-previews.md). The steps below record
 the initial Pages-to-Workers cutover, before Worker Previews were prepared.
+These are archived cutover instructions: do not reconnect Workers Builds or
+apply their former routing changes. Current publication uses GitHub Actions.
 
 Finapp publishes static assets through a **Workers Builds** project connected to
 GitHub. The site Worker and the Google Drive session API are separate projects.

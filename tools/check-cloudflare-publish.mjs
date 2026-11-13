@@ -19,6 +19,17 @@ export function assertPublishTarget(mode, context, artifact) {
   return mode === 'production' ? ['deploy'] : ['preview'];
 }
 
+/** GitHub publication requires a trusted push or explicit manual main/dev request. */
+export function assertGithubPublication(mode, context, { eventName, ref, sha, repository, deploy = false } = {}) {
+  const branch = mode === 'production' ? 'main' : mode === 'preview' ? 'dev' : null;
+  const authorizedEvent = eventName === 'push' || eventName === 'workflow_dispatch' && deploy === true;
+  if (!authorizedEvent || repository !== 'sinikebe/finapp' || !branch
+      || ref !== `refs/heads/${branch}` || context.sourceBranch !== branch
+      || !/^[a-f0-9]{40}$/.test(sha ?? '') || sha !== context.revision) {
+    throw new Error('GitHub publication requires an authorized push or explicit manual deployment of the exact main production or dev Preview revision in sinikebe/finapp.');
+  }
+}
+
 export function assertWranglerVersion(installed, pinned) {
   const parts = String(installed).split('.').map(Number);
   if (installed !== pinned || parts.length !== 3 || parts.some((part) => !Number.isInteger(part))
@@ -29,6 +40,15 @@ export function assertWranglerVersion(installed, pinned) {
 
 export async function checkCloudflarePublish(mode) {
   const context = assertWorkersRevision();
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    const event = process.env.GITHUB_EVENT_NAME === 'workflow_dispatch'
+      ? JSON.parse(await readFile(process.env.GITHUB_EVENT_PATH, 'utf8')) : {};
+    assertGithubPublication(mode, context, {
+      eventName: process.env.GITHUB_EVENT_NAME, ref: process.env.GITHUB_REF,
+      sha: process.env.GITHUB_SHA, repository: process.env.GITHUB_REPOSITORY,
+      deploy: event.inputs?.deploy === true || event.inputs?.deploy === 'true',
+    });
+  }
   const artifact = JSON.parse(await readFile(join(root, 'dist/deployment.json'), 'utf8'));
   const command = assertPublishTarget(mode, context, artifact);
   const project = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
