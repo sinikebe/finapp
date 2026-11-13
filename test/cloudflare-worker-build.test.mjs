@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { assertCacheDiff, assertWorkersRevision, buildCloudflareWorker } from '../tools/build-cloudflare-worker.mjs';
-import { assertPublishTarget, assertWranglerVersion } from '../tools/check-cloudflare-publish.mjs';
+import { assertGithubPublication, assertPublishTarget, assertWranglerVersion } from '../tools/check-cloudflare-publish.mjs';
 import { deploymentFor } from '../assets/js/deployment.js';
 import { suiteLinks } from '../assets/js/app-switcher.js';
 import { supportsWorkerSession } from '../assets/js/finapp-worker-session.js';
@@ -36,14 +36,36 @@ test('static Worker Previews preserve dashboard domains and use pinned modern Wr
   assert.deepEqual(config.previews, {}, 'the static site has no production API credentials or data bindings to inherit');
   assert.equal(config.env, undefined, 'a Preview belongs to the same Worker, not a second env.dev Worker');
   const workflow = await readFile(new URL('../.github/workflows/cloudflare.yml', import.meta.url), 'utf8');
-  assert.match(workflow, /node tools\/build-cloudflare\.mjs/);
-  assert.doesNotMatch(workflow, /wrangler-action|pages deploy|CLOUDFLARE_DEPLOY_ENABLED|CLOUDFLARE_API_TOKEN/);
+  assert.match(workflow, /npm run build:cloudflare/);
+  assert.doesNotMatch(workflow, /wrangler-action|pages deploy|pull_request_target|self-hosted/);
   assert.match(workflow, /wrangler deploy --dry-run/);
   const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(manifest.devDependencies.wrangler, '4.161.0');
   assert.match(manifest.scripts['deploy:cloudflare'], /check-cloudflare-publish\.mjs production && npx wrangler deploy$/);
   assert.match(manifest.scripts['preview:cloudflare'], /check-cloudflare-publish\.mjs preview && npx wrangler preview$/);
   assert.doesNotMatch(manifest.scripts['preview:cloudflare'], /versions upload/);
+});
+
+test('GitHub publication requires a trusted push or explicit main/dev manual request', () => {
+  for (const [mode, sourceBranch] of [['production', 'main'], ['preview', 'dev']]) {
+    const context = { sourceBranch, revision };
+    const pushed = { eventName: 'push', ref: `refs/heads/${sourceBranch}`, sha: revision, repository: 'sinikebe/finapp' };
+    assert.doesNotThrow(() => assertGithubPublication(mode, context, pushed));
+    assert.doesNotThrow(() => assertGithubPublication(mode, context, { ...pushed, eventName: 'workflow_dispatch', deploy: true }));
+    for (const change of [{ eventName: 'pull_request' }, { eventName: 'pull_request_target' },
+      { eventName: 'workflow_dispatch' }, { ref: 'refs/heads/feature/new-view' },
+      { ref: 'refs/tags/main' }, { repository: 'someone/finapp' },
+      { sha: '0'.repeat(40) }, { sha: undefined }]) {
+      assert.throws(() => assertGithubPublication(mode, context, { ...pushed, ...change }), /authorized push or explicit manual deployment/);
+      if (change.eventName !== 'workflow_dispatch') {
+        assert.throws(() => assertGithubPublication(mode, context, { ...pushed, deploy: true, ...change,
+          eventName: change.eventName ?? 'workflow_dispatch' }), /authorized push or explicit manual deployment/);
+      }
+    }
+    assert.throws(() => assertGithubPublication(mode, context, { ...pushed, eventName: 'workflow_dispatch', deploy: 'true' }), /authorized push/);
+    assert.throws(() => assertGithubPublication(mode, { ...context, sourceBranch: 'feature/new-view' }, pushed), /authorized push/);
+    assert.throws(() => assertGithubPublication(mode === 'production' ? 'preview' : 'production', context, pushed), /authorized push/);
+  }
 });
 
 test('publication commands cannot mix branches, revisions or production and Preview artifacts', () => {

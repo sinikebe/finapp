@@ -13,7 +13,7 @@ npm ci             # install the pinned Wrangler development dependency
 npm start          # http://127.0.0.1:4173
 npm run dev        # same development server; also used by preview tooling
 npm test           # all Node tests, including review regressions and storage failures
-npm run build:cloudflare # tested production or Preview assets for Workers Builds
+npm run build:cloudflare # tested production or Preview assets for CI
 npm run deploy:cloudflare # guarded main-only production deployment
 npm run preview:cloudflare # guarded non-main Worker Preview deployment
 npm run icons      # regenerate the icon set
@@ -285,18 +285,22 @@ copy/preview helpers for Workers and archived bundles.
 
 ## Separate application hosts
 
-Finapp production uses Git-connected Workers Builds from `main` with the
-`siniverse-finapp-site` Worker. Other branches use Worker Previews on that Worker.
+Finapp uses GitHub-hosted Actions runners with the existing
+`siniverse-finapp-site` Worker. A push to `main` publishes production; a push to
+`dev` publishes the stable Worker Preview. Pull requests, including forks, and
+default manual workflow runs validate without Cloudflare secrets or publication.
+An explicit manual `deploy` request on `main` or `dev` uses the same publisher.
 Follow [Production and Worker Previews](docs/cloudflare-previews.md) for current
-activation, domains and Google origins. Set the build command to
-`npm run build:cloudflare`, production command to `npm run deploy:cloudflare`,
-Preview command to `npm run preview:cloudflare`, and use Node 22.12 or later.
+activation, repository secret names, domains and Google origins. The workflow
+uses `npm ci`, `npm run build:cloudflare`, guarded production/Preview scripts and
+Node 22. Keep Cloudflare Workers Builds triggers disabled to avoid two publishers.
 The build tests the site, checks icons and refuses a precached
 asset change without a cache version bump; `wrangler.jsonc` publishes `dist/`.
-GitHub Actions validates changes but does not deploy to Cloudflare or hold its
-credentials. The existing Pages custom domain is moved to the Worker only
-after a `workers.dev` preview has been inspected; see
-[Cloudflare Workers hosting](docs/cloudflare-hosting.md).
+Publication is explicitly skipped when the repository Actions secrets are absent.
+After setting them, open Actions → Cloudflare Workers → Run workflow, select
+`main` or `dev`, and check the publication input. Leaving it unchecked validates
+only. Pages redirects retain their independent workflow and are not
+part of the Workers artifact.
 
 The standalone builder remains available for non-published `main` and `dev`
 bundles using a new output directory outside the checkout:
