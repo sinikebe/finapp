@@ -234,6 +234,24 @@ browser; Safari uses Add to Home Screen.
 The development preview installs as **Finapp dev**; the main application keeps
 the name **Finapp**. Both language variants use the corresponding name.
 
+## Public versions
+
+The committed package and lockfile version is **0.0.1**, a local fallback.
+The deployed version is allocated by the shared CI and recorded in immutable
+annotated tags per channel:
+`siniverse-version/main/vX.Y.Z` and
+`siniverse-version/dev/vX.Y.Z`. The first release in each channel is 0.0.1.
+Use `feat:` PR titles for features, `fix:` for fixes, and
+`!` / `BREAKING CHANGE` for breaking changes. Other merges default to patch.
+A single `semver:major`, `semver:minor` or `semver:patch` label may override that classification.
+
+Do not bump package versions or the technical cache counter for each PR.
+CI supplies `SINIVERSE_VERSION` to the static builder; the footer, About,
+version module and manifests use that same value without a browser metadata
+request. The offline cache combines this version with a deterministic content
+fingerprint. The old v1–v84 release labels remain archived; they are not public
+semantic versions.
+
 ## Development
 
 CI uses Node 24.22.2 (`.node-version`), npm 11.19.1 and pinned Wrangler 4.161.0.
