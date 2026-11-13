@@ -9,8 +9,8 @@ test('the Git-connected Worker build refuses a preview branch before creating an
 
 test('Workers Builds refuses a non-main or mismatched git revision', () => {
   assert.doesNotThrow(() => assertWorkersRevision({ workersCI: '' }));
-  assert.throws(() => assertWorkersRevision({ workersCI: '1', branch: 'dev', revision: 'none' }), /current main revision/);
-  assert.throws(() => assertWorkersRevision({ workersCI: '1', branch: 'main', revision: 'none' }), /current main revision/);
+  assert.throws(() => assertWorkersRevision({ workersCI: '1', branch: 'dev', revision: 'none' }), /branch="dev" \(expected "main"\)/);
+  assert.throws(() => assertWorkersRevision({ workersCI: '1', branch: 'main', revision: 'none' }), /Cloudflare commit="none", checkout commit=[a-f0-9]{40}/);
 });
 
 test('static Workers route only Finapp hosts and ship the isolated, tested asset bundle', async () => {
