@@ -7,6 +7,15 @@ Finapp uses the existing static Worker `siniverse-finapp-site`:
 | `main` | Production | <https://finapp.siniverse.cc/> |
 | `dev` | Preview named `dev` on the same Worker | <https://dev.finapp.siniverse.cc/> |
 
+## Branch promotion
+
+All feature and correction PRs target `dev`; do not push code directly to the
+permanent branches. Reviewed PRs with green CI may be merged into `dev` without
+another user approval, followed by verification at the stable Preview address.
+Only a PR from this repository’s `dev` may target `main`, and its merge requires
+the user’s test and explicit approval. Do not merge a feature branch into `main`
+or fast-forward `dev` from an untested `main`.
+
 ## One CI implementation
 
 `.github/workflows/ci.yml` is the same caller used by all four Siniverse apps.
