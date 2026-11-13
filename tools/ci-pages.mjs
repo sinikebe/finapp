@@ -9,4 +9,6 @@ if (![main, dev, out].every(value => typeof value === 'string' && value.length >
   throw new Error('SINIVERSE_PAGES_MAIN_SOURCE, SINIVERSE_PAGES_DEV_SOURCE and SINIVERSE_PAGES_OUT are required.');
 }
 if (resolve(main) === resolve(dev)) throw new Error('Pages requires distinct main and dev source checkouts.');
-console.log(await buildLegacyPages({ source: main, devSource: dev, out }));
+console.log(await buildLegacyPages({ source: main, devSource: dev, out,
+  mainVersion: process.env.SINIVERSE_PAGES_MAIN_VERSION,
+  devVersion: process.env.SINIVERSE_PAGES_DEV_VERSION }));

@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, cp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { buildContext, buildCloudflareWorker } from '../tools/build-cloudflare-worker.mjs';
-import { assertCacheDiff, assertCacheVersion } from '../tools/check-cache-version.mjs';
+import { assertOfflineVersion, sealOfflineVersion, readBuildStamp } from '../tools/check-cache-version.mjs';
 import { deploymentFor } from '../assets/js/deployment.js';
 import { suiteLinks } from '../assets/js/app-switcher.js';
 import { supportsWorkerSession } from '../assets/js/finapp-worker-session.js';
@@ -43,7 +43,7 @@ test('static previews preserve dashboard domains and use the shared pinned toolc
   assert.deepEqual(manifest.engines, { node: '>=24' });
   assert.equal(manifest.packageManager, 'npm@11.19.1');
   assert.equal((await readFile(new URL('../.node-version', import.meta.url), 'utf8')).trim(), '24.22.2');
-  assert.match(manifest.scripts['ci:check'], /check-cache-version\.mjs/);
+  assert.match(manifest.scripts['ci:check'], /npm test && npm run icons && git diff --exit-code/);
   assert.match(manifest.scripts['ci:build'], /build-cloudflare-worker\.mjs/);
   assert.equal(manifest.scripts['deploy:cloudflare'], undefined);
   assert.equal(manifest.scripts['preview:cloudflare'], undefined);
@@ -55,7 +55,8 @@ test('generated artifacts preserve main/dev Drive identity and leave common meta
     for (const [branch, environment] of cases) {
       const preview = branch !== 'main';
       const out = join(root, `${branch.replaceAll('/', '-')}-${environment}`);
-      await buildCloudflareWorker({ branch, revision, environment, out });
+      await buildCloudflareWorker({ branch, revision, environment, version: '0.0.1', out });
+      await assertOfflineVersion(out, '0.0.1');
       await assert.rejects(readFile(join(out, 'deployment.json')), { code: 'ENOENT' });
       const text = await readFile(join(out, 'assets/js/deployment-config.js'), 'utf8');
       const { DEPLOYMENT } = await import(`data:text/javascript;base64,${Buffer.from(text).toString('base64')}`);
@@ -77,43 +78,49 @@ test('generated artifacts preserve main/dev Drive identity and leave common meta
           assert.equal(supportsWorkerSession(host, identity.preview), false);
         }
       }
-      await assert.rejects(buildCloudflareWorker({ branch, revision, environment, out }), /EEXIST/);
+      await assert.rejects(buildCloudflareWorker({ branch, revision, environment, version: '0.0.1', out }), /EEXIST/);
     }
   } finally {
     await rm(root, { recursive: true, force: true });
   }
 });
 
-test('PWA checks retain the release-wide baseline when a bump and asset span two commits', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'finapp-cache-history-'));
-  const git = (...args) => execFileSync('git', args, { cwd: directory, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+test('offline generations change with version or content and reject stale mixed artifacts', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'finapp-cache-proof-'));
   try {
-    git('init', '-q');
-    git('config', 'user.name', 'Finapp fixture');
-    git('config', 'user.email', 'fixture@example.invalid');
-    await writeFile(join(directory, 'sw.js'), "const CACHE_VERSION = 'v1';\n");
-    await writeFile(join(directory, 'index.html'), '<title>first</title>\n');
-    git('add', '.'); git('commit', '-qm', 'Initial release');
-    const base = git('rev-parse', 'HEAD');
-    git('update-ref', 'refs/remotes/origin/main', base);
-    await writeFile(join(directory, 'sw.js'), "const CACHE_VERSION = 'v2';\n");
-    git('add', '.'); git('commit', '-qm', 'Bump cache');
-    const before = git('rev-parse', 'HEAD');
-    await writeFile(join(directory, 'index.html'), '<title>second</title>\n');
-    git('add', '.'); git('commit', '-qm', 'Update shell');
-    assert.equal(assertCacheVersion(directory, { base: before }).base, base);
-    assert.doesNotThrow(() => assertCacheVersion(directory, { event: { pull_request: { base: { sha: base } } } }));
-    assert.throws(() => assertCacheVersion(directory, { event: { pull_request: { base: { sha: before } } } }), /CACHE_VERSION bump/);
-    git('update-ref', 'refs/remotes/origin/main', git('rev-parse', 'HEAD'));
-    assert.throws(() => assertCacheVersion(directory, { base: before }), /CACHE_VERSION bump/);
+    const first = join(directory, 'first'), next = join(directory, 'next'), changed = join(directory, 'changed');
+    for (const [out, version] of [[first, '0.0.1'], [next, '0.0.2']]) {
+      await buildCloudflareWorker({ branch: 'main', environment: 'production', revision, version, out });
+    }
+    const initial = await assertOfflineVersion(first, '0.0.1');
+    const updated = await assertOfflineVersion(next, '0.0.2');
+    assert.notEqual(initial.cacheVersion, updated.cacheVersion, 'a new CI version changes the worker at the same SHA and baseline');
+    assert.equal((await readBuildStamp(next)).version, '0.0.2');
+    assert.equal((await readBuildStamp(next)).cacheGeneration, (await readBuildStamp(first)).cacheGeneration);
+    await cp(first, changed, { recursive: true });
+    await writeFile(join(changed, 'assets/js/numbers.js'), '// changed asset at the same SHA and public version\n');
+    await assert.rejects(assertOfflineVersion(changed, '0.0.1'), /worker does not match/);
+    const resealed = await sealOfflineVersion(changed, '0.0.1');
+    assert.notEqual(resealed.cacheVersion, initial.cacheVersion);
+    assert.equal((await sealOfflineVersion(changed, '0.0.1')).cacheVersion, resealed.cacheVersion, 'normalization avoids a hash loop');
+    await writeFile(join(changed, 'sw.js'), (await readFile(join(changed, 'sw.js'), 'utf8')) + '\n// changed worker logic\n');
+    await assert.rejects(assertOfflineVersion(changed, '0.0.1'), /worker does not match/);
+    await sealOfflineVersion(changed, '0.0.1');
+    await writeFile(join(next, 'sw.js'), await readFile(join(first, 'sw.js')));
+    await assert.rejects(assertOfflineVersion(next, '0.0.2'), /worker does not match/);
+    const originalPage = await readFile(join(next, 'index.html'), 'utf8');
+    await writeFile(join(next, 'index.html'), originalPage.replace('id="footer-version">v0.0.2', 'id="footer-version">v0.0.1'));
+    await assert.rejects(assertOfflineVersion(next, '0.0.2'), /footer is stale/);
+    await writeFile(join(next, 'index.html'), originalPage);
+    const originalManifest = await readFile(join(next, 'manifest.webmanifest'), 'utf8');
+    await writeFile(join(next, 'manifest.webmanifest'), JSON.stringify({ ...JSON.parse(originalManifest), version: '0.0.1' }));
+    await assert.rejects(assertOfflineVersion(next, '0.0.2'), /manifest has a stale/);
+    await writeFile(join(next, 'manifest.webmanifest'), originalManifest);
+    await writeFile(join(next, 'assets/js/version.js'), await readFile(join(first, 'assets/js/version.js')));
+    await assert.rejects(assertOfflineVersion(next, '0.0.2'), /module is stale/);
+    await writeFile(join(first, 'deployment.json'), '{"builtAt":"volatile controller metadata"}');
+    assert.equal((await assertOfflineVersion(first, '0.0.1')).cacheVersion, initial.cacheVersion);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
-});
-
-test('a changed cached asset requires a cache-version bump', () => {
-  assert.throws(() => assertCacheDiff('assets/app.js', ''), /CACHE_VERSION bump/);
-  assert.throws(() => assertCacheDiff('index.html', '+const CACHE_PREFIX = "new";'), /CACHE_VERSION bump/);
-  assert.doesNotThrow(() => assertCacheDiff('assets/app.js', '-const CACHE_VERSION = "first";\n+const CACHE_VERSION = "second";'));
-  assert.doesNotThrow(() => assertCacheDiff('', ''));
 });
