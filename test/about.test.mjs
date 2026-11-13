@@ -7,18 +7,22 @@ import { BUILD } from '../assets/js/version.js';
 import { LANGUAGES } from '../assets/js/i18n.js';
 import { breakingSpaceIn } from './french-spacing.mjs';
 
-test('the stamped version is the one the service worker serves', async () => {
-  // The two are written by different hands — one generated, one edited — and a
-  // panel whose whole job is to say which build you are running must not be
-  // able to name a different one.
+test('the local fallback is public SemVer, separate from its technical cache baseline', async () => {
+  // The local fallback and technical cache baseline remain separate inputs.
   const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   const served = sw.match(/^const CACHE_VERSION = '([^']+)'/m);
   assert.ok(served, 'sw.js declares a CACHE_VERSION');
-  assert.equal(BUILD.version, served[1]);
+  assert.equal(BUILD.cacheGeneration, served[1]);
+  const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+  const lock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
+  assert.equal(BUILD.version, '0.0.1');
+  assert.equal(BUILD.version, manifest.version);
+  assert.equal(lock.version, manifest.version);
+  assert.equal(lock.packages[''].version, manifest.version);
 });
 
 test('the build stamp is filled in and shaped like itself', () => {
-  assert.match(BUILD.version, /^v\d+$/);
+  assert.match(BUILD.version, /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/);
   assert.match(BUILD.commit, /^[0-9a-f]{7,40}$/, 'an abbreviated commit hash');
   assert.match(BUILD.date, /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(BUILD.branch.length > 0);
@@ -51,12 +55,11 @@ test('the log runs newest first, with no version told twice', () => {
   assert.equal(new Set(commits).size, commits.length, 'each commit once');
 });
 
-test('the running build is described somewhere in the log', () => {
-  // The panel exists to answer "is this the current one"; a version that names
-  // nothing it changed answers half the question.
+test('the technical baseline remains described in the archived history', () => {
+  // Historical cache generations keep their original release notes.
   assert.ok(
-    RELEASES.some((release) => release.version === BUILD.version),
-    `${BUILD.version} has no entry`,
+    RELEASES.some((release) => release.version === BUILD.cacheGeneration),
+    `${BUILD.cacheGeneration} has no archive entry`,
   );
 });
 
@@ -68,4 +71,13 @@ test('French in the log follows the same typography as the dictionary', () => {
     const broken = breakingSpaceIn(release.fr);
     assert.equal(broken, null, `${release.version} uses a breaking space in "${broken}": ${release.fr}`);
   }
+});
+
+test('the visible footer and About share the public build version', async () => {
+  const page = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const app = await readFile(new URL('../assets/js/app.js', import.meta.url), 'utf8');
+  const footer = page.slice(page.indexOf('<footer'), page.indexOf('</footer>'));
+  assert.ok(footer.includes('id="footer-version">v0.0.1</span>'));
+  assert.ok(app.includes('ui.footerVersion.textContent = versionLabel;'));
+  assert.ok(app.includes('ui.aboutVersion.textContent = versionLabel;'));
 });

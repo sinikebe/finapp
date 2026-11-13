@@ -8,6 +8,7 @@ import vm from 'node:vm';
 import { buildLegacyPages } from '../tools/build-legacy-pages.mjs';
 import { buildCloudflare } from '../tools/build-cloudflare.mjs';
 import { copySite } from '../tools/build-pages.mjs';
+import { assertPublicVersion, readBuildStamp } from '../tools/check-cache-version.mjs';
 
 const source = fileURLToPath(new URL('../', import.meta.url));
 const redirect = await readFile(new URL('../tools/legacy-pages/redirect.js', import.meta.url), 'utf8');
@@ -38,7 +39,11 @@ test('the common Pages adapter preserves each selected source and refuses unsafe
     await copySite(source, devSource);
     const marker = '<!-- selected development recovery -->';
     await writeFile(join(devSource, 'index.html'), (await readFile(join(devSource, 'index.html'), 'utf8')) + marker);
-    await buildLegacyPages({ source, devSource, out });
+    await buildLegacyPages({ source, devSource, out, mainVersion: '0.1.2', devVersion: '1.2.3' });
+    await assertPublicVersion(out, '0.1.2', 'recovery.html');
+    await assertPublicVersion(join(out, 'dev'), '1.2.3', 'recovery.html');
+    assert.equal((await readBuildStamp(out)).branch, 'main');
+    assert.equal((await readBuildStamp(join(out, 'dev'))).branch, 'dev');
     assert.ok(!(await readFile(join(out, 'recovery.html'), 'utf8')).includes(marker));
     assert.ok((await readFile(join(out, 'dev/recovery.html'), 'utf8')).includes(marker));
     assert.equal(await readFile(join(out, 'dev/sw.js'), 'utf8'), worker);

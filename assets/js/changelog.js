@@ -3,9 +3,9 @@
  *
  * Each entry carries the commit the release was merged as, which — unlike the
  * running build's own hash — is knowable and exact, because it is history.
- * `version` is the cache generation the service worker served for it, so a
- * reader can match what the About panel says they are running against the line
- * that describes it.
+ * `version` preserves historical cache labels. The public semantic version is
+ * allocated by shared CI and recorded in the build stamp, independently of this
+ * archived numbering.
  *
  * Both languages sit side by side rather than in `i18n.js`: a changelog grows
  * one entry per release and the two readings of an entry are written together,
@@ -15,7 +15,12 @@
 
 export const RELEASES = Object.freeze([
   {
-    version: 'v84', date: '2026-11-13',
+    version: 'v85', date: '2026-11-13',
+    en: 'Public version numbering restarts at 0.0.1, with the same release shown in the footer and About. CI supplies each deployed version while the previous release history and local data are preserved.',
+    fr: 'La numérotation publique repart à 0.0.1, avec la même version dans le pied de page et À propos. La CI fournit chaque version publiée, tandis que l’historique et les données locales sont conservés.',
+  },
+  {
+    version: 'v84', date: '2026-11-13', commit: '6550b8506d26679edfd72d037dd29623909697cf',
     en: 'Normal and offline reloads now accept the cached page when hosting redirects index.html to the app root. Projects, recovery copies and Google Drive sessions are preserved.',
     fr: 'Le rechargement normal ou hors ligne accepte désormais la page en cache lorsque l’hébergement redirige index.html vers la racine de l’application. Les projets, copies de secours et sessions Google Drive sont conservés.',
   },

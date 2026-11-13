@@ -3,8 +3,10 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, relative, isAbsolute, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { copySite, labelPreview } from './build-pages.mjs';
+import { stampSiteVersion } from './stamp-version.mjs';
+import { assertPublicVersion } from './check-cache-version.mjs';
 
-export async function buildLegacyPages({ source, devSource = source, out }) {
+export async function buildLegacyPages({ source, devSource = source, out, mainVersion, devVersion }) {
   const origin = resolve(source), development = resolve(devSource), target = resolve(out);
   for (const directory of [origin, development]) {
     const child = relative(directory, target);
@@ -24,6 +26,8 @@ export async function buildLegacyPages({ source, devSource = source, out }) {
     const scope = preview ? '/finapp/dev/' : '/finapp/';
     await copySite(preview ? development : origin, directory);
     if (preview) await labelPreview(directory);
+    const build = await stampSiteVersion({ source: preview ? development : origin, target: directory,
+      version: preview ? devVersion : mainVersion, branch: preview ? 'dev' : 'main' });
     await writeFile(join(directory, 'recovery.html'), await readFile(join(directory, 'index.html')));
     const page = template.replace('@@SCRIPT@@', `${scope}redirect.js`).replace('@@RECOVERY@@', `${scope}recovery.html`);
     await Promise.all([
@@ -32,6 +36,7 @@ export async function buildLegacyPages({ source, devSource = source, out }) {
       writeFile(join(directory, 'redirect.js'), redirect),
       writeFile(join(directory, 'sw.js'), worker),
     ]);
+    await assertPublicVersion(directory, build.version, 'recovery.html');
   }
   await writeFile(join(target, '.nojekyll'), '');
   return target;

@@ -5,11 +5,11 @@
  * JS are precached together on install and served together from that same
  * generation. Nothing is refreshed behind the app's back, so a reader never gets
  * a fresh page wired to stale scripts. A new version arrives as a whole — a new
- * worker installs its own cache and the app offers a Reload — which is why
- * CACHE_VERSION must be bumped whenever a precached file changes.
+ * worker installs its own cache and the app offers a Reload. The build combines the technical baseline below with its public version and
+ * a content fingerprint, so asset changes never depend on a manual counter bump.
  */
 
-const CACHE_VERSION = 'v84';
+const CACHE_VERSION = 'v85';
 // Scope-specific and outside the legacy finapp- prefix, so v66 cannot delete /dev/ caches.
 const CACHE_PREFIX = `finapp@${encodeURIComponent(new URL('./', self.location.href).pathname)}:`;
 const CACHE_NAME = `${CACHE_PREFIX}${CACHE_VERSION}`;
