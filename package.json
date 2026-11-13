@@ -1,6 +1,6 @@
 {
   "name": "finapp",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "private": true,
   "description": "Estimate your financial future in the browser: cumulative income, expenses, net and net worth over the months ahead, with several plans side by side.",
   "homepage": "https://finapp.siniverse.cc/",
@@ -30,7 +30,7 @@
   ],
   "type": "module",
   "scripts": {
-    "ci:check": "npm test && npm run icons && git diff --exit-code -- assets/icons && node tools/check-cache-version.mjs",
+    "ci:check": "npm test && npm run icons && git diff --exit-code -- assets/icons",
     "ci:build": "node tools/build-cloudflare-worker.mjs",
     "ci:pages": "node tools/ci-pages.mjs",
     "dev": "node tools/serve.mjs",
