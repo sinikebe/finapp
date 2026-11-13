@@ -35,8 +35,12 @@ export function assertCacheVersion(directory = root) {
 export function assertWorkersRevision({ workersCI = process.env.WORKERS_CI,
   branch = process.env.WORKERS_CI_BRANCH, revision = process.env.WORKERS_CI_COMMIT_SHA } = {}, directory = root) {
   if (!workersCI) return;
-  if (branch !== 'main' || revision !== git(directory, 'rev-parse', 'HEAD')) {
-    throw new Error('Workers Builds may publish only the current main revision.');
+  if (branch !== 'main') {
+    throw new Error(`Workers Builds may publish only the current main revision: branch=${JSON.stringify(branch ?? null)} (expected "main").`);
+  }
+  const checkoutRevision = git(directory, 'rev-parse', 'HEAD');
+  if (revision !== checkoutRevision) {
+    throw new Error(`Workers Builds may publish only the current main revision: Cloudflare commit=${JSON.stringify(revision ?? null)}, checkout commit=${checkoutRevision}.`);
   }
 }
 
