@@ -6,16 +6,17 @@ Work on `dev` or a topic branch; publishing the default branch is a separate ste
 
 ## Run it
 
-Node 22.12 or later for pinned Workers tooling; no application runtime dependencies.
+CI pins Node 24.22.2, npm 11.19.1 and Wrangler 4.161.0. Compatible Node 24 hosts
+can run the checks; the application has no runtime dependencies.
 
 ```sh
 npm ci             # install the pinned Wrangler development dependency
 npm start          # http://127.0.0.1:4173
 npm run dev        # same development server; also used by preview tooling
 npm test           # all Node tests, including review regressions and storage failures
-npm run build:cloudflare # tested production or Preview assets for CI
-npm run deploy:cloudflare # guarded main-only production deployment
-npm run preview:cloudflare # guarded non-main Worker Preview deployment
+npm run ci:check    # tests, reproducible icons and the release-wide PWA cache check
+npm run ci:build    # static dist/ for the shared pipeline; no publication
+npm run ci:pages    # legacy artifact using the three shared Pages source/output variables
 npm run icons      # regenerate the icon set
 npm run stamp      # update the version stamp after changing the cache version
 ```
@@ -95,7 +96,8 @@ tools/build-legacy-pages.mjs legacy Pages redirects and local recovery applicati
 tools/legacy-pages/          redirect HTML/script and scope-limited retirement worker
 tools/build-cloudflare.mjs   allowlisted standalone production or dev artifact
 tools/build-cloudflare-worker.mjs  production/Preview bundle and checkout metadata
-tools/check-cloudflare-publish.mjs branch, SHA, artifact and Wrangler publication guards
+tools/check-cache-version.mjs release-wide PWA cache guard used by ci:check
+tools/ci-pages.mjs           shared Pages source/output adapter for legacy recovery
 wrangler.jsonc               static Workers asset configuration
 package-lock.json            pinned deployment-tool dependency graph
 test/                       Node tests
@@ -240,10 +242,10 @@ Drive quotas fail. The reader-facing guide is [Google Drive backups](docs/google
 
 ## Legacy GitHub Pages publication
 
-The `Pages` workflow publishes a compatibility artifact after successful push CI
-on `main`, or when run manually. It checks out the latest tested `main` revision;
-it no longer requires a `dev` branch or publishes a second full application at
-the old entry points. Fork PR workflows cannot trigger publication.
+Finapp and Garapp use the same `Pages` caller and central orchestration. Successful
+push CI on `main` or `dev`, or a manual request, selects both current heads only
+after their CI passes. The app's `ci:pages` adapter receives distinct source
+directories and a new external output path. Fork PR workflows cannot publish.
 
 Both `https://sinikebe.github.io/finapp/` and its `/dev/` entry point redirect to
 `https://finapp.siniverse.cc/`. Shared-plan fragments are retained; unrelated
@@ -285,22 +287,25 @@ copy/preview helpers for Workers and archived bundles.
 
 ## Separate application hosts
 
-Finapp uses GitHub-hosted Actions runners with the existing
-`siniverse-finapp-site` Worker. A push to `main` publishes production; a push to
-`dev` publishes the stable Worker Preview. Pull requests, including forks, and
-default manual workflow runs validate without Cloudflare secrets or publication.
-An explicit manual `deploy` request on `main` or `dev` uses the same publisher.
+Finapp uses the same immutable `CI` caller as the other Siniverse apps, pointing
+to one reusable implementation in `sinikebe/siniverse`. It uses `ubuntu-24.04`,
+Node 24.22.2, npm 11.19.1 and Wrangler 4.161.0. The existing static Worker is
+`siniverse-finapp-site`: a push to `main` publishes production and a push to
+`dev` publishes the stable Preview. PRs, including forks, and default manual
+runs validate without Cloudflare secrets. Explicit manual publication is limited
+to current `main` or `dev` through the same shared guards.
 Follow [Production and Worker Previews](docs/cloudflare-previews.md) for current
 activation, repository secret names, domains and Google origins. The workflow
-uses `npm ci`, `npm run build:cloudflare`, guarded production/Preview scripts and
-Node 22. Keep Cloudflare Workers Builds triggers disabled to avoid two publishers.
-The build tests the site, checks icons and refuses a precached
-asset change without a cache version bump; `wrangler.jsonc` publishes `dist/`.
-Publication is explicitly skipped when the repository Actions secrets are absent.
-After setting them, open Actions → Cloudflare Workers → Run workflow, select
-`main` or `dev`, and check the publication input. Leaving it unchecked validates
-only. Pages redirects retain their independent workflow and are not
-part of the Workers artifact.
+uses `npm ci`, then the app's `ci:check` and `ci:build` adapters. Keep old Workers
+Builds automation disabled. The check retains release-wide cache generation,
+business/storage tests and icon reproducibility. The adapter emits `dist/` from
+the common environment; only the shared controller writes `deployment.json` and
+publishes/probes that same artifact. No local publish controller is kept.
+Use ordinary PR/merge runs for validation. If manual publication is needed, open
+Actions → CI → Run workflow, select `main` or `dev`, and check `deploy`.
+Pages redirects use their shared, separate orchestration and are not part of the
+Workers artifact. Domains stay dashboard-managed; `workers.dev` and its Preview
+URLs remain disabled in Wrangler.
 
 The standalone builder remains available for non-published `main` and `dev`
 bundles using a new output directory outside the checkout:
