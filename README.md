@@ -236,23 +236,26 @@ the name **Finapp**. Both language variants use the corresponding name.
 
 ## Development
 
-Use Node 22.12 or later for pinned deployment tooling:
+CI uses Node 24.22.2 (`.node-version`), npm 11.19.1 and pinned Wrangler 4.161.0.
+Compatible Node 24 hosts can run the same app checks:
 
 ```sh
 npm ci
 npm start
 npm test
+npm run ci:check
+npm run ci:build
 ```
 
 The application has no runtime dependencies. The development dependency is a pinned
 Wrangler for production and [Worker Previews](docs/cloudflare-previews.md). See [CONTRIBUTING.md](CONTRIBUTING.md)
 for the module map, release steps, storage contract and validation workflow.
-GitHub-hosted Actions publishes production on a push to `main` and the stable
-`dev` Preview on a push to `dev`, after validation. PRs and default manual runs
-validate without Cloudflare credentials or publication; the manual `deploy`
-checkbox can publish the current `main` or `dev`. The deployment guide
-lists the two repository secret names and the remaining setup steps; old
-Cloudflare Workers Builds triggers stay disabled.
+The same pinned `CI` caller as the other Siniverse apps delegates validation and
+publication to the shared implementation in `sinikebe/siniverse`. A push to
+`main` publishes production and a push to `dev` publishes the stable Preview.
+PRs and default manual runs validate without Cloudflare credentials; an explicit
+manual `deploy` request can publish current `main` or `dev`. The guide describes
+the two app adapters and existing domains. Old Workers Builds triggers stay disabled.
 The design system is documented in [docs/design-system.md](docs/design-system.md).
 The [review correction log](docs/review-fixes.md) maps the reviewed defects to
 their fixes, checks and migration limits.
