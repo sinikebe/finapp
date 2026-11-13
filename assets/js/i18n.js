@@ -292,7 +292,7 @@ const STRINGS = {
     // Said plainly rather than left to be discovered: with no build step
     // there is nothing at deploy time to stamp a commit in, and a commit
     // cannot carry its own hash. Each release's own commit is beside it below.
-    'about.note': 'The app is served as static files with no build step, so this names the commit the build sits on top of rather than its own. Each release below carries the commit it was merged as.',
+    'about.note': 'Version and source of this copy. Older entries retain their original numbering.',
     'about.changes': 'What changed',
     'about.reset': 'Start again',
     'about.resetNote': 'Replaces your scenarios with the three the app opens with. Your language and theme are left alone.',
@@ -1133,7 +1133,7 @@ const STRINGS = {
     'about.branch': 'Branche',
     'about.commit': 'Construit depuis',
     'about.date': 'Date',
-    'about.note': 'L’application est servie en fichiers statiques, sans étape de construction : ce commit est celui sur lequel la version repose, et non le sien. Chaque version ci-dessous porte le commit avec lequel elle a été fusionnée.',
+    'about.note': 'Version et origine de cette copie. Les anciennes entrées conservent leur numérotation d’origine.',
     'about.changes': 'Ce qui a changé',
     'about.reset': 'Recommencer',
     'about.resetNote': 'Remplace vos scénarios par les trois scénarios d’origine. Votre langue et votre thème ne changent pas.',
