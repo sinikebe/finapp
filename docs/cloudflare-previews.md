@@ -1,170 +1,120 @@
-# Production and Worker Previews
+# Production and the shared Siniverse pipeline
 
-Finapp uses one static Worker, `siniverse-finapp-site`. GitHub Actions publishes
-production after a push to `main` and the stable `dev` Preview after a push to
-`dev`. Pull requests and default manual runs validate without publishing. An
-explicit manual deployment request can publish the current `main` or `dev`.
-No session API, secret, database or production data binding is added to Previews.
-The `previews` block is intentionally empty: assets and the compatibility date
-belong at the top level, and the generated browser bundle carries its dev identity.
+Finapp uses the existing static Worker `siniverse-finapp-site`:
 
-Use Node 22.12 or later and `npm ci`. Wrangler is pinned to **4.161.0** in the
-project and lockfile; Worker Previews requires at least 4.135.0. A newer global
-installation does not replace the project dependency.
-
-## GitHub Actions publication
-
-The `Cloudflare Workers` workflow uses standard `ubuntu-latest` GitHub-hosted
-runners, Node 22 and `npm ci`. Actions and Wrangler are pinned. Its `validate`
-job runs tests, icon reproducibility, checkout/asset checks and a Wrangler dry
-run without Cloudflare credentials. The separate publisher has read-only
-repository permissions and receives Cloudflare secrets only in its credential
-check and publication step. Build/install steps do not receive those secrets.
-
-| Event | Validation | Publication |
+| Branch | Publication | Address |
 | --- | --- | --- |
-| Push to `main` | Exact pushed revision | Production using `npm run deploy:cloudflare` |
-| Push to `dev` | Exact pushed revision | Preview `dev` using `npm run preview:cloudflare -- --name dev` |
-| Pull request targeting `main` or `dev`, including forks | Merge revision, without secrets | None |
-| `workflow_dispatch`, `deploy` left unchecked | Selected revision, without secrets | None |
-| `workflow_dispatch`, `deploy` checked on `main` or `dev` | Exact selected revision | Same guarded publisher as the corresponding push |
+| `main` | Production | <https://finapp.siniverse.cc/> |
+| `dev` | Preview named `dev` on the same Worker | <https://dev.finapp.siniverse.cc/> |
 
-No pull request code is run through `pull_request_target`. PR Previews are
-intentionally not automated, so closing a PR needs no Cloudflare cleanup.
-Publication jobs are serialized per target and check that the push still matches
-the current remote branch before publishing; a superseded run is skipped. After
-publishing, the workflow checks the public `deployment.json` against the exact
-expected branch, environment and SHA, allowing time for propagation.
+## One CI implementation
 
-Disable the old Cloudflare Workers Builds production and Preview triggers when
-switching publishers, even if GitHub credentials are not ready yet. Keep the
-Worker, Preview `dev`, domains, routes, assets and Preview base configuration.
-Do not reconnect Git or leave two automatic deployment paths active. Existing
-deployments remain online while a missing credential prevents a new publication.
+`.github/workflows/ci.yml` is the same caller used by all four Siniverse apps.
+It references an immutable revision of the reusable workflow in
+[`sinikebe/siniverse`](https://github.com/sinikebe/siniverse). Its `uses` SHA and
+`automation_ref` must remain identical. Update callers together after reviewing
+the shared implementation; do not add another local deployment controller.
 
-In **GitHub → Settings → Secrets and variables → Actions**, set these repository
-secrets through the secure UI or another approved secret-management path:
+The common job uses `ubuntu-24.04`, Node **24.22.2**, npm **11.19.1** and Wrangler
+**4.161.0**. `.node-version` and `packageManager` record those local tool versions;
+`engines.node` permits compatible Node 24 hosts. It installs through `npm ci`,
+checks and builds the selected revision, performs a Wrangler dry run, then uses
+that same `dist/` for any authorized publication and public metadata probe.
+No persistent Actions cache or uploaded Workers artifact is needed.
 
-| Secret | Purpose |
+Pushes to `main` publish production; pushes to `dev` publish Preview `dev`.
+Pull requests, including forks, validate without Cloudflare credentials. Default
+manual runs also validate only. An explicit `deploy` request on current `main`
+or `dev` uses the same branch, SHA, account and remote-head guards as a push.
+No PR code is executed through `pull_request_target` and PR Previews are not
+created automatically.
+
+The caller maps only `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` explicitly;
+it does not inherit all secrets. The shared controller owns repository/account/
+Worker/URL authorization, credential availability, publication and verification.
+Secrets are passed only to publication, never to PR checks or app build scripts.
+Keep the previous Workers Builds production and Preview automation disabled.
+Do not reconnect Git or enable a second automatic publisher.
+
+Repository Actions secrets are configured through the secure GitHub settings UI,
+never source, issues, logs or chat. If setup needs validation without a new
+commit, open **Actions → CI → Run workflow**, select `main` or `dev`, and enable
+the `deploy` input only when publication is intended. Ordinary PR/merge runs are
+the normal validation path; avoid redundant manual runs.
+
+## Finapp's two adapters
+
+| Command | App-specific work |
 | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | Account-owned token with Editor access to the existing Finapp Worker, scoped as narrowly as supported |
-| `CLOUDFLARE_ACCOUNT_ID` | Existing Worker account; the workflow rejects a different account |
+| `npm run ci:check` | Business/storage/Drive tests, reproducible icons, and the release-wide PWA cache check |
+| `npm run ci:build` | Allowlisted static assets in a new `dist/`, with the requested application identity |
+| `npm run ci:pages` | Existing legacy redirect/recovery artifact from the selected main and dev checkouts |
 
-Never paste token values in source, issues, logs or chat. No new Worker or
-subscription is needed. Because this workflow does not manage domains or
-provision resources, do not add DNS, zone-route or other product permissions just
-for this migration. Use the current [Workers authorization guide](https://developers.cloudflare.com/workers/authorization/)
-to configure access for the existing Worker and its Previews.
+The build consumes `SINIVERSE_BRANCH` (packaging branch `main`/`dev`),
+`SINIVERSE_SHA` (the exact checked-out commit) and `SINIVERSE_ENVIRONMENT`
+(`production`, `preview` or `test`). The packaging branch selects the existing
+`main` or isolated `dev` application identity, including for a PR targeting that
+branch. `test` identifies validation without publication; it does not replace the
+packaging branch with another variant. PR checks receive no credentials.
+Standalone local builds infer the current branch and do not publish anything.
 
-With either secret absent, a push validates and the publisher explicitly reports
-**No Cloudflare deployment** in the run summary; an explicit manual deployment
-fails clearly. Once both secrets are set, open **GitHub → Actions → Cloudflare
-Workers → Run workflow**, select **Branch: main**, check **Publish this validated
-main/dev revision to the existing Cloudflare Worker**, then choose **Run
-workflow**. Repeat with **Branch: dev** for the stable Preview. No empty commit
-is needed. Leave that checkbox unchecked for validation alone. A request on any
-other branch validates only and cannot publish. The branch must still point to
-the selected SHA before publication; a changed manual request fails and must be
-launched again.
-GitHub Actions must be enabled and allowed to use the pinned checkout/setup-node
-actions. No repository write token, PAT, runner registration or paid service is
-required. Keep normal required checks/branch review before merging.
+The common controller alone creates `dist/deployment.json`, using its shared
+schema and toolchain/artifact metadata. The Finapp adapter does not write a
+competing manifest or embed secrets in the browser configuration.
 
-Publish scripts validate the artifact's branch, checkout SHA and environment
-before invoking `npx wrangler deploy` or `npx wrangler preview`. Only `main` can
-pass the production guard; `main` cannot use the Preview command. The workflow
-supplies `WORKERS_CI_BRANCH` and `WORKERS_CI_COMMIT_SHA`, matching the checkout.
-The public `deployment.json` records that identity. Stale, wrong-branch and
-production/preview-mismatched artifacts are refused. The publication script also
-checks GitHub's event, repository, branch, SHA and explicit manual `deploy` input;
-a PR or default manual run cannot publish by invoking that script. Cache, test
-and icon checks run for both builds.
+The cache check uses the PR base for a PR, and the release merge-base with `main`
+for a development branch, preserving the rule that the cache bump and asset edit
+may be separate commits on one branch. On `main`, it uses the common
+`SINIVERSE_BASE_SHA` (push-before SHA or tested parent). A change to a precached
+file still requires a `CACHE_VERSION` bump, bilingual changelog and stamp.
+Infrastructure-only changes do not change the application PWA generation.
 
-Wrangler 4.161.0 reads the branch from `WORKERS_CI_BRANCH`, including a detached
-CI checkout. Publication also explicitly passes `--name dev` for the stable
-Preview. The Preview command does not deploy production or use `versions upload`.
+## Domains
 
-## Stable custom address
+Domains remain managed in the dashboard. `routes` is deliberately omitted so
+Wrangler does not replace manually managed domains with a partial source list.
+The parent `finapp.siniverse.cc` serves **Production and Preview**, giving the
+Preview named `dev` its short stable address. `workers_dev` and `preview_urls`
+are explicitly `false`; this pipeline does not reactivate `workers.dev` URLs.
 
-Domains remain managed in the Cloudflare dashboard. `routes` is deliberately
-omitted so deployment does not replace manually managed domains.
-In pinned Wrangler 4.161.0, the standard deploy path does not invoke Custom Domain
-replacement when it has no Custom Domains to publish. Do not add a partial
-declarative domain list: publishing it can remove other manually configured
-domains on the same Worker.
+The former Preview-only base `dev.finapp.siniverse.cc` reserved the same short
+hostname and produced HTTP 522 while both bases coexisted. It was detached after
+inventorying the existing domains and Previews. Do not re-add that conflicting
+base or remove another app's domains. Domain, certificate and account changes
+are outside the app adapter; no paid option or new service is needed here.
 
-In the existing Worker's **Domains → Custom Domains and Routes**, edit
-`finapp.siniverse.cc` and enable **Production and Preview**. A Preview named
-`dev` then uses `https://dev.finapp.siniverse.cc/`; other names get sibling
-subdomains. `workers_dev: true` and `preview_urls: true` keep `workers.dev` URLs
-available as a fallback.
+## Browser data, Google Drive and legacy Pages
 
-The initial account configuration also had a separate Preview-only base domain
-`dev.finapp.siniverse.cc`, producing URLs such as `dev.dev.finapp.siniverse.cc`.
-That exact base hostname reserves the address needed by the parent's Preview
-named `dev`: keeping both bases produced HTTP 522 on `dev.finapp.siniverse.cc`
-even after the parent had Preview traffic enabled. Its wildcard must not be
-treated as a compatible second base for the requested short address.
+Preview bundles retain **Finapp dev**, preview-prefixed browser storage and the
+existing development Drive namespace. Production retains its original browser
+origin, unprefixed keys, backup namespace and separate session API. No production
+session bindings or credentials are added to the static Worker or Preview.
+Browser origins isolate local projects and PWA caches.
 
-Before activating the short address, inventory the existing domains and Previews
-and save their configuration. Detach only the obsolete Preview-only
-`dev.finapp.siniverse.cc` base after confirming which Preview URLs it serves.
-Keep `finapp.siniverse.cc` enabled for Production and Preview and preserve all
-other apps' domains. On initial activation, `dev` was the only Finapp Preview;
-no additional build or paid certificate option was needed. The generated dev
-identity still accepts the former deeper hostnames, but they are not the stable
-address to share.
+The production session client accepts only `https://finapp.siniverse.cc`.
+The dev host uses the existing Google Identity Services popup token flow with
+temporary tokens in memory. For optional Drive access there, add
+`https://dev.finapp.siniverse.cc` to **Authorized JavaScript origins** of preview
+Web client `186397627683-4bclnsk16qu9vr8fio5e8vi28lnrj9oj.apps.googleusercontent.com`.
+No new server OAuth callback is needed. Local editing and JSON export/restore
+remain available without Google. The app launcher keeps its existing Garapp
+production destination.
 
-Cloudflare provisions wildcard DNS and a certificate for Preview hostnames.
-Check existing subdomain conflicts and wait for DNS/certificate activation;
-prepared code does not mean the address is live. Do not activate paid
-certificate options or another subscription as part of this setup.
-Preview URLs are public unless access controls are separately configured.
+Only preview/test bundles add `X-Robots-Tag: noindex, nofollow`; production does
+not receive that header. Preview addresses are public unless separately protected.
 
-The permanent `dev` branch and stable Preview already exist. Advance that branch
-only through the reviewed repository workflow; never overwrite unrelated work.
-Keep the old GitHub Pages `/dev/` redirect pointing to production; the separate
-Pages retirement artifact retains local recovery and its own publication path.
+Finapp and Garapp have identical `Pages` callers for the shared Pages workflow.
+Successful same-repository push `CI` on `main` or `dev` triggers it; it requires
+successful CI for both current heads before checking out those exact sources.
+`ci:pages` receives `SINIVERSE_PAGES_MAIN_SOURCE`, `SINIVERSE_PAGES_DEV_SOURCE`
+and `SINIVERSE_PAGES_OUT`; the output must not exist or be inside a source tree.
+It retains the existing redirect and retirement scripts, and each branch's
+recovery application at its original base.
 
-## Browser data and Google Drive
-
-Every Preview bundle has `environment: dev`, the **Finapp dev** name,
-preview-prefixed local storage and the existing development-only Drive namespace.
-Browser origins isolate each host's projects and PWA cache; production retains
-its original identity. Drive copies stay separate from production. Branch
-Previews share the development Drive namespace only when a user explicitly
-connects that client and chooses a backup.
-
-The production session client accepts only the exact origin
-`https://finapp.siniverse.cc`. It is not enabled on `dev.finapp.siniverse.cc`,
-other Preview hosts or `workers.dev`; no production CORS/cookie policy is widened.
-Previews use the existing Google Identity Services popup token flow. Temporary
-tokens stay in memory, and reopening a tab requires another connection click.
-
-For Drive on the stable dev host, add `https://dev.finapp.siniverse.cc` to
-**Authorized JavaScript origins** on the existing preview Web client
-`186397627683-4bclnsk16qu9vr8fio5e8vi28lnrj9oj.apps.googleusercontent.com`.
-This token flow needs no new server OAuth callback. Other Preview hosts need
-their own explicitly authorized JavaScript origins if Drive is desired there.
-Local editing and JSON export/restore continue without Google. Never add
-production refresh credentials to this static application or a Preview.
-
-Only Preview assets include `X-Robots-Tag: noindex, nofollow` via `_headers`.
-Production does not receive this header. The launcher links to working Garapp
-production while no Garapp dev hostname has been confirmed active.
-
-## Verification without publication
-
-`npm test` checks production/dev/feature identities, revision and GitHub event
-guards, command separation, Drive isolation and preview-only headers. GitHub
-installs the pinned tool and runs `npx wrangler deploy --dry-run` on the tested,
-non-published bundle.
-`wrangler preview` has no dry-run flag in 4.161.0: inspect its `--help` and test
-the guards instead of creating an actual Preview during preparation.
-
-- [Get started and minimum version](https://developers.cloudflare.com/workers/previews/get-started/)
-- [Preview configuration](https://developers.cloudflare.com/workers/previews/configuration/)
-- [Custom domains](https://developers.cloudflare.com/workers/previews/custom-domains/)
-- [GitHub Actions authentication](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)
-- [Wrangler commands](https://developers.cloudflare.com/workers/wrangler/commands/workers/)
-- [Google JavaScript origins](https://developers.google.com/identity/oauth2/web/guides/get-google-api-clientid)
+Pages uses the same Node/npm/runner versions, only the existing GitHub token and
+Pages OIDC permissions, and one artifact named for the run/attempt with one-day
+retention. A bounded API check requires one unexpired matching artifact and
+unchanged source heads immediately before deployment. No Cloudflare secret is
+passed. `/finapp/` and `/finapp/dev/` still redirect to production; recovery stays
+on the old origin for JSON exports. No localStorage, IndexedDB, cache or Drive
+data is deleted or transferred by this CI change.
