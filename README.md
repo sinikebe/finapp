@@ -236,14 +236,16 @@ the name **Finapp**. Both language variants use the corresponding name.
 
 ## Development
 
-Node 20 or later is enough:
+Use Node 22.12 or later for pinned deployment tooling:
 
 ```sh
+npm ci
 npm start
 npm test
 ```
 
-There is no build or dependency installation. See [CONTRIBUTING.md](CONTRIBUTING.md)
+The application has no runtime dependencies. The development dependency is a pinned
+Wrangler for production and [Worker Previews](docs/cloudflare-previews.md). See [CONTRIBUTING.md](CONTRIBUTING.md)
 for the module map, release steps, storage contract and validation workflow.
 The design system is documented in [docs/design-system.md](docs/design-system.md).
 The [review correction log](docs/review-fixes.md) maps the reviewed defects to

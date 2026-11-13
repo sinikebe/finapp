@@ -33,9 +33,16 @@ async function retargetSuiteLinks(directory, suite, branch) {
   await writeFile(page, html);
 }
 
-export async function buildCloudflare({ source, out, branch, domain }) {
+export async function buildCloudflare({ source, out, branch, domain, previewGarappOrigin }) {
   if (!['main', 'dev'].includes(branch)) throw new Error('Cloudflare builds only the main or dev branch.');
   const suite = suiteDomains(domain);
+  if (branch === 'dev' && previewGarappOrigin) {
+    const companion = new URL(previewGarappOrigin);
+    if (companion.href !== suite.garapp && companion.href !== suite.devGarapp) {
+      throw new Error('Use a known Garapp production or development origin.');
+    }
+    suite.devGarapp = companion.href;
+  }
   const origin = resolve(source), target = resolve(out);
   const child = relative(origin, target);
   if (!child || (!child.startsWith('..') && !isAbsolute(child))) throw new Error('Output must be outside the source tree.');
