@@ -19,9 +19,11 @@ and the legacy Pages redirect/recovery behavior.
 
 - Use `feat:` for a feature, `fix:` for a correction, and
   `!` / `BREAKING CHANGE` for breaking changes.
-- The shared CI classifies these titles. Other merges default to patch.
-  At most one `semver:major`, `semver:minor` or
-  `semver:patch` label may override classification.
+- Titles describe the change but do not select its version increment.
+  Each integration on dev increments patch once; a merge counts once without
+  recounting its feature branch commits. Each dev-to-main promotion increments
+  the previous production minor once and resets patch to zero. `semver:*` labels
+  do not override this rule. Retries reuse the existing exact commit version.
 - Actual versions belong to shared CI and its immutable annotated per-channel
   tags `siniverse-version/main/vX.Y.Z` and `siniverse-version/dev/vX.Y.Z`.
   package.json/package-lock 0.0.1 is only the local fallback.

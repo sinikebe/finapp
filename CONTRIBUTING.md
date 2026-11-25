@@ -186,18 +186,21 @@ worker installation, updates and offline loading.
 
 The shared CI allocates the actual public version from immutable annotated tags
 `siniverse-version/main/vX.Y.Z` and
-`siniverse-version/dev/vX.Y.Z`. Dev starts at 0.0.1. The first main release
-reuses the version actually tested and approved on dev, including a later
-patch if a correction was tested before the first production promotion.
+`siniverse-version/dev/vX.Y.Z`. Dev starts at 0.0.1 and increments patch for
+each integration on its first-parent history. A merge counts once without
+recounting its feature branch ancestors. Each approved dev-to-main promotion
+increments the prior production minor once and resets patch to zero; the first
+production release is 0.1.0. The exact tested dev source remains recorded.
 Package/lock 0.0.1 is the local fallback, not a declaration of the deployed release.
 Never create a competing app-specific bump workflow or edit version tags.
 
 Use Conventional Commit-style PR titles: `feat:` for a feature,
 `fix:` for a fix, and `!` or `BREAKING CHANGE` for a breaking change.
-Default merges increment patch; features increment minor; breaking changes
-increment major. Exactly one `semver:major`, `semver:minor` or
-`semver:patch` label can override classification. Idempotent reruns and
-promotion between main/dev are handled centrally.
+These titles describe the change, without choosing its increment. `semver:*`
+labels do not override the channel policy. Idempotent reruns reuse the exact
+version already assigned. Existing immutable tags are preserved; a newer
+production version becomes the baseline for later dev patches, without reducing
+a historical dev version. All assignment and promotion checks remain central.
 
 1. Add new runtime modules to `PRECACHE`.
 2. Keep user-facing release notes in both languages and preserve the old cache-label archive.
